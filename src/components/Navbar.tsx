@@ -1,7 +1,6 @@
 "use client";
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
-import { Span } from "next/dist/trace";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
@@ -28,7 +27,7 @@ function Navbar() {
   return (
     <div className="w-full flex justify-between items-center h-16 px-6 bg-black text-white">
       <Link href="/">
-        <section>STRCO999™</section>
+        <section>RetroGarage™</section>
       </Link>
 
       <section>

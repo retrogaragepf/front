@@ -1,7 +1,11 @@
-import React from "react";
+import LoginForm from "@/src/components/loginform/LoginForm";
 
-function page() {
-  return <div>page</div>;
+function LoginPage() {
+  return (
+    <div className="w-full flex flex-1 items-center justify-center bg-white">
+      <LoginForm />
+    </div>
+  );
 }
 
-export default page;
+export default LoginPage;

@@ -1,9 +1,10 @@
 import React from 'react'
 
-function page() {
-  return (
-    <div>page</div>
-  )
+const RegisterPage = () => {
+ return (
+
+  <h1>Register</h1>
+ )
 }
 
-export default page
+export default RegisterPage;

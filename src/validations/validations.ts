@@ -1,4 +1,4 @@
-//¡¡import { IValidationResult } from "@/types/types";
+//import { IValidationResult } from "@/types/types";
 
 const validations = {
 

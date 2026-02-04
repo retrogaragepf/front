@@ -75,29 +75,13 @@ export default async function Page() {
                 historia
               </span>
               ,<br />
-              precios de garage.
+              precios de RetroGarage.
             </h1>
 
             <p className="text-base sm:text-lg max-w-xl text-zinc-800">
-              Curaduría de tesoros olvidados: desde maletas vintage hasta
-              cámaras analógicas que aún sueñan con revelar rollos.
+              Tesoros olvidados: desde maletas vintage hasta cámaras analógicas
+              que aún sueñan con revelar rollos.
             </p>
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <a
-                href="#featured"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-amber-50 px-6 py-3 font-semibold shadow-md border border-emerald-900/30 transition"
-              >
-                Explorar el garage <span aria-hidden>→</span>
-              </a>
-
-              <a
-                href="#featured"
-                className="inline-flex items-center justify-center rounded-xl bg-amber-100 hover:bg-amber-50 text-amber-900 px-6 py-3 font-semibold border border-amber-300 transition"
-              >
-                Ver destacados
-              </a>
-            </div>
           </div>
 
           <div className="flex-1 relative w-full max-w-md">

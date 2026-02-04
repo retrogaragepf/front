@@ -9,12 +9,14 @@ import "./globals.css";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
+// Fuente cursiva principal
 const dancingScript = Dancing_Script({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-dancing",
 });
 
+// Fuente cursiva elegante
 const greatVibes = Great_Vibes({
   subsets: ["latin"],
   weight: ["400"],
@@ -42,9 +44,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-amber-200 text-zinc-900`}
+        className={`${dancingScript.variable} ${greatVibes.variable} ${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-amber-200 text-zinc-900`}
       >
         <Navbar />
         <div className="flex-1 flex flex-col">{children}</div>

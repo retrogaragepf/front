@@ -28,6 +28,15 @@ export const mockProducts: IProduct[] = [
     image: "https://picsum.photos/seed/keyboard/600/600",
     categoryId: 3,
   },
+  {
+    id: 4,
+    name: "Lampara Mesa de Noche",
+    description: "Teclado estilo retro, ideal para setup vintage.",
+    price: 190000,
+    stock: 12,
+    image: "https://picsum.photos/seed/keyboard/600/600",
+    categoryId: 4,
+  },
 ];
 
 export const mockGetAllProducts = async (): Promise<IProduct[]> => {

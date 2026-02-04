@@ -3,6 +3,21 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { Dancing_Script, Great_Vibes } from 'next/font/google';
+
+// Fuente cursiva principal
+const dancingScript = Dancing_Script({ 
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-dancing',
+});
+
+// Fuente cursiva elegante
+const greatVibes = Great_Vibes({ 
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-vibes',
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,8 +42,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
+<<<<<<< HEAD
+        className={`${dancingScript.variable} ${greatVibes.variable}antialiased min-h-screen flex flex-col`}
+      > x
+=======
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-amber-200 text-zinc-900`}
       >
+>>>>>>> 6c56df2dfb7584489dd261a809c4a3a0828209ab
         <Navbar />
         <div className="flex-1 flex flex-col">{children}</div>
         <Footer />

@@ -7,7 +7,7 @@ function Footer() {
         <span className="text-sm text-gray-300 sm:text-center">
           Copyright © 2026{" "}
           <Link href="#" className="hover:underline font-medium">
-            STRCO999™
+            RetroGarage™
           </Link>
           . Todos los derechos reservados.
         </span>
@@ -29,7 +29,7 @@ function Footer() {
           </li>
           <li>
             <Link href="#" className="hover:underline">
-              Colombia.
+              Americas.
             </Link>
           </li>
         </ul>

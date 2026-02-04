@@ -42,8 +42,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${dancingScript.variable} ${greatVibes.variable} ${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-amber-200 text-zinc-900`}
+<<<<<<< HEAD
+        className={`${dancingScript.variable} ${greatVibes.variable}antialiased min-h-screen flex flex-col`}
+      > x
+=======
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-amber-200 text-zinc-900`}
       >
+>>>>>>> 6c56df2dfb7584489dd261a809c4a3a0828209ab
         <Navbar />
         <div className="flex-1 flex flex-col">{children}</div>
         <Footer />

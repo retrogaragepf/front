@@ -4,6 +4,21 @@ import { Playfair_Display, Caveat } from "next/font/google";
 import "./globals.css";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { Dancing_Script, Great_Vibes } from 'next/font/google';
+
+// Fuente cursiva principal
+const dancingScript = Dancing_Script({ 
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-dancing',
+});
+
+// Fuente cursiva elegante
+const greatVibes = Great_Vibes({ 
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-vibes',
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

@@ -1,17 +1,18 @@
 //import { IValidationResult } from "@/types/types";
 
 const validations = {
+
   // ----------Nombre y apellido (permite espacios y acentos)-------------
   name: (value: string) => {
-    const isValid = /^[A-Za-zÁÉÍÓÚáéíóúÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÑñ]+)*$/.test(
+    const isValid =  /^(?=(?:.*[A-Za-zÁÉÍÓÚÜáéíóúüÑñ]){5,})[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+$/.test(
       value
     );
     return {
       isValid,
-      errorMessaage: isValid ? "" : "Solo peude llevar letras , y espacios",
+      errorMessage: isValid ? "" : "Solo peude llevar letras , y espacios",
     };
   },
-  // -------------Email----------
+  // -------------EMAIL----------
   email: (value: string) => {
     const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     return {
@@ -20,7 +21,7 @@ const validations = {
     };
   },
 
-  // -----------Password -------------
+  // -----------PASSWORD -------------
   password: (value: string) => {
     const isValid =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?#&._\-+=^~()[\]{}|/\\:;"'<>,])[A-Za-z\d@$!%*?#&._\-+=^~()[\]{}|/\\:;"'<>,]{8,}$/.test(

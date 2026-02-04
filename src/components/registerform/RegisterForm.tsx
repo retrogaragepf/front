@@ -1,34 +1,68 @@
 'use client';
-
+import useFormField from '@/src/hooks/useFormField';
+import { useFormSubmit } from '@/src/hooks/useFormSubmit';
+import React from 'react';
 const RegisterForm = () => {
+  // ========== CAMPOS DEL FORMULARIO ==========
+  const nameField = useFormField('name');
+  const emailField = useFormField('email');
+  const passwordField = useFormField('password');
+
+  // ========== VALIDACIÓN ==========
+  const validateAll = () => {
+    const isNameValid = nameField.validate();
+    const isEmailValid = emailField.validate();
+    const isPasswordValid = passwordField.validate();
+    return isNameValid && isEmailValid && isPasswordValid;
+  };
+
+  // ========== OBTENER DATOS ==========
+  const getFormData = () => ({
+    name: nameField.value,
+    email: emailField.value,
+    password: passwordField.value,
+  });
+
+  // ========== SUBMIT ==========
+  const { handleSubmit, isSubmitting } = useFormSubmit({
+    onValidate: validateAll,
+    onGetData: getFormData,
+    onSuccess: () => {
+      console.log('✅ Registro exitoso');
+      // Aquí puedes redirigir o mostrar toast
+      nameField.reset();
+      emailField.reset();
+      passwordField.reset();
+    },
+    onError: (error) => {
+      console.error('❌ Error:', error);
+    },
+  });
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-gray-100 to-gray-200 py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
-       
         <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
           
+          {/* ========== CÍRCULOS DECORATIVOS ========== */}
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
-            
-            <div className="absolute bottom-0 right-0 w-64 h-64  bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
-            
-           
+            <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-800 rounded-full transform -translate-x-12 translate-y-24 opacity-70"></div>
-            
-            
             <div className="absolute bottom-8 left-1/4 w-32 h-32 bg-amber-200 rounded-full opacity-60"></div>
           </div>
 
           <div className="relative z-10">
-            {/* Encabezado */}
+            {/* ========== ENCABEZADO ========== */}
             <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold text-gray-800">
+              <h1 className="font-bold text-amber-800 font-boutique text-5xl">
                 ¡Bienvenido!
-              </h2>
-              <p className="text-sm text-gray-500">
-                Regístrate para guardar tus favoritos
+              </h1>
+              <p className="text-lg text-gray-500 font-elegant">
+                Regístrate para crear una cuenta
               </p>
             </div>
-            {/*--------------GOOGLE---------------- */}
+
+            {/* ========== GOOGLE BUTTON ========== */}
             <button
               type="button"
               className="w-full flex items-center justify-center gap-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors"
@@ -54,6 +88,7 @@ const RegisterForm = () => {
               <span>Registrarse con Google</span>
             </button>
 
+            {/* ========== DIVIDER ========== */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-200"></div>
@@ -63,53 +98,97 @@ const RegisterForm = () => {
               </div>
             </div>
 
-            {/* -------------------FORM ----------------------- */}
-            <form className="space-y-4">
+            {/* ========== FORMULARIO ========== */}
+            <form onSubmit={handleSubmit} className="space-y-4">
 
-              {/*-------------NOMBRE---------- */}
+              {/* ========== NOMBRE ========== */}
               <div>
-                <label htmlFor="fullName" className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider">
+                <label 
+                  htmlFor="fullName" 
+                  className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
+                >
                   Nombre completo
                 </label>
                 <input
                   id="fullName"
                   name="fullName"
                   type="text"
-                  className="w-full rounded-xl border-0 bg-gray-100 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-all"
+                  value={nameField.value}
+                  onChange={nameField.handleChange}
+                  onBlur={nameField.handleBlur}
+                  className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+                    nameField.error && nameField.touched
+                      ? 'bg-red-50 focus:ring-red-300'
+                      : 'bg-gray-100 focus:ring-gray-300'
+                  }`}
                   placeholder="Juan Pérez"
                 />
+                {nameField.touched && nameField.error && (
+                  <p className="mt-1.5 text-xs text-red-600 font-medium">
+                    {nameField.error}
+                  </p>
+                )}
               </div>
 
-              {/* ----------EMIL-----------------*/}
+              {/* ========== EMAIL ========== */}
               <div>
-                <label htmlFor="email" className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider">
+                <label 
+                  htmlFor="email" 
+                  className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
+                >
                   Correo electrónico
                 </label>
                 <input
                   id="email"
                   name="email"
                   type="email"
-                  className="w-full rounded-xl border-0 bg-gray-100 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-all"
+                  value={emailField.value}
+                  onChange={emailField.handleChange}
+                  onBlur={emailField.handleBlur}
+                  className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+                    emailField.error && emailField.touched
+                      ? 'bg-red-50 focus:ring-red-300'
+                      : 'bg-gray-100 focus:ring-gray-300'
+                  }`}
                   placeholder="juan@email.com"
                 />
+                {emailField.touched && emailField.error && (
+                  <p className="mt-1.5 text-xs text-red-600 font-medium">
+                    {emailField.error}
+                  </p>
+                )}
               </div>
 
-              {/* ----------------PASSWOPRD----------- */}
+              {/* ========== PASSWORD ========== */}
               <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label htmlFor="password" className="block text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Contraseña
-                  </label>
-                </div>
+                <label 
+                  htmlFor="password" 
+                  className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
+                >
+                  Contraseña
+                </label>
                 <input
                   id="password"
                   name="password"
                   type="password"
-                  className="w-full rounded-xl border-0 bg-gray-100 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-all"
+                  value={passwordField.value}
+                  onChange={passwordField.handleChange}
+                  onBlur={passwordField.handleBlur}
+                  className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+                    passwordField.error && passwordField.touched
+                      ? 'bg-red-50 focus:ring-red-300'
+                      : 'bg-gray-100 focus:ring-gray-300'
+                  }`}
                   placeholder="••••••••"
                 />
+                {passwordField.touched && passwordField.error && (
+                  <p className="mt-1.5 text-xs text-red-600 font-medium">
+                    {passwordField.error}
+                  </p>
+                )}
               </div>
 
+              {/* ========== CHECKBOX ========== */}
               <div className="flex items-center">
                 <input
                   id="remember"
@@ -122,23 +201,36 @@ const RegisterForm = () => {
                 </label>
               </div>
 
-              {/* ------------ENVIAR-------------- */}
+              {/* ========== BOTÓN SUBMIT ========== */}
               <button
                 type="submit"
-                className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
+                disabled={isSubmitting}
+                className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-                <span>Registrarse</span>
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Procesando...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                    <span>Registrarse</span>
+                  </>
+                )}
               </button>
             </form>
 
-            {/* ---------LINK A LOGIN--------- */}
+            {/* ========== LINK A LOGIN ========== */}
             <p className="text-center text-sm text-gray-500 pt-4">
-              ¿Nuevo en el barrio?{' '}
-              <a href="/registro" className="font-semibold text-gray-700 hover:text-gray-900 transition-colors">
-                Crea una cuenta
+              ¿Ya tienes cuenta?{' '}
+              <a href="/login" className="font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+                Inicia sesión
               </a>
             </p>
           </div>
@@ -146,6 +238,6 @@ const RegisterForm = () => {
       </div>
     </div>
   );
-}
+};
 
 export default RegisterForm;

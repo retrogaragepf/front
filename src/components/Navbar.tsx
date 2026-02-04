@@ -10,6 +10,7 @@ function Navbar() {
   const router = useRouter();
 
   const { cartItems } = useCart();
+  const itemsCart = cartItems.length;
 
   const handleLogout = () => {
     logout();
@@ -25,41 +26,73 @@ function Navbar() {
   };
 
   return (
-    <div className="w-full flex justify-between items-center h-16 px-6 bg-black text-white">
-      <Link href="/">
-        <section>RetroGarage™</section>
+    <header className="w-full h-16 px-6 flex items-center justify-between bg-amber-800 text-amber-50 border-b border-amber-700">
+      <Link href="/" className="font-semibold tracking-wide">
+        RetroGarage™
       </Link>
 
-      <section>
-        <nav>
-          <ul className="flex gap-7 text-sm sm:text-base">
-            <Link href="/">Home</Link>
+      <nav>
+        <ul className="flex items-center gap-6 text-sm sm:text-base">
+          <li>
+            <Link href="/" className="hover:underline underline-offset-4">
+              Home
+            </Link>
+          </li>
 
-            {dataUser && <Link href="/dashboard">Dashboard</Link>}
+          {dataUser && (
+            <li>
+              <Link
+                href="/dashboard"
+                className="hover:underline underline-offset-4"
+              >
+                Dashboard
+              </Link>
+            </li>
+          )}
 
-            <Link href="/cart">Cart</Link>
+          <li>
+            <Link
+              href="/cart"
+              className="flex items-center gap-2 hover:underline underline-offset-4"
+            >
+              Cart
+              {itemsCart > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-800 text-amber-50">
+                  {itemsCart}
+                </span>
+              )}
+            </Link>
+          </li>
 
-            {dataUser ? (
-              <div className="flex gap-4">
-                <p>{dataUser.user.name}</p>
-                <button
-                  className="cursor-pointer hover:underline text-red-600 "
-                  onClick={handleLogout}
-                >
-                  {" "}
-                  Logout{" "}
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-4">
-                <Link href="/login">Login</Link>
-                <Link href="/register">Register</Link>
-              </div>
-            )}
-          </ul>
-        </nav>
-      </section>
-    </div>
+          {dataUser ? (
+            <li className="flex items-center gap-4">
+              <p className="max-w-30 truncate">{dataUser.user.name}</p>
+              <button
+                className="cursor-pointer text-amber-50 hover:text-red-200 hover:underline underline-offset-4"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </li>
+          ) : (
+            <li className="flex items-center gap-4">
+              <Link
+                href="/login"
+                className="hover:underline underline-offset-4"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                className="px-3 py-1 rounded-md bg-emerald-800 text-amber-50 hover:bg-emerald-900"
+              >
+                Register
+              </Link>
+            </li>
+          )}
+        </ul>
+      </nav>
+    </header>
   );
 }
 

@@ -16,14 +16,15 @@ const RegisterForm = () => {
           <div className="relative z-10">
             {/* Encabezado */}
             <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold text-gray-800">¡Hola de Nuevo!</h2>
+              <h2 className="text-3xl font-bold text-gray-800">
+                ¡Hola de Nuevo!
+              </h2>
               <p className="text-sm text-gray-500">
                 Inicia sesión para acceder a tu cuenta
               </p>
             </div>
             {/* -------------------FORM ----------------------- */}
             <form className="space-y-4 mt-6">
-             
               {/* ----------EMIL-----------------*/}
               <div>
                 <label

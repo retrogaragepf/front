@@ -23,14 +23,14 @@ export default function AboutUsPage() {
 
           <Link
             href="/"
-            className="inline-flex items-center justify-center rounded-xl bg-black px-5 py-3 text-white text-sm font-semibold hover:opacity-90"
+            className="inline-flex items-center justify-center rounded-xl bg-white/70 px-5 py-3 text-black text-sm font-semibold  hover:bg-amber-800"
           >
             Volver al Home
           </Link>
         </header>
 
         {/* Divider */}
-        <div className="mt-8 h-px w-full bg-black/10" />
+        <div className="mt-8 h-px w-full bg-amber-800" />
 
         {/* Content */}
         <section className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -38,9 +38,7 @@ export default function AboutUsPage() {
           <div className="lg:col-span-2 space-y-8">
             {/* Problema / Contexto */}
             <article className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur p-6 sm:p-8">
-              <h2 className="text-xl font-bold text-black">
-                Contexto
-              </h2>
+              <h2 className="text-xl font-bold text-black">Contexto</h2>
               <p className="mt-3 leading-relaxed text-black/80">
                 El mercado de comercio electrónico C2C de artículos vintage,
                 retro y antigüedades está fragmentado entre ventas de garaje
@@ -56,9 +54,7 @@ export default function AboutUsPage() {
 
             {/* Solución */}
             <article className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur p-6 sm:p-8">
-              <h2 className="text-xl font-bold text-black">
-                Nuestra Solucion
-              </h2>
+              <h2 className="text-xl font-bold text-black">Nuestra Solucion</h2>
               <p className="mt-3 leading-relaxed text-black/80">
                 RetroGarage digitaliza el concepto de “venta de garaje” para que
                 cualquier adulto pueda publicar, vender o subastar artículos
@@ -74,9 +70,7 @@ export default function AboutUsPage() {
 
             {/* Propuesta de valor */}
             <article className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur p-6 sm:p-8">
-              <h2 className="text-xl font-bold text-black">
-                Diferenciación
-              </h2>
+              <h2 className="text-xl font-bold text-black">Diferenciación</h2>
               <p className="mt-3 leading-relaxed text-black/80">
                 Nuestro diferencial es el enfoque exclusivo en artículos vintage
                 y antigüedades, acompañado de un sistema de reputación y
@@ -129,8 +123,8 @@ export default function AboutUsPage() {
               </ul>
 
               <Link
-                href="/"
-                className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-black/20 bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-black/5"
+                href="/product"
+                className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-black/20 bg-white/70 px-5 py-3 text-sm font-semibold text-black hover:bg-amber-800 "
               >
                 Ir a ver productos
               </Link>

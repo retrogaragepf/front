@@ -67,6 +67,14 @@ function Navbar() {
                 Sobre Nosotros
               </Link>
             </li>
+            <li>
+              <Link
+                href="/product"
+                className="border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+              >
+                Productos
+              </Link>
+            </li>
           </ul>
         </nav>
 

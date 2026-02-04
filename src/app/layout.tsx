@@ -44,7 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${dancingScript.variable} ${greatVibes.variable} antialiased min-h-screen flex flex-col bg-amber-200 text-zinc-900`}
+        className={`${dancingScript.variable} ${greatVibes.variable} ${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-amber-200 text-zinc-900`}
       >
         <Navbar />
         <div className="flex-1 flex flex-col">{children}</div>

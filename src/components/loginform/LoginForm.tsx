@@ -36,7 +36,7 @@ const LoginForm = () => {
   });
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-gray-100 to-gray-200 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex items-center justify-center min-h-screen py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
           
@@ -119,20 +119,7 @@ const LoginForm = () => {
                   </p>
                 )}
               </div>
-
-              {/* ========== CHECKBOX ========== */}
-              <div className="flex items-center">
-                <input
-                  id="remember"
-                  name="remember"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-500"
-                />
-                <label htmlFor="remember" className="ml-2 text-sm text-gray-600">
-                  Recordar este dispositivo
-                </label>
-              </div>
-
+              
               {/* -----------------SUBMIT ------------------*/}
               <button
                 type="submit"

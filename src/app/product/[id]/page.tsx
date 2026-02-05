@@ -1,60 +1,63 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProductById } from "@/src/services/products.services";
+import { mockGetProductById } from "@/src/services/products.mock.service";
 
 export default async function ProductDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = await params;
-
+  const id = params?.id;
   if (!id) notFound();
 
-  const product = await getProductById(id);
+  let product;
+  try {
+    product = await mockGetProductById(id);
+  } catch {
+    notFound();
+  }
+
+  const imageUrl = product.images?.[0] ?? "";
+
+  const priceNumber = Number(product.price);
+  const priceFormatted = Number.isFinite(priceNumber)
+    ? priceNumber.toLocaleString("es-CO", { minimumFractionDigits: 0 })
+    : String(product.price);
 
   return (
-    <div className="w-full bg-amber-200 text-zinc-900">
-      <main className="max-w-6xl mx-auto px-4 py-10">
-        <Link href="/" className="underline">
-          Volver
-        </Link>
+    <main className="max-w-6xl mx-auto px-4 py-10">
+      <Link href="/product" className="text-sm underline">
+        Volver
+      </Link>
 
-        <section className="mt-6 grid gap-8 md:grid-cols-2 items-start">
-          <div className="w-full">
-            <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-amber-100">
-              <Image
-                src={product.image}
-                alt={product.name}
-                fill
-                className="object-cover"
-                priority
-              />
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="relative aspect-square bg-amber-100 border border-amber-300">
+          {imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={product.title}
+              fill
+              className="object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-zinc-700 text-sm">
+              Sin imagen
             </div>
-          </div>
+          )}
+        </div>
 
-          <div>
-            <h1 className="text-3xl font-bold">{product.name}</h1>
+        <div className="space-y-3">
+          <h1 className="text-3xl font-extrabold">{product.title}</h1>
+          <p className="text-lg font-bold">$ {priceFormatted}</p>
 
-            <p className="mt-4 text-base leading-relaxed">
-              {product.description}
-            </p>
+          {product.description && (
+            <p className="text-zinc-700">{product.description}</p>
+          )}
 
-            <p className="mt-6 text-2xl font-semibold">
-              ${product.price.toLocaleString("es-CO")}
-            </p>
-
-            <p className="mt-2 text-sm">
-              Stock: <span className="font-semibold">{product.stock}</span>
-            </p>
-
-            <button className="mt-8 w-full md:w-auto px-6 py-3 rounded-xl bg-black text-amber-200 font-semibold hover:opacity-90 transition">
-              Agregar al carrito
-            </button>
-          </div>
-        </section>
-      </main>
-    </div>
+          <p className="text-sm text-zinc-600">Stock: {product.stock}</p>
+        </div>
+      </div>
+    </main>
   );
 }

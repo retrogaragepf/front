@@ -36,7 +36,7 @@ const LoginForm = () => {
   });
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-gray-100 to-gray-200 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex items-center justify-center min-h-screen  px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
           
@@ -47,12 +47,12 @@ const LoginForm = () => {
           </div>
 
           <div className="relative z-10">
-           
+          
             <div className="text-center space-y-2">
               <h2 className="text-5xl font-bold text-amber-800 font-boutique ">
                 ¡Hola de Nuevo!
               </h2>
-              <p className="text-lg text-gray-500 font-elegant">
+              <p className="text-2xl text-emerald-800 font-elegant">
                 Inicia sesión para acceder a tu cuenta
               </p>
             </div>
@@ -119,20 +119,6 @@ const LoginForm = () => {
                   </p>
                 )}
               </div>
-
-              {/* ========== CHECKBOX ========== */}
-              <div className="flex items-center">
-                <input
-                  id="remember"
-                  name="remember"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-500"
-                />
-                <label htmlFor="remember" className="ml-2 text-sm text-gray-600">
-                  Recordar este dispositivo
-                </label>
-              </div>
-
               {/* -----------------SUBMIT ------------------*/}
               <button
                 type="submit"
@@ -169,10 +155,10 @@ const LoginForm = () => {
             </form>
 
             {/* ---------------------------LINK A REGISTRO    aunnofnciaaaa-------------------------*/}
-            <p className="text-center text-sm text-gray-500 pt-4">
+            <p className="text-center text-sm text-emerald-800 pt-4">
               ¿No tienes cuenta?{' '}
               <a href="/register"
-                className="font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+                className="font-semibold text-amber-800 hover:text-gray-900 transition-colors">
                 Regístrate
               </a>
             </p>

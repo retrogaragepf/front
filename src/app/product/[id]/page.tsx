@@ -3,18 +3,21 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { mockGetProductById } from "@/src/services/products.mock.service";
 
-export default async function ProductDetailPage({
-  params,
-}: {
-  params: { id: string };
+type Params = { id: string };
+
+export default async function ProductDetailPage(props: {
+  params: Params | Promise<Params>;
 }) {
+  const params = await props.params;
   const id = params?.id;
+
   if (!id) notFound();
 
   let product;
   try {
     product = await mockGetProductById(id);
-  } catch {
+  } catch (err) {
+    console.error("mockGetProductById error:", err);
     notFound();
   }
 

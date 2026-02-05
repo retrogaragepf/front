@@ -3,12 +3,12 @@ import useFormField from '@/src/hooks/useFormField';
 import { useFormSubmit } from '@/src/hooks/useFormSubmit';
 import React from 'react';
 const RegisterForm = () => {
-  // ========== CAMPOS DEL FORMULARIO ==========
+  // ------------CAMPOS DEL FORMULARIO ------------
   const nameField = useFormField('name');
   const emailField = useFormField('email');
   const passwordField = useFormField('password');
 
-  // ========== VALIDACIÓN ==========
+  // ------------VALIDACIÓN ------------
   const validateAll = () => {
     const isNameValid = nameField.validate();
     const isEmailValid = emailField.validate();
@@ -16,35 +16,35 @@ const RegisterForm = () => {
     return isNameValid && isEmailValid && isPasswordValid;
   };
 
-  // ========== OBTENER DATOS ==========
+  // ------------OBTENER DATOS ------------
   const getFormData = () => ({
     name: nameField.value,
     email: emailField.value,
     password: passwordField.value,
   });
 
-  // ========== SUBMIT ==========
+  // -------------- SUBMIT-----------
   const { handleSubmit, isSubmitting } = useFormSubmit({
     onValidate: validateAll,
     onGetData: getFormData,
     onSuccess: () => {
-      console.log('✅ Registro exitoso');
+      console.log('Registro exitoso');
       // Aquí puedes redirigir o mostrar toast
       nameField.reset();
       emailField.reset();
       passwordField.reset();
     },
     onError: (error) => {
-      console.error('❌ Error:', error);
+      console.error('Error:', error);
     },
   });
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-gray-100 to-gray-200 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
           
-          {/* ========== CÍRCULOS DECORATIVOS ========== */}
+        
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-800 rounded-full transform -translate-x-12 translate-y-24 opacity-70"></div>
@@ -52,17 +52,17 @@ const RegisterForm = () => {
           </div>
 
           <div className="relative z-10">
-            {/* ========== ENCABEZADO ========== */}
+          
             <div className="text-center space-y-2">
               <h1 className="font-bold text-amber-800 font-boutique text-5xl">
                 ¡Bienvenido!
               </h1>
-              <p className="text-lg text-gray-500 font-elegant">
+              <p className="text-2xl text-emerald-800 font-elegant">
                 Regístrate para crear una cuenta
               </p>
             </div>
 
-            {/* ========== GOOGLE BUTTON ========== */}
+            {/*-----------GOOGLE ----------*/}
             <button
               type="button"
               className="w-full flex items-center justify-center gap-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors"
@@ -88,7 +88,6 @@ const RegisterForm = () => {
               <span>Registrarse con Google</span>
             </button>
 
-            {/* ========== DIVIDER ========== */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-200"></div>
@@ -100,10 +99,9 @@ const RegisterForm = () => {
               </div>
             </div>
 
-            {/* ========== FORMULARIO ========== */}
             <form onSubmit={handleSubmit} className="space-y-4">
 
-              {/* ========== NOMBRE ========== */}
+              {/* ------------ NOMBRE ------------*/}
               <div>
                 <label
                   htmlFor="fullName"
@@ -132,7 +130,7 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/* ========== EMAIL ========== */}
+              {/*------------ EMAIL ------------ */}
               <div>
                 <label
                   htmlFor="email"
@@ -161,7 +159,7 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/* ========== PASSWORD ========== */}
+              {/* ------------PASSWORD ------------ */}
               <div>
                 <label
                   htmlFor="password"
@@ -189,21 +187,8 @@ const RegisterForm = () => {
                   </p>
                 )}
               </div>
-
-              {/* ========== CHECKBOX ========== */}
-              <div className="flex items-center">
-                <input
-                  id="remember"
-                  name="remember"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-500"
-                />
-                <label htmlFor="remember" className="ml-2 text-sm text-gray-600">
-                  Recordar este dispositivo
-                </label>
-              </div>
-
-              {/* ========== BOTÓN SUBMIT ========== */}
+              
+              {/* ------------------SUBMIT------------- */}
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -254,12 +239,12 @@ const RegisterForm = () => {
               </button>
             </form>
 
-            {/* ========== LINK A LOGIN ========== */}
-            <p className="text-center text-sm text-gray-500 pt-4">
+            {/* ------------LINK A LOGIN ------------ */}
+            <p className="text-center text-sm text-emerald-800 pt-4">
               ¿Ya tienes cuenta?{" "}
               <a
                 href="/login"
-                className="font-semibold text-gray-700 hover:text-gray-900 transition-colors"
+                className="font-semibold text-amber-800 hover:text-gray-900 transition-colors"
               >
                 Inicia sesión
               </a>

@@ -48,16 +48,9 @@ function Navbar() {
               </Link>
             </li>
 
-            {dataUser && (
-              <li>
-                <Link
-                  href="/dashboard"
-                  className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-                >
-                  Dashboard
-                </Link>
-              </li>
-            )}
+            {/* {dataUser && ( */}
+
+            {/* )} */}
 
             <li>
               <Link
@@ -94,6 +87,14 @@ function Navbar() {
               </span>
             )}
           </Link>
+          <li>
+            <Link
+              href="/dashboard"
+              className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+            >
+              Dashboard
+            </Link>
+          </li>
 
           {dataUser ? (
             <div className="flex items-center gap-3">

@@ -1,14 +1,19 @@
-"use client";
-import { useRouter } from "next/navigation";
+import Sidebar from "@/src/components/dashboard/Sidebar";
+import StatsGrid from "@/src/components/dashboard/StatsGrid";
+import ProfileHeader from "@/src/components/dashboard/ProfileHeader";
 
-const  DashboardPage = () => {
-  return(
-    <div>
-      <h1>Dashboard</h1>
+export default function DashboardPage() {
+  return (
+    <div className="flex min-h-screen bg-amber-200">
+      <Sidebar />
+
+      <main className="flex-1 p-10 space-y-10">
+        {/* Header usuario */}
+        <ProfileHeader />
+
+        {/* Stats */}
+        <StatsGrid />
+      </main>
     </div>
-  )
-  
- 
+  );
 }
-
-export default DashboardPage;

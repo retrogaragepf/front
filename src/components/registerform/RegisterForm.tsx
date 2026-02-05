@@ -1,41 +1,52 @@
-'use client';
-import useFormField from '@/src/hooks/useFormField';
-import { useFormSubmit } from '@/src/hooks/useFormSubmit';
-import React from 'react';
-const RegisterForm = () => {
-  // ------------CAMPOS DEL FORMULARIO ------------
-  const nameField = useFormField('name');
-  const emailField = useFormField('email');
-  const passwordField = useFormField('password');
+"use client";
+import useFormField from "@/src/hooks/useFormField";
+import { useFormSubmit } from "@/src/hooks/useFormSubmit";
+import { authService } from "@/src/services/auth";
+import { useRouter } from "next/navigation";
+import React from "react";
 
-  // ------------VALIDACIÓN ------------
+const RegisterForm = () => {
+  const router = useRouter();
+
+  const nameField = useFormField("name");
+  const emailField = useFormField("email");
+  const passwordField = useFormField("password");
+  const addressField = useFormField("address");
+
   const validateAll = () => {
     const isNameValid = nameField.validate();
     const isEmailValid = emailField.validate();
     const isPasswordValid = passwordField.validate();
-    return isNameValid && isEmailValid && isPasswordValid;
+    const isAddressValid = addressField.validate();
+    return isNameValid && isEmailValid && isPasswordValid && isAddressValid;
   };
 
-  // ------------OBTENER DATOS ------------
   const getFormData = () => ({
     name: nameField.value,
     email: emailField.value,
+    address: addressField.value,
     password: passwordField.value,
   });
 
-  // -------------- SUBMIT-----------
   const { handleSubmit, isSubmitting } = useFormSubmit({
     onValidate: validateAll,
     onGetData: getFormData,
-    onSuccess: () => {
-      console.log('Registro exitoso');
-      // Aquí puedes redirigir o mostrar toast
-      nameField.reset();
-      emailField.reset();
-      passwordField.reset();
+    onSuccess: async (data) => {
+      try {
+        const response = await authService.register(data);
+
+        if (response.success && response.token) {
+          authService.saveToken(response.token);
+          router.push("/login");
+        } else {
+          console.error("Error:", response.error);
+        }
+      } catch (error) {
+        console.error("Error en registro:", error);
+      }
     },
     onError: (error) => {
-      console.error('Error:', error);
+      console.error("Error:", error);
     },
   });
 
@@ -43,8 +54,6 @@ const RegisterForm = () => {
     <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
-          
-        
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-800 rounded-full transform -translate-x-12 translate-y-24 opacity-70"></div>
@@ -52,40 +61,42 @@ const RegisterForm = () => {
           </div>
 
           <div className="relative z-10">
-          
             <div className="text-center space-y-2">
-              <h1 className="font-bold text-amber-800 font-boutique text-5xl">
+              <h1 className="font-bold text-amber-800 font-display text-4xl">
                 ¡Bienvenido!
               </h1>
-              <p className="text-2xl text-emerald-800 font-elegant">
+              <p className="text-lg text-emerald-800 font-handwritten">
                 Regístrate para crear una cuenta
               </p>
             </div>
-
-            {/*-----------GOOGLE ----------*/}
             <button
               type="button"
-              className="w-full flex items-center justify-center gap-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors"
+              className="w-full flex items-center justify-center gap-3 
+             border border-gray-300 bg-white 
+             hover:bg-gray-50 
+             text-gray-800 font-medium 
+             py-3 px-4 rounded-xl 
+             transition-colors"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" viewBox="0 0 48 48">
                 <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  fill="#EA4335"
+                  d="M24 9.5c3.54 0 6.72 1.22 9.22 3.22l6.9-6.9C35.9 2.34 30.47 0 24 0 14.64 0 6.64 5.38 2.74 13.22l8.02 6.22C12.7 13.72 17.9 9.5 24 9.5z"
                 />
                 <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  fill="#4285F4"
+                  d="M46.1 24.5c0-1.7-.14-3.34-.4-4.94H24v9.36h12.4c-.54 2.9-2.16 5.36-4.6 7.04l7.1 5.5c4.16-3.84 6.6-9.5 6.6-16.96z"
                 />
                 <path
                   fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  d="M10.76 28.44c-.5-1.5-.78-3.1-.78-4.78s.28-3.28.78-4.78l-8.02-6.22C.98 16.1 0 19.96 0 24c0 4.04.98 7.9 2.74 11.34l8.02-6.22z"
                 />
                 <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  fill="#34A853"
+                  d="M24 48c6.48 0 11.92-2.14 15.9-5.8l-7.1-5.5c-1.98 1.34-4.52 2.14-8.8 2.14-6.1 0-11.3-4.22-13.24-9.94l-8.02 6.22C6.64 42.62 14.64 48 24 48z"
                 />
               </svg>
-              <span>Registrarse con Google</span>
+              <span>Continuar con Google</span>
             </button>
 
             <div className="relative">
@@ -98,10 +109,8 @@ const RegisterForm = () => {
                 </span>
               </div>
             </div>
-
             <form onSubmit={handleSubmit} className="space-y-4">
-
-              {/* ------------ NOMBRE ------------*/}
+              {/* ------------NOMBRE-------------*/}
               <div>
                 <label
                   htmlFor="fullName"
@@ -130,7 +139,7 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/*------------ EMAIL ------------ */}
+              {/*-------------------CORREO--------------*/}
               <div>
                 <label
                   htmlFor="email"
@@ -159,7 +168,36 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/* ------------PASSWORD ------------ */}
+              {/*-------------------DIRECCION---------------*/}
+              <div>
+                <label
+                  htmlFor="address"
+                  className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
+                >
+                  Dirección
+                </label>
+                <input
+                  id="address"
+                  name="address"
+                  type="text"
+                  value={addressField.value}
+                  onChange={addressField.handleChange}
+                  onBlur={addressField.handleBlur}
+                  className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+                    addressField.error && addressField.touched
+                      ? "bg-red-50 focus:ring-red-300"
+                      : "bg-gray-100 focus:ring-gray-300"
+                  }`}
+                  placeholder="Calle 123"
+                />
+                {addressField.touched && addressField.error && (
+                  <p className="mt-1.5 text-xs text-red-600 font-medium">
+                    {addressField.error}
+                  </p>
+                )}
+              </div>
+
+              {/* ----------------CONTRASEÑA--------------- */}
               <div>
                 <label
                   htmlFor="password"
@@ -187,8 +225,8 @@ const RegisterForm = () => {
                   </p>
                 )}
               </div>
-              
-              {/* ------------------SUBMIT------------- */}
+
+              {/* -------------SUBMIT ------------*/}
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -233,13 +271,14 @@ const RegisterForm = () => {
                         d="M14 5l7 7m0 0l-7 7m7-7H3"
                       />
                     </svg>
-                    <span>Registrarse</span>
+                    <span className="font-handwritten text-md">
+                      Registrarse
+                    </span>
                   </>
                 )}
               </button>
             </form>
 
-            {/* ------------LINK A LOGIN ------------ */}
             <p className="text-center text-sm text-emerald-800 pt-4">
               ¿Ya tienes cuenta?{" "}
               <a

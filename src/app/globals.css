@@ -5,10 +5,7 @@
   --color-negroapple: #050505;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-
-  /* ----------FUENTES PERSONALIZADAS -----------*/
-  --font-boutique: var(--font-dancing);
-  --font-elegant: var(--font-vibes);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-handwritten: var(--font-handwritten);
 }

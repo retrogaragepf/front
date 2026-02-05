@@ -1,6 +1,6 @@
 import SellerNote from "@/SellerNoter";
-import CartList from "@/src/components/CartList";
-import Receipt from "@/src/components/Receipt";
+import CartList from "@/src/components/cart/CartList";
+import Receipt from "@/src/components/cart/Receipt";
 
 export default function CartPage() {
   return (

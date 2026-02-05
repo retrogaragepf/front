@@ -1,10 +1,11 @@
-import CartItem from '@/src/components/CartItem';
-import React from 'react'
+import CartItem from "@/src/components/CartItem";
 
 const CartPage = () => {
   return (
-    <CartItem />
-  )
-}
+    <div>
+      <CartItem />
+    </div>
+  );
+};
 
 export default CartPage;

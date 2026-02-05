@@ -2,14 +2,13 @@
 import useFormField from '@/src/hooks/useFormField';
 import { useFormSubmit } from '@/src/hooks/useFormSubmit';
 import React from 'react';
-
 const RegisterForm = () => {
-
+  // ========== CAMPOS DEL FORMULARIO ==========
   const nameField = useFormField('name');
   const emailField = useFormField('email');
   const passwordField = useFormField('password');
 
-  // ------------- VALIDACIÓN -------------
+  // ========== VALIDACIÓN ==========
   const validateAll = () => {
     const isNameValid = nameField.validate();
     const isEmailValid = emailField.validate();
@@ -17,34 +16,35 @@ const RegisterForm = () => {
     return isNameValid && isEmailValid && isPasswordValid;
   };
 
-  // ------------- OBTENER DATOS -----------
+  // ========== OBTENER DATOS ==========
   const getFormData = () => ({
     name: nameField.value,
     email: emailField.value,
     password: passwordField.value,
   });
 
-  // --------------- SUBMIT -----------------
+  // ========== SUBMIT ==========
   const { handleSubmit, isSubmitting } = useFormSubmit({
     onValidate: validateAll,
     onGetData: getFormData,
     onSuccess: () => {
-      console.log('Registro exitoso');
+      console.log('✅ Registro exitoso');
       // Aquí puedes redirigir o mostrar toast
       nameField.reset();
       emailField.reset();
       passwordField.reset();
     },
     onError: (error) => {
-      console.error(' Error:', error);
+      console.error('❌ Error:', error);
     },
   });
 
   return (
-    <div className="flex items-center justify-center min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-gray-100 to-gray-200 py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
           
+          {/* ========== CÍRCULOS DECORATIVOS ========== */}
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-800 rounded-full transform -translate-x-12 translate-y-24 opacity-70"></div>
@@ -52,7 +52,7 @@ const RegisterForm = () => {
           </div>
 
           <div className="relative z-10">
-          
+            {/* ========== ENCABEZADO ========== */}
             <div className="text-center space-y-2">
               <h1 className="font-bold text-amber-800 font-boutique text-5xl">
                 ¡Bienvenido!
@@ -62,7 +62,7 @@ const RegisterForm = () => {
               </p>
             </div>
 
-            {/*---------------GOOGLE BUTTON---------------*/}
+            {/* ========== GOOGLE BUTTON ========== */}
             <button
               type="button"
               className="w-full flex items-center justify-center gap-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors"
@@ -88,23 +88,25 @@ const RegisterForm = () => {
               <span>Registrarse con Google</span>
             </button>
 
-            {/* ------------- DIVIDER --------------- */}
+            {/* ========== DIVIDER ========== */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-200"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-400">o usa tu email</span>
+                <span className="px-4 bg-white text-gray-400">
+                  o usa tu email
+                </span>
               </div>
             </div>
 
-            {/* ------------ FORMULARIO -------------- */}
+            {/* ========== FORMULARIO ========== */}
             <form onSubmit={handleSubmit} className="space-y-4">
 
-              {/* ------------- NOMBRE ----------------*/}
+              {/* ========== NOMBRE ========== */}
               <div>
-                <label 
-                  htmlFor="fullName" 
+                <label
+                  htmlFor="fullName"
                   className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
                 >
                   Nombre completo
@@ -118,8 +120,8 @@ const RegisterForm = () => {
                   onBlur={nameField.handleBlur}
                   className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     nameField.error && nameField.touched
-                      ? 'bg-red-50 focus:ring-red-300'
-                      : 'bg-gray-100 focus:ring-gray-300'
+                      ? "bg-red-50 focus:ring-red-300"
+                      : "bg-gray-100 focus:ring-gray-300"
                   }`}
                   placeholder="Juan Pérez"
                 />
@@ -130,10 +132,10 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/*----------- EMAIL ------------------*/}
+              {/* ========== EMAIL ========== */}
               <div>
-                <label 
-                  htmlFor="email" 
+                <label
+                  htmlFor="email"
                   className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
                 >
                   Correo electrónico
@@ -147,8 +149,8 @@ const RegisterForm = () => {
                   onBlur={emailField.handleBlur}
                   className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     emailField.error && emailField.touched
-                      ? 'bg-red-50 focus:ring-red-300'
-                      : 'bg-gray-100 focus:ring-gray-300'
+                      ? "bg-red-50 focus:ring-red-300"
+                      : "bg-gray-100 focus:ring-gray-300"
                   }`}
                   placeholder="juan@email.com"
                 />
@@ -159,10 +161,10 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/* ----------------- PASSWORD --------------- */}
+              {/* ========== PASSWORD ========== */}
               <div>
-                <label 
-                  htmlFor="password" 
+                <label
+                  htmlFor="password"
                   className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
                 >
                   Contraseña
@@ -176,8 +178,8 @@ const RegisterForm = () => {
                   onBlur={passwordField.handleBlur}
                   className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     passwordField.error && passwordField.touched
-                      ? 'bg-red-50 focus:ring-red-300'
-                      : 'bg-gray-100 focus:ring-gray-300'
+                      ? "bg-red-50 focus:ring-red-300"
+                      : "bg-gray-100 focus:ring-gray-300"
                   }`}
                   placeholder="••••••••"
                 />
@@ -188,7 +190,20 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/* ---------------------SUBMIT -----------------*/}
+              {/* ========== CHECKBOX ========== */}
+              <div className="flex items-center">
+                <input
+                  id="remember"
+                  name="remember"
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-500"
+                />
+                <label htmlFor="remember" className="ml-2 text-sm text-gray-600">
+                  Recordar este dispositivo
+                </label>
+              </div>
+
+              {/* ========== BOTÓN SUBMIT ========== */}
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -196,27 +211,56 @@ const RegisterForm = () => {
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin h-5 w-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     <span>Procesando...</span>
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M14 5l7 7m0 0l-7 7m7-7H3"
+                      />
                     </svg>
-                    <p>Registrarse</p>
+                    <span>Registrarse</span>
                   </>
                 )}
               </button>
             </form>
 
-            {/* -------------------------- LINK A LOGIN -------------------- */}
+            {/* ========== LINK A LOGIN ========== */}
             <p className="text-center text-sm text-gray-500 pt-4">
-              ¿Ya tienes cuenta?{' '}
-              <a href="/login" className="font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+              ¿Ya tienes cuenta?{" "}
+              <a
+                href="/login"
+                className="font-semibold text-gray-700 hover:text-gray-900 transition-colors"
+              >
                 Inicia sesión
               </a>
             </p>
@@ -227,4 +271,4 @@ const RegisterForm = () => {
   );
 };
 
-export default RegisterForm
+export default RegisterForm;

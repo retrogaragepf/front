@@ -1,18 +1,18 @@
 import { useState } from 'react';
 
-interface UseFormSubmitProps {
+interface UseFormSubmitProps<T> {
   onValidate: () => boolean;
-  onGetData: () => any;
-  onSuccess?: () => void;
+  onGetData: () => T;
+  onSuccess: (data: T) => void | Promise<void>;
   onError?: (error: string) => void;
 }
 
-export const useFormSubmit = ({
+export const useFormSubmit = <T,>({
   onValidate,
   onGetData,
   onSuccess,
   onError,
-}: UseFormSubmitProps) => {
+}: UseFormSubmitProps<T>) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,13 +28,11 @@ export const useFormSubmit = ({
     try {
       const formData = onGetData();
       
-      // ------AQUI SE LLAMARAA. A AL APAI 
       console.log('📦 Datos a enviar:', formData);
       
-      // -----------ENVIO FAKE ----------
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // ------ESPERA LA RESPUESTA DEL SERVIDOR------
+      await onSuccess(formData);
       
-      onSuccess?.();
     } catch (error) {
       onError?.(error instanceof Error ? error.message : 'Error desconocido');
     } finally {

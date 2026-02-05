@@ -53,10 +53,10 @@ export default function AboutUsPage() {
 
             {/* Solución */}
             <article className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur p-6 sm:p-8">
-              <h2 className="font-handwritten text-xl font-bold text-black font-handwritten">
+              <h2 className="font-handwritten text-xl font-bold text-black">
                 Nuestra Solucion
               </h2>
-              <p className="font-handwritten font-handwritten mt-3 leading-relaxed text-black/80">
+              <p className=" font-handwritten mt-3 leading-relaxed text-black/80">
                 RetroGarage digitaliza el concepto de “venta de garaje” para que
                 cualquier adulto pueda publicar, vender o subastar artículos
                 antiguos que ya no utiliza, evitando su almacenamiento

@@ -27,12 +27,12 @@ export default async function ProductsPage() {
             <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold leading-tight">
               Todos los{" "}
               <span className="text-emerald-900 decoration-amber-600 underline-offset-8">
-                productos
+                Articulos
               </span>
             </h1>
 
             <p className="text-base sm:text-lg max-w-2xl text-zinc-800">
-              Explora el inventario completo del mock: reliquias retro, piezas
+              Explora el inventario completo del RetroGarage: reliquias retro, piezas
               únicas y hallazgos con historia.
             </p>
           </div>
@@ -44,7 +44,7 @@ export default async function ProductsPage() {
         <div className="flex items-end justify-between gap-6 mb-10 sm:mb-14">
           <div>
             <h2 className="text-2xl sm:text-4xl font-extrabold mb-2">
-              Productos disponibles
+              Disponibles
             </h2>
             <p className="text-amber-900 font-semibold">
               {allProducts?.length ?? 0} artículos en el catálogo

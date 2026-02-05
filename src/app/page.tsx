@@ -21,11 +21,11 @@ export default async function Page() {
 
         <div className="relative max-w-6xl mx-auto px-4 py-14 sm:py-20 flex flex-col md:flex-row items-center gap-12">
           <div className="flex-1 space-y-6">
-            <span className="inline-block px-3 py-1 bg-amber-800 text-amber-50 font-bold uppercase tracking-widest text-xs sm:text-sm -rotate-2">
+            <span className="font-display inline-block px-3 py-1 bg-amber-800 text-amber-50 uppercase tracking-widest text-xs sm:text-sm -rotate-2">
               Liquidación de temporada
             </span>
 
-            <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold leading-tight">
+            <h1 className=" font-handwritten  text-4xl sm:text-6xl md:text-7xl  leading-tight">
               Objetos con{" "}
               <span className="text-emerald-900  decoration-amber-600 underline-offset-8">
                 historia
@@ -34,7 +34,7 @@ export default async function Page() {
               precios de RetroGarage.
             </h1>
 
-            <p className="text-base sm:text-lg max-w-xl text-zinc-800">
+            <p className="font-handwritten text-base sm:text-lg max-w-xl text-zinc-800">
               Tesoros olvidados: desde maletas vintage hasta cámaras analógicas
               que aún sueñan con revelar rollos.
             </p>
@@ -42,9 +42,9 @@ export default async function Page() {
 
           <div className="flex-1 relative w-full max-w-md">
             <div className="relative w-full aspect-square">
-              <div className="absolute inset-0 border-8 border-amber-50 shadow-2xl rotate-2 overflow-hidden rounded-sm">
+              <div className="absolute inset-0 border-2 border-amber-50 shadow-2xl rotate-2 overflow-hidden rounded-sm">
                 <Image
-                  src="https://picsum.photos/seed/retrocam/600/600"
+                  src="https://res.cloudinary.com/dyylxjijf/image/upload/v1770309885/homehero_idlclz.png"
                   alt="Vintage items"
                   fill
                   sizes="(max-width: 768px) 90vw, 420px"
@@ -54,7 +54,7 @@ export default async function Page() {
               </div>
 
               <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-amber-300 p-2 shadow-lg -rotate-12 flex items-center justify-center text-center border border-amber-700/30">
-                <p className="font-extrabold text-amber-950 leading-none text-lg">
+                <p className="font-display  text-amber-950 leading-none text-lg">
                   ¡TODO AL 50%!
                 </p>
               </div>
@@ -67,10 +67,10 @@ export default async function Page() {
       <section id="featured" className="max-w-6xl mx-auto px-4 py-14 sm:py-20">
         <div className="flex items-end justify-between gap-6 mb-10 sm:mb-14">
           <div>
-            <h2 className="text-2xl sm:text-4xl font-extrabold mb-2">
+            <h2 className="font-handwritten text-2xl sm:text-4xl font-extrabold mb-2">
               Destacados de la semana
             </h2>
-            <p className="text-amber-900 font-semibold">
+            <p className="font-handwritten text-amber-900 font-semibold">
               Recién llegados del ático
             </p>
           </div>
@@ -78,7 +78,7 @@ export default async function Page() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
           {allProducts?.slice(0, 8).map((product) => (
-            <Card key={product.name} product={product} />
+            <Card key={product.title} product={product} />
           ))}
         </div>
       </section>

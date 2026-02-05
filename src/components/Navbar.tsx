@@ -42,27 +42,20 @@ function Navbar() {
             <li>
               <Link
                 href="/"
-                className="border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+                className="font-handwritten text-xl border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
               >
-                Home
+                <span className="text-amber-900 font-extrabold">🏠</span>
               </Link>
             </li>
 
-            {dataUser && (
-              <li>
-                <Link
-                  href="/dashboard"
-                  className="border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-                >
-                  Dashboard
-                </Link>
-              </li>
-            )}
+            {/* {dataUser && ( */}
+
+            {/* )} */}
 
             <li>
               <Link
                 href="/aboutus"
-                className="border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+                className=" font-handwritten text-xl border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
               >
                 Sobre Nosotros
               </Link>
@@ -70,7 +63,7 @@ function Navbar() {
             <li>
               <Link
                 href="/product"
-                className="border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+                className="font-handwritten text-xl border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
               >
                 Productos
               </Link>
@@ -87,13 +80,21 @@ function Navbar() {
             aria-label="Carrito"
             title="Carrito"
           >
-            <span className="text-amber-900 font-extrabold">👜</span>
+            <span className="text-amber-900 font-extrabold">🛒</span>
             {itemsCart > 0 && (
               <span className="absolute -top-1 -right-1 bg-emerald-800 text-amber-50 text-[10px] w-5 h-5 rounded-full flex items-center justify-center border border-emerald-900/30">
                 {itemsCart}
               </span>
             )}
           </Link>
+          <li>
+            <Link
+              href="/dashboard"
+              className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+            >
+              Dashboard
+            </Link>
+          </li>
 
           {dataUser ? (
             <div className="flex items-center gap-3">
@@ -105,23 +106,23 @@ function Navbar() {
                 onClick={handleLogout}
                 className="px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-200 text-amber-900 font-bold text-sm transition"
               >
-                Logout
+                Salida
               </button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <Link
                 href="/login"
-                className="px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-200 text-amber-900 font-bold text-sm transition"
+                className="font-handwritten px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-200 text-amber-900 text-m transition"
               >
-                Login
+                Acceso
               </Link>
 
               <Link
                 href="/register"
-                className="px-3 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-amber-50 font-bold text-sm transition border border-emerald-900/30"
+                className="font-handwritten px-3 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-amber-50 text-m transition border border-emerald-900/30"
               >
-                Register
+                Registro
               </Link>
             </div>
           )}
@@ -133,9 +134,10 @@ function Navbar() {
         <nav className="max-w-7xl mx-auto px-6 py-3">
           <ul className="flex items-center justify-center gap-6 text-xs font-extrabold tracking-widest uppercase text-amber-900">
             <li>
-              <Link href="/" className="hover:text-emerald-900 transition">
-                Home
-              </Link>
+              <Link
+                href="/"
+                className="hover:text-emerald-900 transition"
+              ></Link>
             </li>
 
             {dataUser && (

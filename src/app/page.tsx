@@ -55,7 +55,7 @@ export default async function Page() {
 
               <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-amber-300 p-2 shadow-lg -rotate-12 flex items-center justify-center text-center border border-amber-700/30">
                 <p className="font-display  text-amber-950 leading-none text-lg">
-                  ¡TODO AL 50%!
+                  ¡Sale!
                 </p>
               </div>
             </div>

@@ -1,9 +1,13 @@
 "use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { showToast } from "nextjs-toast-notify";
+
 import useFormField from "@/src/hooks/useFormField";
 import { useFormSubmit } from "@/src/hooks/useFormSubmit";
 import { authService } from "@/src/services/auth";
-import { useRouter } from "next/navigation";
-import React from "react";
 
 const RegisterForm = () => {
   const router = useRouter();
@@ -11,59 +15,122 @@ const RegisterForm = () => {
   const nameField = useFormField("name");
   const emailField = useFormField("email");
   const passwordField = useFormField("password");
+  const confirmPasswordField = useFormField("confirmPassword"); // ✅ NUEVO
   const addressField = useFormField("address");
+
+  // ✅ Mantener "ver contraseña" con icono ojo
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const validateAll = () => {
     const isNameValid = nameField.validate();
     const isEmailValid = emailField.validate();
     const isPasswordValid = passwordField.validate();
+    const isConfirmValid = confirmPasswordField.validate(); // ✅ NUEVO
     const isAddressValid = addressField.validate();
-    return isNameValid && isEmailValid && isPasswordValid && isAddressValid;
+
+    // ✅ Validación cruzada (sin tocar tu hook): confirmar === password
+    const pass = passwordField.value ?? "";
+    const confirm = confirmPasswordField.value ?? "";
+    const matchOk = pass.length > 0 && confirm.length > 0 && pass === confirm;
+
+    if (!matchOk && (confirmPasswordField.touched || passwordField.touched)) {
+      // ❗ Solo mensaje, no cambia tu flujo
+      showToast.error("Las contraseñas no coinciden.", {
+        duration: 3500,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+    }
+
+    return (
+      isNameValid &&
+      isEmailValid &&
+      isPasswordValid &&
+      isConfirmValid &&
+      isAddressValid &&
+      matchOk
+    );
   };
 
+  // ✅ ÚNICO CAMBIO necesario: incluir confirmPassword en el payload
   const getFormData = () => ({
-    name: nameField.value,
-    email: emailField.value,
-    address: addressField.value,
+    name: nameField.value.trim(),
+    email: emailField.value.trim(),
+    address: addressField.value.trim(),
     password: passwordField.value,
+    confirmPassword: confirmPasswordField.value, // ✅ NUEVO: se envía al backend
   });
 
   const { handleSubmit, isSubmitting } = useFormSubmit({
     onValidate: validateAll,
     onGetData: getFormData,
+
     onSuccess: async (data) => {
-      try {
-        const response = await authService.register(data);
-        console.log("Respuesta completa:", response);
-        /**
-         * 
-          if (response.success && response.token) {
-          authService.saveToken(response.token);
-          router.push("/login");
-        } else {
-          console.log("Respuesta completa:", response);
-        } 
-         */
-      } catch (error) {
-        console.error("Error en registro:", error);
+      // ✅ Seguridad final (por si no tocó blur)
+      if ((passwordField.value ?? "") !== (confirmPasswordField.value ?? "")) {
+        throw new Error("Las contraseñas no coinciden.");
       }
+
+      const response: any = await authService.register(data);
+
+      if (!response) {
+        throw new Error("El servidor no devolvió respuesta al registrar.");
+      }
+
+      if (
+        typeof response === "object" &&
+        (response?.error ||
+          response?.message?.toLowerCase?.().includes("error"))
+      ) {
+        throw new Error(response?.message || "Error registrando usuario.");
+      }
+
+      showToast.success("¡Usuario registrado! Ahora inicia sesión ✅", {
+        duration: 4000,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+
+      router.push("/login");
     },
-    onError: (error) => {
-      console.error("Error:", error);
+
+    onError: (error: any) => {
+      const msg = error?.message || "No se pudo registrar. Revisa tus datos.";
+      showToast.error(String(msg), {
+        duration: 4500,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+      console.error("Error register:", error);
     },
   });
+
+  const passwordsMismatch =
+    (confirmPasswordField.touched || passwordField.touched) &&
+    (passwordField.value ?? "") !== (confirmPasswordField.value ?? "");
 
   return (
     <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
+          {/* decor */}
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-800 rounded-full transform -translate-x-12 translate-y-24 opacity-70"></div>
             <div className="absolute bottom-8 left-1/4 w-32 h-32 bg-amber-200 rounded-full opacity-60"></div>
           </div>
 
-          <div className="relative z-10">
+          <div className="relative z-10 space-y-6">
             <div className="text-center space-y-2">
               <h1 className="font-bold text-amber-800 font-display text-4xl">
                 ¡Bienvenido!
@@ -72,14 +139,11 @@ const RegisterForm = () => {
                 Regístrate para crear una cuenta
               </p>
             </div>
+
+            {/* Botón Google (solo UI) */}
             <button
               type="button"
-              className="w-full flex items-center justify-center gap-3 
-             border border-gray-300 bg-white 
-             hover:bg-gray-50 
-             text-gray-800 font-medium 
-             py-3 px-4 rounded-xl 
-             transition-colors"
+              className="w-full flex items-center justify-center gap-3 border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl transition-colors"
             >
               <svg className="w-5 h-5" viewBox="0 0 48 48">
                 <path
@@ -112,8 +176,9 @@ const RegisterForm = () => {
                 </span>
               </div>
             </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* ------------NOMBRE-------------*/}
+              {/* NOMBRE */}
               <div>
                 <label
                   htmlFor="fullName"
@@ -142,7 +207,7 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/*-------------------CORREO--------------*/}
+              {/* EMAIL */}
               <div>
                 <label
                   htmlFor="email"
@@ -171,7 +236,7 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/*-------------------DIRECCION---------------*/}
+              {/* DIRECCIÓN */}
               <div>
                 <label
                   htmlFor="address"
@@ -200,7 +265,7 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/* ----------------CONTRASEÑA--------------- */}
+              {/* PASSWORD (sin ojo) */}
               <div>
                 <label
                   htmlFor="password"
@@ -208,6 +273,7 @@ const RegisterForm = () => {
                 >
                   Contraseña
                 </label>
+
                 <input
                   id="password"
                   name="password"
@@ -222,6 +288,7 @@ const RegisterForm = () => {
                   }`}
                   placeholder="••••••••"
                 />
+
                 {passwordField.touched && passwordField.error && (
                   <p className="mt-1.5 text-xs text-red-600 font-medium">
                     {passwordField.error}
@@ -229,7 +296,43 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/* -------------SUBMIT ------------*/}
+              {/* CONFIRM PASSWORD (sin ojo) */}
+              <div>
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
+                >
+                  Confirmar contraseña
+                </label>
+
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  value={confirmPasswordField.value}
+                  onChange={confirmPasswordField.handleChange}
+                  onBlur={confirmPasswordField.handleBlur}
+                  className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+                    (confirmPasswordField.error &&
+                      confirmPasswordField.touched) ||
+                    passwordsMismatch
+                      ? "bg-red-50 focus:ring-red-300"
+                      : "bg-gray-100 focus:ring-gray-300"
+                  }`}
+                  placeholder="••••••••"
+                />
+
+                {confirmPasswordField.touched &&
+                  (confirmPasswordField.error || passwordsMismatch) && (
+                    <p className="mt-1.5 text-xs text-red-600 font-medium">
+                      {passwordsMismatch
+                        ? "Las contraseñas no coinciden."
+                        : confirmPasswordField.error}
+                    </p>
+                  )}
+              </div>
+
+              {/* SUBMIT */}
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -250,12 +353,12 @@ const RegisterForm = () => {
                         r="10"
                         stroke="currentColor"
                         strokeWidth="4"
-                      ></circle>
+                      />
                       <path
                         className="opacity-75"
                         fill="currentColor"
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
+                      />
                     </svg>
                     <span>Procesando...</span>
                   </>
@@ -284,12 +387,12 @@ const RegisterForm = () => {
 
             <p className="text-center text-sm text-emerald-800 pt-4">
               ¿Ya tienes cuenta?{" "}
-              <a
+              <Link
                 href="/login"
                 className="font-semibold text-amber-800 hover:text-gray-900 transition-colors"
               >
                 Inicia sesión
-              </a>
+              </Link>
             </p>
           </div>
         </div>

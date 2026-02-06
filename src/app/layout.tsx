@@ -7,6 +7,7 @@ import {
 import "./globals.css";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import Providers from "./providers"; // ✅ AÑADE ESTO
 
 const permanentMarker = Permanent_Marker({
   subsets: ["latin"],
@@ -51,9 +52,12 @@ export default function RootLayout({
           text-zinc-900
         `}
       >
-        <Navbar />
-        <div className="flex-1 flex flex-col">{children}</div>
-        <Footer />
+        {/* ✅ TODO tu árbol ya tiene AuthContext disponible */}
+        <Providers>
+          <Navbar />
+          <div className="flex-1 flex flex-col">{children}</div>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );

@@ -4,9 +4,13 @@ import { useFormSubmit } from "@/src/hooks/useFormSubmit";
 import { authService } from "@/src/services/auth";
 import { useRouter } from "next/navigation";
 import React from "react";
+import { useAuth } from "@/src/context/AuthContext";
+import { showToast } from "nextjs-toast-notify";
+import Link from "next/link";
 
 const LoginForm = () => {
   const router = useRouter();
+  const { login } = useAuth();
 
   const emailField = useFormField("email");
   const passwordField = useFormField("password");
@@ -27,17 +31,41 @@ const LoginForm = () => {
     onGetData: getFormData,
     onSuccess: async (data) => {
       try {
-        const response = await authService.login(data);
-        /**
-         * 
-        if (response.success && response.token) {
-          authService.saveToken(response.token);
-          router.push("/dashboard");
-        } else {
-          console.log("Respuesta completa:", response);
+        const response: any = await authService.login(data);
+
+        // ✅ Tu backend devuelve texto: "Usuario logueado (TOKEN)" (status 201)
+        // No tenemos token real ni user real desde response, así que guardamos SOLO email para demo.
+        // Si tu authService devolviera error object, lo detectamos:
+        if (!response) {
+          console.log("Login sin respuesta:", response);
+          return;
         }
-         */
-        
+        if (
+          typeof response === "object" &&
+          (response?.error || response?.message?.includes?.("Error"))
+        ) {
+          console.log("Login falló:", response);
+          return;
+        }
+
+        // ✅ Guardar sesión para que el Dashboard renderice el email
+        login({
+          user: { id: null, name: "Usuario", email: data.email },
+          token: null,
+        });
+
+        // ✅ Toast éxito
+        showToast.success("¡Ingreso Exitoso!", {
+          duration: 4000,
+          progress: true,
+          position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
+        });
+
+        // ✅ Redirección
+        router.push("/dashboard");
       } catch (error) {
         console.error("Error en login:", error);
       }
@@ -68,7 +96,6 @@ const LoginForm = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-              {/* ------------CORRREOOOOO-------------- */}
               <div>
                 <label
                   htmlFor="email"
@@ -97,7 +124,6 @@ const LoginForm = () => {
                 )}
               </div>
 
-              {/* PASSWORD */}
               <div>
                 <label
                   htmlFor="password"
@@ -126,7 +152,6 @@ const LoginForm = () => {
                 )}
               </div>
 
-              {/* -------------------SUBMIT----------------- */}
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -171,7 +196,9 @@ const LoginForm = () => {
                         d="M14 5l7 7m0 0l-7 7m7-7H3"
                       />
                     </svg>
-                    <span className="font-handwritten text-md">Iniciar sesión</span>
+                    <span className="font-handwritten text-md">
+                      Iniciar sesión
+                    </span>
                   </>
                 )}
               </button>
@@ -179,12 +206,12 @@ const LoginForm = () => {
 
             <p className="text-center text-sm text-emerald-800 pt-4">
               ¿No tienes cuenta?{" "}
-              <a
+              <Link
                 href="/register"
                 className="font-semibold text-amber-800 hover:text-gray-900 transition-colors"
               >
                 Regístrate
-              </a>
+              </Link>
             </p>
           </div>
         </div>

@@ -52,20 +52,7 @@ export default async function CategoriesPage() {
     <div className="w-full bg-amber-100 text-zinc-900">
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Top nav */}
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="text-xs font-extrabold tracking-widest text-amber-900 uppercase border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-          >
-            Home
-          </Link>
-
-          <span className="text-amber-900/40">•</span>
-
-          <span className="font-handwritten text-sm font-extrabold tracking-wide text-amber-900 uppercase">
-            Categorías
-          </span>
-        </div>
+        <div className="flex items-center gap-3"></div>
 
         {/* Header */}
         <header className="mt-6">
@@ -79,13 +66,14 @@ export default async function CategoriesPage() {
         </header>
 
         {/* Grid */}
-        <section className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <section className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
           {CATEGORIES.map((cat) => (
             <Link
               key={cat.id}
               href={`/categories/${cat.id}`}
               className="
                 group
+                h-full
                 rounded-2xl
                 border-2 border-amber-900
                 bg-amber-50
@@ -94,29 +82,42 @@ export default async function CategoriesPage() {
                 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,0.85)]
                 transition
                 overflow-hidden
+                flex flex-col
               "
             >
-              <div className="p-5">
+              <div className="p-5 flex flex-col h-full">
+                {/* Top row */}
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{cat.emoji}</span>
-                    <h2 className="text-lg font-extrabold tracking-wide text-amber-900 group-hover:text-emerald-900 transition">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-2xl shrink-0">{cat.emoji}</span>
+                    <h2 className="text-lg font-extrabold tracking-wide text-amber-900 group-hover:text-emerald-900 transition truncate">
                       {cat.name}
                     </h2>
                   </div>
 
-                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-amber-300 bg-amber-100 text-amber-900 text-[10px] font-extrabold tracking-widest uppercase">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-amber-300 bg-amber-100 text-amber-900 text-[10px] font-extrabold tracking-widest uppercase shrink-0">
                     Ver
                   </span>
                 </div>
 
-                <p className="mt-3 text-sm text-zinc-700 leading-relaxed">
+                {/* Description (controla altura visual) */}
+                <p
+                  className="
+    mt-3 text-sm text-zinc-700 leading-relaxed
+    min-h-[52px]
+    overflow-hidden
+    [display:-webkit-box]
+    [-webkit-box-orient:vertical]
+    [-webkit-line-clamp:2]
+  "
+                >
                   {cat.description}
                 </p>
 
                 <div className="my-5 h-[2px] w-full bg-amber-300" />
 
-                <div className="flex items-center justify-between gap-3">
+                {/* Bottom row always aligned */}
+                <div className="mt-auto flex items-center justify-between gap-3">
                   <span className="text-xs font-extrabold tracking-widest uppercase text-zinc-700">
                     Curado por RetroGarage™
                   </span>
@@ -129,6 +130,7 @@ export default async function CategoriesPage() {
                       text-amber-900 font-extrabold
                       group-hover:bg-amber-200
                       transition
+                      shrink-0
                     "
                     aria-hidden
                     title="Abrir"
@@ -138,7 +140,7 @@ export default async function CategoriesPage() {
                 </div>
               </div>
 
-              {/* Footer accent */}
+              {/* Footer accent always at bottom */}
               <div className="h-2 bg-emerald-900" />
             </Link>
           ))}

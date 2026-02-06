@@ -1,4 +1,5 @@
 "use client";
+
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
 import Link from "next/link";
@@ -38,41 +39,30 @@ function Navbar() {
 
         {/* CENTRO: Links */}
         <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2">
-          <ul className="flex items-center gap-8 text-sm font-extrabold tracking-wide text-amber-900 uppercase">
-            <li>
-              <Link
-                href="/"
-                className="border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-              >
-                Home
-              </Link>
-            </li>
-
-            {dataUser && (
-              <li>
-                <Link
-                  href="/dashboard"
-                  className="border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-                >
-                  Dashboard
-                </Link>
-              </li>
-            )}
-
+          <ul className="flex items-center gap-8 text-sm font-extrabold tracking-wide text-amber-900 uppercase list-none m-0 p-0">
             <li>
               <Link
                 href="/aboutus"
-                className="border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+                className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
               >
                 Sobre Nosotros
               </Link>
             </li>
+
             <li>
               <Link
                 href="/product"
-                className="border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+                className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
               >
                 Productos
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/categories"
+                className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+              >
+                Categorias
               </Link>
             </li>
           </ul>
@@ -87,13 +77,23 @@ function Navbar() {
             aria-label="Carrito"
             title="Carrito"
           >
-            <span className="text-amber-900 font-extrabold">👜</span>
+            <span className="text-amber-900 font-extrabold">🛒</span>
             {itemsCart > 0 && (
               <span className="absolute -top-1 -right-1 bg-emerald-800 text-amber-50 text-[10px] w-5 h-5 rounded-full flex items-center justify-center border border-emerald-900/30">
                 {itemsCart}
               </span>
             )}
           </Link>
+
+          {/* Mi Perfil (sin <li> para evitar el punto/bullet) */}
+          <div>
+            <Link
+              href="/dashboard"
+              className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+            >
+              Mi Perfil
+            </Link>
+          </div>
 
           {dataUser ? (
             <div className="flex items-center gap-3">
@@ -103,25 +103,50 @@ function Navbar() {
 
               <button
                 onClick={handleLogout}
-                className="px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-200 text-amber-900 font-bold text-sm transition"
+                className="
+                  px-3 py-2 rounded-xl border-2 border-amber-900
+                  bg-amber-50 text-amber-900 font-bold text-sm
+                  shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
+                  hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+                  active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
+                  transition
+                "
               >
-                Logout
+                Salida
               </button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
+              {/* Acceso */}
               <Link
                 href="/login"
-                className="px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-200 text-amber-900 font-bold text-sm transition"
+                className="
+                  font-handwritten px-4 py-2 rounded-xl
+                  border-2 border-amber-900
+                  bg-amber-50 text-amber-900
+                  shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
+                  hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+                  active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
+                  transition
+                "
               >
-                Login
+                Acceso
               </Link>
 
+              {/* Registro */}
               <Link
                 href="/register"
-                className="px-3 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-amber-50 font-bold text-sm transition border border-emerald-900/30"
+                className="
+                  font-handwritten px-4 py-2 rounded-xl
+                  border-2 border-emerald-950
+                  bg-emerald-900 text-amber-50
+                  shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
+                  hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+                  active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
+                  transition
+                "
               >
-                Register
+                Registro
               </Link>
             </div>
           )}
@@ -131,10 +156,22 @@ function Navbar() {
       {/* MOBILE: nav centrada debajo */}
       <div className="md:hidden border-t border-amber-300">
         <nav className="max-w-7xl mx-auto px-6 py-3">
-          <ul className="flex items-center justify-center gap-6 text-xs font-extrabold tracking-widest uppercase text-amber-900">
+          <ul className="flex items-center justify-center gap-6 text-xs font-extrabold tracking-widest uppercase text-amber-900 list-none m-0 p-0">
             <li>
-              <Link href="/" className="hover:text-emerald-900 transition">
-                Home
+              <Link
+                href="/aboutus"
+                className="hover:text-emerald-900 transition"
+              >
+                Sobre Nosotros
+              </Link>
+            </li>
+
+            <li>
+              <Link
+                href="/product"
+                className="hover:text-emerald-900 transition"
+              >
+                Productos
               </Link>
             </li>
 
@@ -142,7 +179,7 @@ function Navbar() {
               <li>
                 <Link
                   href="/dashboard"
-                  className="hover:text-emerald-900 transition"
+                  className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
                 >
                   Dashboard
                 </Link>
@@ -151,7 +188,7 @@ function Navbar() {
 
             <li>
               <Link href="/cart" className="hover:text-emerald-900 transition">
-                Cart
+                Carrito
               </Link>
             </li>
           </ul>

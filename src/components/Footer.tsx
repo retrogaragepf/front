@@ -11,7 +11,7 @@ function Footer() {
             RetroGarage™
           </h2>
 
-          <p className="text-sm text-zinc-700 leading-relaxed max-w-xs">
+          <p className="font-handwritten text-sm text-zinc-700 leading-relaxed max-w-xs">
             Objetos con alma que buscan un segundo hogar. No somos una tienda,
             somos un portal al pasado.
           </p>
@@ -51,11 +51,11 @@ function Footer() {
           <h3 className="text-sm font-extrabold tracking-widest uppercase text-amber-900 mb-5">
             Categorías
           </h3>
-          <ul className="space-y-3 text-sm text-zinc-700">
+          <ul className="font-handwritten space-y-3 text-sm text-zinc-700">
             <li>
               <Link
                 href="#"
-                className="hover:text-emerald-900 hover:underline underline-offset-4"
+                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Decoración
               </Link>
@@ -63,7 +63,7 @@ function Footer() {
             <li>
               <Link
                 href="#"
-                className="hover:text-emerald-900 hover:underline underline-offset-4"
+                className="font-handwrittenhover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Electrónica Retro
               </Link>
@@ -71,7 +71,7 @@ function Footer() {
             <li>
               <Link
                 href="#"
-                className="hover:text-emerald-900 hover:underline underline-offset-4"
+                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Mobiliario Industrial
               </Link>
@@ -79,7 +79,7 @@ function Footer() {
             <li>
               <Link
                 href="#"
-                className="hover:text-emerald-900 hover:underline underline-offset-4"
+                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Libros y Papel
               </Link>
@@ -89,14 +89,14 @@ function Footer() {
 
         {/* Ayuda */}
         <div>
-          <h3 className="text-sm font-extrabold tracking-widest uppercase text-amber-900 mb-5">
+          <h3 className="font-handwritten text-sm font-extrabold tracking-widest uppercase text-amber-900 mb-5">
             Ayuda
           </h3>
           <ul className="space-y-3 text-sm text-zinc-700">
             <li>
               <Link
                 href="#"
-                className="hover:text-emerald-900 hover:underline underline-offset-4"
+                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Envíos
               </Link>
@@ -104,7 +104,7 @@ function Footer() {
             <li>
               <Link
                 href="#"
-                className="hover:text-emerald-900 hover:underline underline-offset-4"
+                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Devoluciones
               </Link>
@@ -112,7 +112,7 @@ function Footer() {
             <li>
               <Link
                 href="#"
-                className="hover:text-emerald-900 hover:underline underline-offset-4"
+                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Guía de Estado
               </Link>
@@ -120,7 +120,7 @@ function Footer() {
             <li>
               <Link
                 href="#"
-                className="hover:text-emerald-900 hover:underline underline-offset-4"
+                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Preguntas Frecuentes
               </Link>
@@ -133,10 +133,10 @@ function Footer() {
           <h3 className="text-sm font-extrabold tracking-widest uppercase text-amber-900 mb-5">
             Visítanos
           </h3>
-          <p className="text-sm text-zinc-700 leading-relaxed mb-4">
-            Nuestro almacén físico abre solo los sábados de 9am a 2pm.
+          <p className="font-handwritten text-sm text-zinc-700 leading-relaxed mb-4">
+            www.retrogaragepf.com
           </p>
-          <p className="text-sm text-zinc-700 leading-relaxed">
+          <p className="font-handwritten text-sm text-zinc-700 leading-relaxed">
             Calle de los Anticuarios 42 <br />
             Barrio Viejo, CP 28001
           </p>

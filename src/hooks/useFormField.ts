@@ -3,7 +3,7 @@ import validations from '../validations/validations';
 import { IValidationResult } from '../types/types';
 
  const useFormField = (
-  fieldName: 'name' | 'email' | 'password',
+  fieldName: 'name' | 'email' | 'address' | 'password',
   initialValue: string = ''
 ) => {
   const [value, setValue] = useState(initialValue);

@@ -7,30 +7,43 @@ export default function AvatarUploader({
   onUploaded,
 }: {
   userId: string;
-  onUploaded: (publicId: string, secureUrl: string) => void;
+  onUploaded: (payload: { publicId: string; secureUrl: string }) => void;
 }) {
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
+
   return (
     <CldUploadWidget
-      uploadPreset="rg_signed_main"
+      // ✅ UNSIGNED: SOLO preset + cloudName (nada de signature)
+      uploadPreset={uploadPreset}
       options={{
-        folder: `retrogarage/users/avatars/${userId}`,
+        cloudName,
         sources: ["local", "camera"],
         multiple: false,
         maxFiles: 1,
+        cropping: true,
+        croppingAspectRatio: 1,
+        folder: `avatars/${userId}`,
+        resourceType: "image",
+        clientAllowedFormats: ["png", "jpg", "jpeg", "webp"],
       }}
-      signatureEndpoint="/api/cloudinary/signature"
       onSuccess={(result: any) => {
         const info = result?.info;
-        onUploaded(info.public_id, info.secure_url);
+        if (!info?.public_id || !info?.secure_url) return;
+
+        onUploaded({
+          publicId: info.public_id,
+          secureUrl: info.secure_url,
+        });
       }}
     >
       {({ open }) => (
         <button
           type="button"
           onClick={() => open()}
-          className="px-4 py-2 rounded bg-zinc-900 text-amber-200"
+          className="px-3 py-2 rounded-xl border-2 border-slate-900 bg-amber-200 hover:bg-amber-300 font-sans text-sm"
         >
-          Subir avatar
+          Cambiar
         </button>
       )}
     </CldUploadWidget>

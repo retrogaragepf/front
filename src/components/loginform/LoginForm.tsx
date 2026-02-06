@@ -28,13 +28,16 @@ const LoginForm = () => {
     onSuccess: async (data) => {
       try {
         const response = await authService.login(data);
-
+        /**
+         * 
         if (response.success && response.token) {
           authService.saveToken(response.token);
           router.push("/dashboard");
         } else {
-          console.error("Error:", response.error);
+          console.log("Respuesta completa:", response);
         }
+         */
+        
       } catch (error) {
         console.error("Error en login:", error);
       }

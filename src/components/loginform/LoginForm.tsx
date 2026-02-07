@@ -22,62 +22,82 @@ const LoginForm = () => {
   };
 
   const getFormData = () => ({
-    email: emailField.value,
+    email: emailField.value.trim(),
     password: passwordField.value,
   });
 
   const { handleSubmit, isSubmitting } = useFormSubmit({
     onValidate: validateAll,
     onGetData: getFormData,
+
     onSuccess: async (data) => {
       try {
         const response: any = await authService.login(data);
 
-        console.log('=== RESPONSE COMPLETA ===', response);
-        console.log('response?.token:', response?.token);
-
-        if (!response?.token) {
-          console.error("Login sin token");
+        // ❌ si tu authService normaliza errores como { success:false, error,... }
+        if (!response || response?.success === false || response?.error) {
+          showToast.error(response?.error || "Credenciales inválidas", {
+            duration: 4000,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          });
           return;
         }
 
-        // ✅ Leer datos del localStorage (ya fueron guardados por authService)
-        const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || 'retrogarage_auth';
-        const authData = localStorage.getItem(TOKEN_KEY);
-        
-        if (!authData) {
-          console.error("No hay datos en localStorage");
+        const token = response?.token;
+
+        if (!token) {
+          showToast.error("Login sin token. Revisa respuesta del backend.", {
+            duration: 4000,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          });
+          console.log("Respuesta login sin token:", response);
           return;
         }
 
-        const savedData = JSON.parse(authData);
-        console.log('=== DATOS DEL LOCALSTORAGE ===', savedData);
+        // ✅ AQUÍ LA CLAVE: guarda sesión con token real
+        login({ token });
 
-        // ✅ Guardar en contexto con los datos decodificados
-        login({
-          user: {
-            id: savedData.user.id,
-            name: savedData.user.name,  // ← AQUÍ VIENE EL NOMBRE
-            email: savedData.user.email
-          },
-          token: savedData.token,
-        });
-
-        console.log('✅ Login exitoso - Datos guardados en contexto');
-
-        showToast?.success("¡Ingreso Exitoso!", {
+        showToast.success("¡Ingreso Exitoso!", {
           duration: 4000,
           progress: true,
           position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
         });
 
         router.push("/dashboard");
       } catch (error) {
         console.error("Error en login:", error);
+        showToast.error("Error en login", {
+          duration: 4000,
+          progress: true,
+          position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
+        });
       }
     },
+
     onError: (error) => {
-      console.error("Error en formulario:", error);
+      console.error("Error:", error);
+      showToast.error("Error validando el formulario", {
+        duration: 4000,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
     },
   });
 

@@ -1,45 +1,84 @@
-'use client';
-import useFormField from '@/src/hooks/useFormField';
-import { useFormSubmit } from '@/src/hooks/useFormSubmit';
-import React from 'react';
-const LoginForm = () => {
-  
-  const emailField = useFormField('email');
-  const passwordField = useFormField('password');
+"use client";
+import useFormField from "@/src/hooks/useFormField";
+import { useFormSubmit } from "@/src/hooks/useFormSubmit";
+import { authService } from "@/src/services/auth";
+import { useRouter } from "next/navigation";
+import React from "react";
+import { useAuth } from "@/src/context/AuthContext";
+import { showToast } from "nextjs-toast-notify";
+import Link from "next/link";
 
-  // ------------------VALIDACIÓN -------------------
+const LoginForm = () => {
+  const router = useRouter();
+  const { login } = useAuth();
+
+  const emailField = useFormField("email");
+  const passwordField = useFormField("password");
+
   const validateAll = () => {
     const isEmailValid = emailField.validate();
     const isPasswordValid = passwordField.validate();
     return isEmailValid && isPasswordValid;
   };
 
-  // ----------OBTENER DATOS--------------
   const getFormData = () => ({
     email: emailField.value,
     password: passwordField.value,
   });
 
-  //-----------------SUBMIT-------------
   const { handleSubmit, isSubmitting } = useFormSubmit({
     onValidate: validateAll,
     onGetData: getFormData,
-    onSuccess: () => {
-      console.log(' Login exitoso');
-      // Aquí puedes redirigir o guardar token
-      emailField.reset();
-      passwordField.reset();
+    onSuccess: async (data) => {
+      try {
+        const response: any = await authService.login(data);
+
+        // ✅ Tu backend devuelve texto: "Usuario logueado (TOKEN)" (status 201)
+        // No tenemos token real ni user real desde response, así que guardamos SOLO email para demo.
+        // Si tu authService devolviera error object, lo detectamos:
+        if (!response) {
+          console.log("Login sin respuesta:", response);
+          return;
+        }
+        if (
+          typeof response === "object" &&
+          (response?.error || response?.message?.includes?.("Error"))
+        ) {
+          console.log("Login falló:", response);
+          return;
+        }
+
+        // ✅ Guardar sesión para que el Dashboard renderice el email
+        login({
+          user: { id: null, name: "Usuario", email: data.email },
+          token: null,
+        });
+
+        // ✅ Toast éxito
+        showToast.success("¡Ingreso Exitoso!", {
+          duration: 4000,
+          progress: true,
+          position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
+        });
+
+        // ✅ Redirección
+        router.push("/dashboard");
+      } catch (error) {
+        console.error("Error en login:", error);
+      }
     },
     onError: (error) => {
-      console.error(' Error:', error);
+      console.error("Error:", error);
     },
   });
 
   return (
-    <div className="flex items-center justify-center min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
-          
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-800 rounded-full transform -translate-x-12 translate-y-24 opacity-70"></div>
@@ -47,20 +86,16 @@ const LoginForm = () => {
           </div>
 
           <div className="relative z-10">
-           
             <div className="text-center space-y-2">
-              <h2 className="text-5xl font-bold text-amber-800 font-boutique ">
+              <h2 className="text-4xl font-bold text-amber-800 font-display">
                 ¡Hola de Nuevo!
               </h2>
-              <p className="text-lg text-gray-500 font-elegant">
+              <p className="text-lg text-emerald-800 font-handwritten">
                 Inicia sesión para acceder a tu cuenta
               </p>
             </div>
 
-            {/* ------------- LOIN -----------*/}
             <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-
-              {/*--------------------- EMAIL -----------------*/}
               <div>
                 <label
                   htmlFor="email"
@@ -77,8 +112,8 @@ const LoginForm = () => {
                   onBlur={emailField.handleBlur}
                   className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     emailField.error && emailField.touched
-                      ? 'bg-red-50 focus:ring-red-300'
-                      : 'bg-gray-100 focus:ring-gray-300'
+                      ? "bg-red-50 focus:ring-red-300"
+                      : "bg-gray-100 focus:ring-gray-300"
                   }`}
                   placeholder="juan@email.com"
                 />
@@ -89,16 +124,13 @@ const LoginForm = () => {
                 )}
               </div>
 
-              {/*-----------------------PASSWORD---------------------*/}
               <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label
-                    htmlFor="password"
-                    className="block text-xs font-medium text-gray-600 uppercase tracking-wider"
-                  >
-                    Contraseña
-                  </label>
-                </div>
+                <label
+                  htmlFor="password"
+                  className="block text-xs font-medium text-gray-600 uppercase tracking-wider"
+                >
+                  Contraseña
+                </label>
                 <input
                   id="password"
                   name="password"
@@ -108,8 +140,8 @@ const LoginForm = () => {
                   onBlur={passwordField.handleBlur}
                   className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     passwordField.error && passwordField.touched
-                      ? 'bg-red-50 focus:ring-red-300'
-                      : 'bg-gray-100 focus:ring-gray-300'
+                      ? "bg-red-50 focus:ring-red-300"
+                      : "bg-gray-100 focus:ring-gray-300"
                   }`}
                   placeholder="••••••••"
                 />
@@ -119,8 +151,7 @@ const LoginForm = () => {
                   </p>
                 )}
               </div>
-              
-              {/* -----------------SUBMIT ------------------*/}
+
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -128,9 +159,25 @@ const LoginForm = () => {
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin h-5 w-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     <span>Iniciando sesión...</span>
                   </>
@@ -149,19 +196,22 @@ const LoginForm = () => {
                         d="M14 5l7 7m0 0l-7 7m7-7H3"
                       />
                     </svg>
-                    <span>Iniciar sesión</span>
+                    <span className="font-handwritten text-md">
+                      Iniciar sesión
+                    </span>
                   </>
                 )}
               </button>
             </form>
 
-            {/* ---------------------------LINK A REGISTRO    aunnofnciaaaa-------------------------*/}
-            <p className="text-center text-sm text-gray-500 pt-4">
-              ¿No tienes cuenta?{' '}
-              <a href="/register"
-                className="font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+            <p className="text-center text-sm text-emerald-800 pt-4">
+              ¿No tienes cuenta?{" "}
+              <Link
+                href="/register"
+                className="font-semibold text-amber-800 hover:text-gray-900 transition-colors"
+              >
                 Regístrate
-              </a>
+              </Link>
             </p>
           </div>
         </div>

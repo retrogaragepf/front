@@ -33,9 +33,12 @@ const LoginForm = () => {
     onSuccess: async (data) => {
       try {
         const response: any = await authService.login(data);
+        console.log('------RESPUESTA--------', response);
+         console.log('response?.token:', response?.token);
 
         // ❌ si tu authService normaliza errores como { success:false, error,... }
-        if (!response || response?.success === false || response?.error) {
+        /**
+         * if (!response || response?.success === false || response?.error) {
           showToast.error(response?.error || "Credenciales inválidas", {
             duration: 4000,
             progress: true,
@@ -46,10 +49,45 @@ const LoginForm = () => {
           });
           return;
         }
+         */
+        if (!response?.token) {
+          console.error("Login sin token");
+          showToast.error(response?.error || "Credenciales inválidas", {
+            duration: 4000,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          });
+          return;
+        }
+        //---------DATOS DEL LOCALSTORAGE ANTES DE GUARDAR SESIÓN----------------
+        const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || 'retrogarage_auth';
+        const authData = localStorage.getItem(TOKEN_KEY);
+        if (!authData) {
+          console.error("No hay datos en localStorage");
+          return;
+        }
+        const savedData = JSON.parse(authData);
+        console.log('DATOS DEL LOCALSTORAGE', savedData);
 
         const token = response?.token;
 
-        if (!token) {
+        //-----------GUARDA EN OCNTEXTO CON DATOS REALE/ QUEVIEN EN EL TOKEN----------------
+        login({
+          user: {
+            id: savedData.user.id,
+            name: savedData.user.name,  // ← AQUÍ VIENE EL NOMBRE
+            email: savedData.user.email
+          },
+          token: savedData.token,
+        });
+
+        console.log('LOGIN EXITOSO - Datos guardados en contexto');
+
+        /**
+         *   if (!token) {
           showToast.error("Login sin token. Revisa respuesta del backend.", {
             duration: 4000,
             progress: true,
@@ -64,6 +102,7 @@ const LoginForm = () => {
 
         // ✅ AQUÍ LA CLAVE: guarda sesión con token real
         login({ token });
+         */
 
         showToast.success("¡Ingreso Exitoso!", {
           duration: 4000,
@@ -134,9 +173,8 @@ const LoginForm = () => {
                   id="email"
                   name="email"
                   type="email"
-                   {...emailField}
+                  {...emailField}
                   onChange={emailField.handleChange}
-                  onBlur={emailField.handleBlur}
                   className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     emailField.error && emailField.touched
                       ? "bg-red-50 focus:ring-red-300"
@@ -164,7 +202,6 @@ const LoginForm = () => {
                   type="password"
                   {...passwordField}  
                   onChange={passwordField.handleChange}
-                  onBlur={passwordField.handleBlur}
                   className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     passwordField.error && passwordField.touched
                       ? "bg-red-50 focus:ring-red-300"

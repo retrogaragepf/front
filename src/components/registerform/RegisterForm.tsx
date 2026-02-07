@@ -236,8 +236,6 @@ const RegisterForm = () => {
                 )}
               </div>
 
-            
-
               {/* PASSWORD (sin ojo) */}
               <div>
                 <label

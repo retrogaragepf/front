@@ -22,39 +22,49 @@ const LoginForm = () => {
   };
 
   const getFormData = () => ({
-    email: emailField.value,
+    email: emailField.value.trim(),
     password: passwordField.value,
   });
 
   const { handleSubmit, isSubmitting } = useFormSubmit({
     onValidate: validateAll,
     onGetData: getFormData,
+
     onSuccess: async (data) => {
       try {
         const response: any = await authService.login(data);
 
-        // ✅ Tu backend devuelve texto: "Usuario logueado (TOKEN)" (status 201)
-        // No tenemos token real ni user real desde response, así que guardamos SOLO email para demo.
-        // Si tu authService devolviera error object, lo detectamos:
-        if (!response) {
-          console.log("Login sin respuesta:", response);
-          return;
-        }
-        if (
-          typeof response === "object" &&
-          (response?.error || response?.message?.includes?.("Error"))
-        ) {
-          console.log("Login falló:", response);
+        // ❌ si tu authService normaliza errores como { success:false, error,... }
+        if (!response || response?.success === false || response?.error) {
+          showToast.error(response?.error || "Credenciales inválidas", {
+            duration: 4000,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          });
           return;
         }
 
-        // ✅ Guardar sesión para que el Dashboard renderice el email
-        login({
-          user: { id: null, name: "Usuario", email: data.email },
-          token: null,
-        });
+        const token = response?.token;
 
-        // ✅ Toast éxito
+        if (!token) {
+          showToast.error("Login sin token. Revisa respuesta del backend.", {
+            duration: 4000,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          });
+          console.log("Respuesta login sin token:", response);
+          return;
+        }
+
+        // ✅ AQUÍ LA CLAVE: guarda sesión con token real
+        login({ token });
+
         showToast.success("¡Ingreso Exitoso!", {
           duration: 4000,
           progress: true,
@@ -64,14 +74,30 @@ const LoginForm = () => {
           sound: true,
         });
 
-        // ✅ Redirección
         router.push("/dashboard");
       } catch (error) {
         console.error("Error en login:", error);
+        showToast.error("Error en login", {
+          duration: 4000,
+          progress: true,
+          position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
+        });
       }
     },
+
     onError: (error) => {
       console.error("Error:", error);
+      showToast.error("Error validando el formulario", {
+        duration: 4000,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
     },
   });
 

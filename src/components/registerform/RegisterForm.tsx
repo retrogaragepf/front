@@ -16,7 +16,7 @@ const RegisterForm = () => {
   const emailField = useFormField("email");
   const passwordField = useFormField("password");
   const confirmPasswordField = useFormField("confirmPassword"); // ✅ NUEVO
-  const addressField = useFormField("address");
+  //const addressField = useFormField("address");
 
   // ✅ Mantener "ver contraseña" con icono ojo
   const [showPassword, setShowPassword] = useState(false);
@@ -27,7 +27,7 @@ const RegisterForm = () => {
     const isEmailValid = emailField.validate();
     const isPasswordValid = passwordField.validate();
     const isConfirmValid = confirmPasswordField.validate(); // ✅ NUEVO
-    const isAddressValid = addressField.validate();
+    //const isAddressValid = addressField.validate();
 
     // ✅ Validación cruzada (sin tocar tu hook): confirmar === password
     const pass = passwordField.value ?? "";
@@ -51,7 +51,7 @@ const RegisterForm = () => {
       isEmailValid &&
       isPasswordValid &&
       isConfirmValid &&
-      isAddressValid &&
+      //isAddressValid &&
       matchOk
     );
   };
@@ -60,7 +60,7 @@ const RegisterForm = () => {
   const getFormData = () => ({
     name: nameField.value.trim(),
     email: emailField.value.trim(),
-    address: addressField.value.trim(),
+    //address: addressField.value.trim(),
     password: passwordField.value,
     confirmPassword: confirmPasswordField.value, // ✅ NUEVO: se envía al backend
   });
@@ -236,34 +236,7 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/* DIRECCIÓN */}
-              <div>
-                <label
-                  htmlFor="address"
-                  className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
-                >
-                  Dirección
-                </label>
-                <input
-                  id="address"
-                  name="address"
-                  type="text"
-                  value={addressField.value}
-                  onChange={addressField.handleChange}
-                  onBlur={addressField.handleBlur}
-                  className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
-                    addressField.error && addressField.touched
-                      ? "bg-red-50 focus:ring-red-300"
-                      : "bg-gray-100 focus:ring-gray-300"
-                  }`}
-                  placeholder="Calle 123"
-                />
-                {addressField.touched && addressField.error && (
-                  <p className="mt-1.5 text-xs text-red-600 font-medium">
-                    {addressField.error}
-                  </p>
-                )}
-              </div>
+            
 
               {/* PASSWORD (sin ojo) */}
               <div>

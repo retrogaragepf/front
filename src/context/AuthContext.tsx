@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { useRouter, usePathname } from "next/navigation";
 
 type User = {
   id?: string | number | null;
@@ -24,7 +25,6 @@ interface AuthContextProps {
   dataUser: UserSession | null;
   isAuth: boolean;
   isLoadingUser: boolean;
-
   login: (payload: UserSession) => void;
   logout: () => void;
 }
@@ -42,17 +42,25 @@ export const AuthContext = createContext<AuthContextProps>({
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [dataUser, setDataUser] = useState<UserSession | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
 
   // ✅ Cargar sesión
   useEffect(() => {
     try {
       const raw = localStorage.getItem(AUTH_KEY);
-      if (!raw) return;
+      if (!raw) {
+        setIsLoadingUser(false);
+        return;
+      }
 
       const parsed = JSON.parse(raw) as UserSession;
-      if (parsed?.user) setDataUser(parsed);
+      if (parsed?.user) {
+        setDataUser(parsed);
+        console.log('✅ Sesión cargada:', parsed.user);
+      }
     } catch (e) {
-      console.error("Error leyendo auth de localStorage:", e);
+      console.error("Error leyendo auth:", e);
       setDataUser(null);
     } finally {
       setIsLoadingUser(false);
@@ -62,20 +70,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // ✅ Persistir sesión
   useEffect(() => {
     try {
-      if (dataUser) localStorage.setItem(AUTH_KEY, JSON.stringify(dataUser));
-      else localStorage.removeItem(AUTH_KEY);
+      if (dataUser) {
+        localStorage.setItem(AUTH_KEY, JSON.stringify(dataUser));
+      } else {
+        localStorage.removeItem(AUTH_KEY);
+      }
     } catch (e) {
-      console.error("Error guardando auth en localStorage:", e);
+      console.error("Error guardando auth:", e);
     }
   }, [dataUser]);
 
   const login = (payload: UserSession) => {
+    console.log('Login - Guardando:', payload.user);
     setDataUser(payload);
   };
 
   const logout = () => {
     setDataUser(null);
     localStorage.removeItem(AUTH_KEY);
+    router.push('/login');
   };
 
   const isAuth = useMemo(() => Boolean(dataUser?.user?.email), [dataUser]);

@@ -1,10 +1,10 @@
 "use client";
+
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/src/context/AuthContext";
 import useFormField from "@/src/hooks/useFormField";
 import { useFormSubmit } from "@/src/hooks/useFormSubmit";
-import { authService } from "@/src/services/auth";
-import { useRouter } from "next/navigation";
-import React from "react";
-import { useAuth } from "@/src/context/AuthContext";
+import authService from "@/src/services/auth";
 import { showToast } from "nextjs-toast-notify";
 import Link from "next/link";
 
@@ -33,47 +33,54 @@ const LoginForm = () => {
       try {
         const response: any = await authService.login(data);
 
-        // ✅ Tu backend devuelve texto: "Usuario logueado (TOKEN)" (status 201)
-        // No tenemos token real ni user real desde response, así que guardamos SOLO email para demo.
-        // Si tu authService devolviera error object, lo detectamos:
-        if (!response) {
-          console.log("Login sin respuesta:", response);
-          return;
-        }
-        if (
-          typeof response === "object" &&
-          (response?.error || response?.message?.includes?.("Error"))
-        ) {
-          console.log("Login falló:", response);
+        console.log('=== RESPONSE COMPLETA ===', response);
+        console.log('response?.token:', response?.token);
+
+        if (!response?.token) {
+          console.error("Login sin token");
           return;
         }
 
-        // ✅ Guardar sesión para que el Dashboard renderice el email
+        // ✅ Leer datos del localStorage (ya fueron guardados por authService)
+        const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || 'retrogarage_auth';
+        const authData = localStorage.getItem(TOKEN_KEY);
+        
+        if (!authData) {
+          console.error("No hay datos en localStorage");
+          return;
+        }
+
+        const savedData = JSON.parse(authData);
+        console.log('=== DATOS DEL LOCALSTORAGE ===', savedData);
+
+        // ✅ Guardar en contexto con los datos decodificados
         login({
-          user: { id: null, name: "Usuario", email: data.email },
-          token: null,
+          user: {
+            id: savedData.user.id,
+            name: savedData.user.name,  // ← AQUÍ VIENE EL NOMBRE
+            email: savedData.user.email
+          },
+          token: savedData.token,
         });
 
-        // ✅ Toast éxito
-        showToast.success("¡Ingreso Exitoso!", {
+        console.log('✅ Login exitoso - Datos guardados en contexto');
+
+        showToast?.success("¡Ingreso Exitoso!", {
           duration: 4000,
           progress: true,
           position: "top-center",
-          transition: "popUp",
-          icon: "",
-          sound: true,
         });
 
-        // ✅ Redirección
         router.push("/dashboard");
       } catch (error) {
         console.error("Error en login:", error);
       }
     },
     onError: (error) => {
-      console.error("Error:", error);
+      console.error("Error en formulario:", error);
     },
   });
+
 
   return (
     <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
@@ -107,7 +114,7 @@ const LoginForm = () => {
                   id="email"
                   name="email"
                   type="email"
-                  value={emailField.value}
+                   {...emailField}
                   onChange={emailField.handleChange}
                   onBlur={emailField.handleBlur}
                   className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
@@ -135,7 +142,7 @@ const LoginForm = () => {
                   id="password"
                   name="password"
                   type="password"
-                  value={passwordField.value}
+                  {...passwordField}  
                   onChange={passwordField.handleChange}
                   onBlur={passwordField.handleBlur}
                   className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${

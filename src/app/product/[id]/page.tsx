@@ -41,13 +41,6 @@ export default async function ProductDetailPage(props: {
           </Link>
 
           <span className="text-amber-900/40">•</span>
-
-          <Link
-            href="/"
-            className="text-xs font-extrabold tracking-widest text-amber-900 uppercase border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-          >
-            Home
-          </Link>
         </div>
 
         {/* Card */}

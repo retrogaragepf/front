@@ -173,8 +173,9 @@ const LoginForm = () => {
                   id="email"
                   name="email"
                   type="email"
-                  {...emailField}
+                  value={emailField.value}
                   onChange={emailField.handleChange}
+                  onBlur={emailField.handleBlur}
                   className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     emailField.error && emailField.touched
                       ? "bg-red-50 focus:ring-red-300"
@@ -200,8 +201,9 @@ const LoginForm = () => {
                   id="password"
                   name="password"
                   type="password"
-                  {...passwordField}  
+                  value={passwordField.value}
                   onChange={passwordField.handleChange}
+                  onBlur={passwordField.handleBlur}
                   className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     passwordField.error && passwordField.touched
                       ? "bg-red-50 focus:ring-red-300"

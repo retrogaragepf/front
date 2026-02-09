@@ -9,7 +9,7 @@ export default function CartList() {
 
       <CartItem />
       <CartItem />
-      <CartItem />
+      
     </section>
   );
 }

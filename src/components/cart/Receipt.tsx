@@ -8,7 +8,7 @@ export default function Receipt() {
       <div className="space-y-4 font-handwritten text-lg">
         <div className="flex justify-between">
           <span>Subtotal:</span>
-          <span>$95.50</span>
+          <span>$90.00</span>
         </div>
 
         <div className="flex justify-between">
@@ -18,19 +18,19 @@ export default function Receipt() {
 
         <div className="flex justify-between text-emerald-700">
           <span>Descuento:</span>
-          <span>- $5.00</span>
+          <span>- $15.00</span>
         </div>
 
         <div className="pt-6 mt-6 border-t-4 border-double flex justify-between text-2xl font-bold">
           <span>TOTAL:</span>
-          <span>$98.50</span>
+          <span>$83.00</span>
         </div>
       </div>
 
       <div className="mt-12 relative">
         <div>
           <span className="block mb-3 text-center font-handwritten font-bold uppercase tracking-widest text-sm">
-            Cupon de descuento?
+            Cupon de descuento:
           </span>
         </div>
 

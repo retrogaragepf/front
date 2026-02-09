@@ -1,14 +1,17 @@
 export default function CartItem() {
   return (
     <div className="flex items-center gap-6 p-6 bg-white rounded-xl border shadow-sm relative">
-      <div className="w-24 h-24 bg-slate-200 rounded-lg" />
+      <img
+        src="https://res.cloudinary.com/dyylxjijf/image/upload/v1770321127/Camara_ypblyh.png"
+        alt="Cámara Retro 90s"
+        className="w-24 h-24 rounded-lg object-cover bg-slate-200"
+        loading="lazy"
+      />
 
       <div className="flex-1">
-        <h3 className="font-handwritten text-lg font-bold">
-          1970s Wood-Grain Radio
-        </h3>
+        <h3 className="font-handwritten text-lg font-bold">Cámara Retro 90s</h3>
         <p className="italic text-slate-500 text-sm">
-          Works perfectly, slight scratch on the dial.
+          Cámara vintage funcional, ideal para colección.
         </p>
 
         <div className="flex items-center gap-4 mt-4">
@@ -22,9 +25,7 @@ export default function CartItem() {
         </div>
       </div>
 
-      <button className="absolute top-4 right-4 text-slate-400">
-        delete_outline
-      </button>
+      <button className="absolute top-4 right-4 text-slate-400">x</button>
     </div>
   );
 }

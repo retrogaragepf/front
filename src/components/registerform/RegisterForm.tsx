@@ -89,7 +89,7 @@ const RegisterForm = () => {
         throw new Error(response?.message || "Error registrando usuario.");
       }
 
-      showToast.success("¡Usuario registrado! Ahora inicia sesión ✅", {
+      showToast.success("¡Usuario registrado! inicia sesión ✅", {
         duration: 4000,
         progress: true,
         position: "top-center",
@@ -184,7 +184,7 @@ const RegisterForm = () => {
                   htmlFor="fullName"
                   className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
                 >
-                  Nombre completo
+                  Nombre Completo
                 </label>
                 <input
                   id="fullName"

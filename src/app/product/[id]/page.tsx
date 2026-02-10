@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { mockGetProductById } from "@/src/services/products.mock.service";
+import AddToCartButton from "@/src/components/products/AddToCartButton";
 
 type Params = { id: string };
 
@@ -41,13 +42,6 @@ export default async function ProductDetailPage(props: {
           </Link>
 
           <span className="text-amber-900/40">•</span>
-
-          <Link
-            href="/"
-            className="text-xs font-extrabold tracking-widest text-amber-900 uppercase border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-          >
-            Home
-          </Link>
         </div>
 
         {/* Card */}
@@ -109,37 +103,24 @@ export default async function ProductDetailPage(props: {
               )}
 
               {/* Divider */}
-              <div className="my-6 h-[2px] w-full bg-amber-300" />
+              <div className="my-6 h-0.5 w-full bg-amber-300" />
 
               {/* Actions (placeholder estilo Navbar) */}
               <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  className="
-                    w-full sm:w-auto
-                    px-4 py-3 rounded-xl border-2 border-emerald-950
-                    bg-emerald-900 text-amber-50 font-extrabold tracking-wide text-sm
-                    shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
-                    hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
-                    active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
-                    transition
-                  "
-                  type="button"
-                >
-                  Agregar al carrito 🛒
-                </button>
+                <AddToCartButton product={product} />
 
                 <Link
                   href="/cart"
                   className="
-                    w-full sm:w-auto text-center
-                    font-handwritten px-4 py-3 rounded-xl
-                    border-2 border-amber-900
-                    bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm
-                    shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
-                    hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
-                    active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
-                    transition
-                  "
+      w-full sm:w-auto text-center
+      font-handwritten px-4 py-3 rounded-xl
+      border-2 border-amber-900
+      bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm
+      shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
+      hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+      active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
+      transition
+    "
                 >
                   Ver carrito
                 </Link>

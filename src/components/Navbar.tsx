@@ -13,6 +13,23 @@ function Navbar() {
   const { cartItems } = useCart();
   const itemsCart = cartItems.length;
 
+  // ✅ Blindado: aunque dataUser venga null/undefined o con forma distinta
+  const safeName =
+    (dataUser as any)?.user?.name ??
+    (dataUser as any)?.name ??
+    (dataUser as any)?.user?.fullName ??
+    (dataUser as any)?.fullName ??
+    (dataUser as any)?.user?.username ??
+    (dataUser as any)?.username ??
+    "";
+
+  // ✅ Logged: soporta varios shapes
+  const isLogged =
+    Boolean((dataUser as any)?.user?.email) ||
+    Boolean((dataUser as any)?.email) ||
+    Boolean((dataUser as any)?.user) ||
+    Boolean(dataUser);
+
   const handleLogout = () => {
     logout();
     showToast.warning("¡Salida Exitosa!", {
@@ -54,9 +71,10 @@ function Navbar() {
                 href="/product"
                 className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
               >
-                Productos
+                Productos Destacados
               </Link>
             </li>
+
             <li>
               <Link
                 href="/categories"
@@ -85,21 +103,15 @@ function Navbar() {
             )}
           </Link>
 
-          {/* Mi Perfil (sin <li> para evitar el punto/bullet) */}
-          <div>
-            <Link
-              href="/dashboard"
-              className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-            >
-              Mi Perfil
-            </Link>
-          </div>
-
-          {dataUser ? (
+          {/* ✅ Mi Perfil SOLO si está logeado */}
+          {isLogged ? (
             <div className="flex items-center gap-3">
-              <p className="hidden sm:block max-w-35 truncate text-sm font-semibold text-zinc-800">
-                {dataUser.user.name}
-              </p>
+              <Link
+                href="/dashboard"
+                className="hidden sm:block max-w-35 truncate text-sm font-semibold text-zinc-800 hover:text-emerald-900 transition"
+              >
+                {safeName || "Mi Perfil"}
+              </Link>
 
               <button
                 onClick={handleLogout}
@@ -107,8 +119,8 @@ function Navbar() {
                   px-3 py-2 rounded-xl border-2 border-amber-900
                   bg-amber-50 text-amber-900 font-bold text-sm
                   shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
-                  hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
-                  active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
+                  hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+                  active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
                   transition
                 "
               >
@@ -125,8 +137,8 @@ function Navbar() {
                   border-2 border-amber-900
                   bg-amber-50 text-amber-900
                   shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
-                  hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
-                  active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
+                  hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+                  active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
                   transition
                 "
               >
@@ -141,8 +153,8 @@ function Navbar() {
                   border-2 border-emerald-950
                   bg-emerald-900 text-amber-50
                   shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
-                  hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
-                  active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
+                  hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+                  active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
                   transition
                 "
               >
@@ -175,13 +187,14 @@ function Navbar() {
               </Link>
             </li>
 
-            {dataUser && (
+            {/* ✅ Mobile Dashboard SOLO si está logeado */}
+            {isLogged && (
               <li>
                 <Link
                   href="/dashboard"
                   className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
                 >
-                  Dashboard
+                  Mi Perfil
                 </Link>
               </li>
             )}

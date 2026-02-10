@@ -1,17 +1,22 @@
-import { useState } from 'react';
-import validations from '../validations/validations';
-import { IValidationResult } from '../types/types';
+import { useState } from "react";
+import validations from "../validations/validations";
+import { IValidationResult } from "../types/types";
 
- const useFormField = (
-  fieldName: 'name' | 'email' | 'address' | 'password',
-  initialValue: string = ''
-) => {
+type FieldName = "name" | "email"  | "password" | "confirmPassword"; //| "address"
+
+// ✅ Solo para TypeScript (no cambia runtime)
+const typedValidations = validations as Record<
+  FieldName,
+  (value: string) => IValidationResult
+>;
+
+const useFormField = (fieldName: FieldName, initialValue: string = "") => {
   const [value, setValue] = useState(initialValue);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [touched, setTouched] = useState(false);
 
   const validate = (): boolean => {
-    const result: IValidationResult = validations[fieldName](value);
+    const result: IValidationResult = typedValidations[fieldName](value);
     setError(result.errorMessage);
     return result.isValid;
   };
@@ -20,7 +25,9 @@ import { IValidationResult } from '../types/types';
     setValue(e.target.value);
     if (touched) {
       //VALIDA MIENTARS ESRIBE SOLO SI TOCO EL COMAPO--------
-      const result = validations[fieldName](e.target.value);
+      const result: IValidationResult = typedValidations[fieldName](
+        e.target.value,
+      );
       setError(result.errorMessage);
     }
   };
@@ -31,8 +38,8 @@ import { IValidationResult } from '../types/types';
   };
 
   const reset = () => {
-    setValue('');
-    setError('');
+    setValue("");
+    setError("");
     setTouched(false);
   };
 

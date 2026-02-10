@@ -1,72 +1,165 @@
 "use client";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { showToast } from "nextjs-toast-notify";
 import useFormField from "@/src/hooks/useFormField";
 import { useFormSubmit } from "@/src/hooks/useFormSubmit";
 import { authService } from "@/src/services/auth";
-import { useRouter } from "next/navigation";
-import React from "react";
+import { useAuth } from "@/src/context/AuthContext";
+import { signIn, useSession } from "next-auth/react";
 
 const RegisterForm = () => {
   const router = useRouter();
 
+  const { login, isAuth } = useAuth();
+  const { data: session } = useSession();
+
   const nameField = useFormField("name");
   const emailField = useFormField("email");
   const passwordField = useFormField("password");
-  const addressField = useFormField("address");
+  const confirmPasswordField = useFormField("confirmPassword"); // ✅ NUEVO
+  //const addressField = useFormField("address");
+
+  // ✅ Mantener "ver contraseña" con icono ojo
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // -----------------GOOGLE CON AUTcONTEXT-------------------
+  useEffect(() => {
+    if (session?.user && !isAuth) {
+      login({
+        user: {
+          id: session.user.id || session.user.email || "", // SE USA EMAIL MIENTARS SEIMPLEMETA GOOGLE
+          name: session.user.name || "",
+          email: session.user.email || "",
+          image: session.user.image,
+        },
+        token: session.accessToken || "google-mock-token",// TOKEN, SI SE USA SE GUARDA EN LOCALSTORAGE O EN LAS COOKIES Y SIN ERROR DE TYPESCRIPT SE PUEDE GUARDAR COMO STRING, SI NO SE USA SE PUEED GUARDAR UN VALRO FIJO O SIMPLEMENTE NO GUARDAR NADA EN EL CONTEXTO, DEPENDE DE COMOSE MANEJE EN EL BACKEND
+      });
+
+      showToast.success("¡Registro con Google Exitoso!", {
+        duration: 3000,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+      router.push("/dashboard");
+    }
+  }, [session, isAuth, login, router]);
 
   const validateAll = () => {
     const isNameValid = nameField.validate();
     const isEmailValid = emailField.validate();
     const isPasswordValid = passwordField.validate();
-    const isAddressValid = addressField.validate();
-    return isNameValid && isEmailValid && isPasswordValid && isAddressValid;
+    const isConfirmValid = confirmPasswordField.validate(); // ✅ NUEVO
+    //const isAddressValid = addressField.validate();
+
+    // ✅ Validación cruzada (sin tocar tu hook): confirmar === password
+    const pass = passwordField.value ?? "";
+    const confirm = confirmPasswordField.value ?? "";
+    const matchOk = pass.length > 0 && confirm.length > 0 && pass === confirm;
+
+    if (!matchOk && (confirmPasswordField.touched || passwordField.touched)) {
+      // ❗ Solo mensaje, no cambia tu flujo
+      showToast.error("Las contraseñas no coinciden.", {
+        duration: 3000,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+    }
+
+    return (
+      isNameValid &&
+      isEmailValid &&
+      isPasswordValid &&
+      isConfirmValid &&
+      //isAddressValid &&
+      matchOk
+    );
   };
 
+  // ✅ ÚNICO CAMBIO necesario: incluir confirmPassword en el payload
   const getFormData = () => ({
-    name: nameField.value,
-    email: emailField.value,
-    address: addressField.value,
+    name: nameField.value.trim(),
+    email: emailField.value.trim(),
+    //address: addressField.value.trim(),
     password: passwordField.value,
+    confirmPassword: confirmPasswordField.value, // ✅ NUEVO: se envía al backend
   });
 
   const { handleSubmit, isSubmitting } = useFormSubmit({
     onValidate: validateAll,
     onGetData: getFormData,
+
     onSuccess: async (data) => {
-  try {
-    const response = await authService.register(data);
+      // ✅ Seguridad final (por si no tocó blur)
+      if ((passwordField.value ?? "") !== (confirmPasswordField.value ?? "")) {
+        throw new Error("Las contraseñas no coinciden.");
+      }
 
-    // ✅ guardamos lo mínimo necesario en el front
-    localStorage.setItem(
-      "user",
-      JSON.stringify({
-        name: data.name,
-        mail: data.email,
-      })
-    );
-    // 🔹 Push a la dashboard
-    router.push("/dashboard");
+      const response: any = await authService.register(data);
 
-  } catch (error) {
-    console.error("Error en registro:", error);
-  }
-},
+      if (!response) {
+        throw new Error("El servidor no devolvió respuesta al registrar.");
+      }
 
-    onError: (error) => {
-      console.error("Error:", error);
+      if (
+        typeof response === "object" &&
+        (response?.error ||
+          response?.message?.toLowerCase?.().includes("error"))
+      ) {
+        throw new Error(response?.message || "Error registrando usuario.");
+      }
+
+      showToast.success("¡Usuario registrado! inicia sesión ✅", {
+        duration: 4000,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+
+      router.push("/login");
+    },
+
+    onError: (error: any) => {
+      const msg = error?.message || "No se pudo registrar. Revisa tus datos.";
+      showToast.error(String(msg), {
+        duration: 4500,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+      console.error("Error register:", error);
     },
   });
+
+  const passwordsMismatch =
+    (confirmPasswordField.touched || passwordField.touched) &&
+    (passwordField.value ?? "") !== (confirmPasswordField.value ?? "");
 
   return (
     <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
+          {/* decor */}
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-800 rounded-full transform -translate-x-12 translate-y-24 opacity-70"></div>
             <div className="absolute bottom-8 left-1/4 w-32 h-32 bg-amber-200 rounded-full opacity-60"></div>
           </div>
 
-          <div className="relative z-10">
+          <div className="relative z-10 space-y-6">
             <div className="text-center space-y-2">
               <h1 className="font-bold text-amber-800 font-display text-4xl">
                 ¡Bienvenido!
@@ -75,35 +168,35 @@ const RegisterForm = () => {
                 Regístrate para crear una cuenta
               </p>
             </div>
-            <button
-              type="button"
-              className="w-full flex items-center justify-center gap-3 
-             border border-gray-300 bg-white 
-             hover:bg-gray-50 
-             text-gray-800 font-medium 
-             py-3 px-4 rounded-xl 
-             transition-colors"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 48 48">
-                <path
-                  fill="#EA4335"
-                  d="M24 9.5c3.54 0 6.72 1.22 9.22 3.22l6.9-6.9C35.9 2.34 30.47 0 24 0 14.64 0 6.64 5.38 2.74 13.22l8.02 6.22C12.7 13.72 17.9 9.5 24 9.5z"
-                />
-                <path
-                  fill="#4285F4"
-                  d="M46.1 24.5c0-1.7-.14-3.34-.4-4.94H24v9.36h12.4c-.54 2.9-2.16 5.36-4.6 7.04l7.1 5.5c4.16-3.84 6.6-9.5 6.6-16.96z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M10.76 28.44c-.5-1.5-.78-3.1-.78-4.78s.28-3.28.78-4.78l-8.02-6.22C.98 16.1 0 19.96 0 24c0 4.04.98 7.9 2.74 11.34l8.02-6.22z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M24 48c6.48 0 11.92-2.14 15.9-5.8l-7.1-5.5c-1.98 1.34-4.52 2.14-8.8 2.14-6.1 0-11.3-4.22-13.24-9.94l-8.02 6.22C6.64 42.62 14.64 48 24 48z"
-                />
-              </svg>
-              <span>Continuar con Google</span>
-            </button>
+
+            {/* ----------------------BOTÓN DE GOOGLE ----------------------------*/}
+            <div className="p-1 rounded-xl bg-gray-200">
+              <button
+                type="button"
+                onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                className="w-full rounded-xl bg-white border border-gray-300 hover:bg-gray-50 px-4 py-3 font-medium text-gray-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 pt-3"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    fill="#EA4335"
+                  />
+                </svg>
+                <span>Continuar con Google</span>
+              </button>
+            </div>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -115,14 +208,15 @@ const RegisterForm = () => {
                 </span>
               </div>
             </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* ------------NOMBRE-------------*/}
+              {/* NOMBRE */}
               <div>
                 <label
                   htmlFor="fullName"
                   className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
                 >
-                  Nombre completo
+                  Nombre Completo
                 </label>
                 <input
                   id="fullName"
@@ -136,7 +230,7 @@ const RegisterForm = () => {
                       ? "bg-red-50 focus:ring-red-300"
                       : "bg-gray-100 focus:ring-gray-300"
                   }`}
-                  placeholder="Juan Pérez"
+                  placeholder="Nombre y Apellido"
                 />
                 {nameField.touched && nameField.error && (
                   <p className="mt-1.5 text-xs text-red-600 font-medium">
@@ -145,7 +239,7 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/*-------------------CORREO--------------*/}
+              {/* EMAIL */}
               <div>
                 <label
                   htmlFor="email"
@@ -165,7 +259,7 @@ const RegisterForm = () => {
                       ? "bg-red-50 focus:ring-red-300"
                       : "bg-gray-100 focus:ring-gray-300"
                   }`}
-                  placeholder="juan@email.com"
+                  placeholder="correo@ejemplo.com"
                 />
                 {emailField.touched && emailField.error && (
                   <p className="mt-1.5 text-xs text-red-600 font-medium">
@@ -174,36 +268,7 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/*-------------------DIRECCION---------------*/}
-              <div>
-                <label
-                  htmlFor="address"
-                  className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
-                >
-                  Dirección
-                </label>
-                <input
-                  id="address"
-                  name="address"
-                  type="text"
-                  value={addressField.value}
-                  onChange={addressField.handleChange}
-                  onBlur={addressField.handleBlur}
-                  className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
-                    addressField.error && addressField.touched
-                      ? "bg-red-50 focus:ring-red-300"
-                      : "bg-gray-100 focus:ring-gray-300"
-                  }`}
-                  placeholder="Calle 123"
-                />
-                {addressField.touched && addressField.error && (
-                  <p className="mt-1.5 text-xs text-red-600 font-medium">
-                    {addressField.error}
-                  </p>
-                )}
-              </div>
-
-              {/* ----------------CONTRASEÑA--------------- */}
+              {/* PASSWORD (sin ojo) */}
               <div>
                 <label
                   htmlFor="password"
@@ -211,6 +276,7 @@ const RegisterForm = () => {
                 >
                   Contraseña
                 </label>
+
                 <input
                   id="password"
                   name="password"
@@ -225,6 +291,7 @@ const RegisterForm = () => {
                   }`}
                   placeholder="••••••••"
                 />
+
                 {passwordField.touched && passwordField.error && (
                   <p className="mt-1.5 text-xs text-red-600 font-medium">
                     {passwordField.error}
@@ -232,7 +299,43 @@ const RegisterForm = () => {
                 )}
               </div>
 
-              {/* -------------SUBMIT ------------*/}
+              {/* CONFIRM PASSWORD (sin ojo) */}
+              <div>
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
+                >
+                  Confirmar contraseña
+                </label>
+
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  value={confirmPasswordField.value}
+                  onChange={confirmPasswordField.handleChange}
+                  onBlur={confirmPasswordField.handleBlur}
+                  className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+                    (confirmPasswordField.error &&
+                      confirmPasswordField.touched) ||
+                    passwordsMismatch
+                      ? "bg-red-50 focus:ring-red-300"
+                      : "bg-gray-100 focus:ring-gray-300"
+                  }`}
+                  placeholder="••••••••"
+                />
+
+                {confirmPasswordField.touched &&
+                  (confirmPasswordField.error || passwordsMismatch) && (
+                    <p className="mt-1.5 text-xs text-red-600 font-medium">
+                      {passwordsMismatch
+                        ? "Las contraseñas no coinciden."
+                        : confirmPasswordField.error}
+                    </p>
+                  )}
+              </div>
+
+              {/* SUBMIT */}
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -253,12 +356,12 @@ const RegisterForm = () => {
                         r="10"
                         stroke="currentColor"
                         strokeWidth="4"
-                      ></circle>
+                      />
                       <path
                         className="opacity-75"
                         fill="currentColor"
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
+                      />
                     </svg>
                     <span>Procesando...</span>
                   </>
@@ -285,14 +388,14 @@ const RegisterForm = () => {
               </button>
             </form>
 
-            <p className="text-center text-sm text-emerald-800 pt-4">
+            <p className="text-center text-sm text-emerald-800 font-handwritten">
               ¿Ya tienes cuenta?{" "}
-              <a
+              <Link
                 href="/login"
                 className="font-semibold text-amber-800 hover:text-gray-900 transition-colors"
               >
                 Inicia sesión
-              </a>
+              </Link>
             </p>
           </div>
         </div>

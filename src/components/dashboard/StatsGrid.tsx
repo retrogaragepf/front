@@ -18,10 +18,10 @@ export default function StatsGrid() {
       />
 
       <StatsCard
-        title="Total gastado"
+        title="Total ventas"
         value="$48.300"
         subtitle="Últimos 30 días"
-        accent="slate"
+        accent="emerald"
       />
 
       <StatsCard

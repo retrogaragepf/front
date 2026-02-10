@@ -8,10 +8,8 @@ export default function DashboardPage() {
       <Sidebar />
 
       <main className="flex-1 p-10 space-y-10">
-        {/* Header usuario */}
         <ProfileHeader />
 
-        {/* Stats */}
         <StatsGrid />
       </main>
     </div>

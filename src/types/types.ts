@@ -12,6 +12,7 @@ export interface LoginData {
 }
 
 export interface AuthResponse {
+  data: any;
   success: boolean;
   token?: string;
   user?: {

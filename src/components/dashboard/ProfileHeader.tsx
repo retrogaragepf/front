@@ -5,21 +5,20 @@ import { CldImage } from "next-cloudinary";
 import AvatarUploader from "@/src/components/AvatarUploader";
 
 export default function ProfileHeader() {
-  // ✅ Por ahora hardcodeado. Luego lo sacas de tu AuthContext: dataUser.user.id, etc.
-  const userId = "demo-user-1";
+  const user =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("user") || "null")
+      : null;
 
-  // ✅ Guarda el public_id (recomendado). Esto luego lo persistes en DB.
+  const userId = user?.id || "demo-user-1";
+
   const [avatarPublicId, setAvatarPublicId] = useState<string | null>(null);
-
-  // (Opcional) si quieres tener también secure_url por si tu backend lo necesita
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   return (
     <div className="bg-white border-4 border-slate-900 rounded-2xl p-6 flex items-center justify-between gap-6">
       <div className="flex items-center gap-6">
-        {/* FOTO DE PERFIL */}
         <div className="relative">
-          {/* ✅ Si ya hay public_id, mostramos Cloudinary; si no, placeholder */}
           {avatarPublicId ? (
             <CldImage
               src={avatarPublicId}
@@ -38,27 +37,25 @@ export default function ProfileHeader() {
             />
           )}
 
-          {/* BOTÓN CAMBIAR (abre widget) */}
           <div className="absolute -bottom-2 -right-2">
             <AvatarUploader
               userId={userId}
               onUploaded={({ publicId, secureUrl }) => {
                 setAvatarPublicId(publicId);
                 setAvatarUrl(secureUrl);
-
-                // ✅ Aquí luego haces tu PATCH al backend:
-                // await updateUserAvatar({ publicId, secureUrl })
               }}
             />
           </div>
         </div>
 
         <div>
-          <h2 className="font-display text-3xl">Alex</h2>
-          <p className="font-sans text-slate-600">Vendedor & Comprador</p>
+         <h2 className="font-display text-3xl">
+  {user?.name || user?.username || user?.fullName || "Usuario"}
+       </h2>
 
-          {/* Debug opcional para ver que sí cambió */}
-          {/* <p className="text-xs text-slate-500 mt-1">{avatarUrl}</p> */}
+          <p className="font-sans text-slate-600">
+            Vendedor & Comprador
+          </p>
         </div>
       </div>
 

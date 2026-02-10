@@ -32,22 +32,25 @@ const RegisterForm = () => {
     onValidate: validateAll,
     onGetData: getFormData,
     onSuccess: async (data) => {
-      try {
-        const response = await authService.register(data);
-        console.log("Respuesta completa:", response);
-        /**
-         * 
-          if (response.success && response.token) {
-          authService.saveToken(response.token);
-          router.push("/login");
-        } else {
-          console.log("Respuesta completa:", response);
-        } 
-         */
-      } catch (error) {
-        console.error("Error en registro:", error);
-      }
-    },
+  try {
+    const response = await authService.register(data);
+
+    // ✅ guardamos lo mínimo necesario en el front
+    localStorage.setItem(
+      "user",
+      JSON.stringify({
+        name: data.name,
+        mail: data.email,
+      })
+    );
+    // 🔹 Push a la dashboard
+    router.push("/dashboard");
+
+  } catch (error) {
+    console.error("Error en registro:", error);
+  }
+},
+
     onError: (error) => {
       console.error("Error:", error);
     },

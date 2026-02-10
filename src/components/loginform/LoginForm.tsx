@@ -26,22 +26,23 @@ const LoginForm = () => {
     onValidate: validateAll,
     onGetData: getFormData,
     onSuccess: async (data) => {
-      try {
-        const response = await authService.login(data);
-        /**
-         * 
-        if (response.success && response.token) {
-          authService.saveToken(response.token);
-          router.push("/dashboard");
-        } else {
-          console.log("Respuesta completa:", response);
-        }
-         */
-        
-      } catch (error) {
-        console.error("Error en login:", error);
-      }
-    },
+  try {
+    const response = await authService.login(data);
+
+    // ✅ guardamos info mínima para la dash
+    localStorage.setItem(
+      "user",
+      JSON.stringify({
+        name: data.email.split("@")[0], // fallback simple
+        mail: data.email,
+      })
+    );
+
+    router.push("/dashboard");
+  } catch (error) {
+    console.error("Error en login:", error);
+  }
+},
     onError: (error) => {
       console.error("Error:", error);
     },

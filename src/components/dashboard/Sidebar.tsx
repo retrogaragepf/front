@@ -46,6 +46,14 @@ export default function Sidebar() {
         >
           Estadísticas
         </button>
+
+        {/* ✅ NUEVO LINK: Reseñas */}
+        <button
+          onClick={() => router.push("/dashboard/reviews")}
+          className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
+        >
+          Reseñas como vendedor
+        </button>
       </nav>
 
       <div className="p-4 border-t-2 border-dashed space-y-3">
@@ -56,11 +64,7 @@ export default function Sidebar() {
           Cambiar modo
         </button>
 
-        <button
-          // Si tu logout ya existe en AuthContext, aquí luego lo conectas.
-          // Por ahora no rompe nada.
-          className="w-full px-4 py-2 rounded-lg hover:bg-amber-100 transition font-medium text-left text-red-600"
-        >
+        <button className="w-full px-4 py-2 rounded-lg hover:bg-amber-100 transition font-medium text-left text-red-600">
           Cerrar sesión
         </button>
       </div>

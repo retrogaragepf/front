@@ -8,11 +8,12 @@ import React, {
   useState,
 } from "react";
 import type { IProductWithDetails } from "@/src/interfaces/product.interface";
+import type { IUserProduct } from "@/src/interfaces/userProduct.interface";
 
 export type CartItem = {
   id: string;
   title: string;
-  price: number; // number (en tu mock viene string)
+  price: number;
   image?: string;
   quantity: number;
 
@@ -24,11 +25,8 @@ export type CartItem = {
 type CartContextValue = {
   cartItems: CartItem[];
 
-  // ✅ Lo que tú quieres: pasarle el producto entero (mock o real)
   addProduct: (product: IProductWithDetails, quantity?: number) => void;
-
-  // (Opcional) por si ya venías usando addToCart con un objeto armado
-  addToCart: (item: Omit<CartItem, "quantity"> & { quantity?: number }) => void;
+  addUserProduct: (product: IUserProduct, quantity?: number) => void;
 
   removeFromCart: (id: string) => void;
   increaseQty: (id: string) => void;
@@ -68,6 +66,21 @@ function toCartItem(product: IProductWithDetails, quantity?: number): CartItem {
   };
 }
 
+function toCartItemFromUserProduct(
+  p: IUserProduct,
+  quantity?: number,
+): CartItem {
+  return {
+    id: String(p.id),
+    title: p.titulo,
+    price: normalizePrice(p.precio),
+    image: p.imagen,
+    stock: p.stock,
+    categoryName: p.categoria,
+    quantity: normalizeQty(quantity),
+  };
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
@@ -93,73 +106,33 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [cartItems]);
 
-  // ✅ ADD (desde product)
+  // ✅ ADD (solo una vez)
   const addProduct = (product: IProductWithDetails, quantity?: number) => {
     const incoming = toCartItem(product, quantity);
 
     setCartItems((prev) => {
-      const idx = prev.findIndex((p) => p.id === incoming.id);
+      const exists = prev.some((p) => p.id === incoming.id);
+      if (exists) return prev;
 
-      if (idx !== -1) {
-        const copy = [...prev];
-        const current = copy[idx];
-        const nextQty = current.quantity + incoming.quantity;
-
-        // si hay stock, no pasarse
-        const maxQty =
-          typeof current.stock === "number" ? current.stock : undefined;
-
-        copy[idx] = {
-          ...current,
-          quantity: maxQty ? Math.min(nextQty, maxQty) : nextQty,
-        };
-        return copy;
-      }
-
-      // si hay stock y quantity viene grande, limitar
       if (typeof incoming.stock === "number") {
         incoming.quantity = Math.min(incoming.quantity, incoming.stock);
       }
-
       return [...prev, incoming];
     });
   };
 
-  // ✅ ADD (genérico)
-  const addToCart: CartContextValue["addToCart"] = (item) => {
-    const qtyToAdd = normalizeQty(item.quantity);
+  // ✅ ADD (solo una vez) - desde arreglo por usuario
+  const addUserProduct = (product: IUserProduct, quantity?: number) => {
+    const incoming = toCartItemFromUserProduct(product, quantity);
 
     setCartItems((prev) => {
-      const idx = prev.findIndex((p) => p.id === item.id);
+      const exists = prev.some((p) => p.id === incoming.id);
+      if (exists) return prev;
 
-      if (idx !== -1) {
-        const copy = [...prev];
-        const current = copy[idx];
-        const nextQty = current.quantity + qtyToAdd;
-
-        const maxQty =
-          typeof current.stock === "number" ? current.stock : undefined;
-
-        copy[idx] = {
-          ...current,
-          quantity: maxQty ? Math.min(nextQty, maxQty) : nextQty,
-        };
-        return copy;
+      if (typeof incoming.stock === "number") {
+        incoming.quantity = Math.min(incoming.quantity, incoming.stock);
       }
-
-      return [
-        ...prev,
-        {
-          id: item.id,
-          title: item.title,
-          price: normalizePrice(item.price),
-          image: item.image,
-          stock: item.stock,
-          categoryName: item.categoryName,
-          eraName: item.eraName,
-          quantity: qtyToAdd,
-        },
-      ];
+      return [...prev, incoming];
     });
   };
 
@@ -216,7 +189,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const value: CartContextValue = {
     cartItems,
     addProduct,
-    addToCart,
+    addUserProduct,
     removeFromCart,
     increaseQty,
     decreaseQty,

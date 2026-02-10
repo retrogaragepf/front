@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { mockGetProductById } from "@/src/services/products.mock.service";
-import AddToCartButton from "@/src/components/cart/Products/AddToCartButton";
+import AddToCartButton from "@/src/components/products/AddToCartButton";
 
 type Params = { id: string };
 

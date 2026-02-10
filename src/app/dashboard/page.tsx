@@ -1,5 +1,9 @@
 "use client";
 
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { showToast } from "nextjs-toast-notify";
+
 import Sidebar from "@/src/components/dashboard/Sidebar";
 import StatsGrid from "@/src/components/dashboard/StatsGrid";
 import ProfileHeader from "@/src/components/dashboard/ProfileHeader";
@@ -7,9 +11,39 @@ import SellerReviews from "@/src/components/dashboard/SellerReviews";
 import { useAuth } from "@/src/context/AuthContext";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { dataUser, isLoadingUser } = useAuth();
 
-  const email = dataUser?.email ?? "";
+  // ✅ Blindado: soporta varios shapes (igual que tu Navbar)
+  const isLogged =
+    Boolean((dataUser as any)?.user?.email) ||
+    Boolean((dataUser as any)?.email) ||
+    Boolean((dataUser as any)?.user) ||
+    Boolean(dataUser);
+
+  useEffect(() => {
+    // ✅ Espera a que termine el loading para no redirigir por “falso negativo”
+    if (!isLoadingUser && !isLogged) {
+      showToast.warning("Debes registrarte para acceder al Dashboard", {
+        duration: 4000,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+
+      router.replace("/register");
+    }
+  }, [isLoadingUser, isLogged, router]);
+
+  // ✅ Evita el “flash” del dashboard mientras carga o redirige
+  if (isLoadingUser) return null;
+  if (!isLogged) return null;
+
+  // ✅ Mantengo tu lógica tal cual
+  const email =
+    (dataUser as any)?.email ?? (dataUser as any)?.user?.email ?? "";
 
   return (
     <div className="flex min-h-screen bg-amber-200">
@@ -28,7 +62,7 @@ export default function DashboardPage() {
               </span>{" "}
               {email}
             </p>
-            <div className="mt-4 h-[2px] w-full bg-amber-300" />
+            <div className="mt-4 h-0.5 w-full bg-amber-300" />
             <p className="mt-3 text-sm text-zinc-700">
               Panel de vendedor: métricas, reseñas y reputación.
             </p>

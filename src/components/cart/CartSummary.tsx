@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCart } from "@/src/context/CartContext";
 import { showToast } from "nextjs-toast-notify";
 
-export default function Receipt() {
+export default function CartSummary() {
   const { itemsCount, totalPrice, clearCart, cartItems } = useCart();
 
   const totalFormatted = totalPrice.toLocaleString("es-CO", {
@@ -69,7 +69,7 @@ export default function Receipt() {
         </button>
 
         <Link
-          href="/product"
+          href="/products"
           className="w-full text-center px-4 py-3 rounded-lg border-2 border-slate-900 font-bold bg-white hover:bg-amber-100 transition"
         >
           Seguir comprando

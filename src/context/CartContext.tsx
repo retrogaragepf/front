@@ -1,152 +1,236 @@
 "use client";
 
-import { IProduct } from "@/src/interfaces/product.interface";
-import { createContext, useEffect, useState, useContext } from "react";
-import { useAuth } from "./AuthContext";
-import { showToast } from "nextjs-toast-notify";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import type { IProductWithDetails } from "@/src/interfaces/product.interface";
 
-interface CartContextProps {
-  cartItems: IProduct[];
-  addToCart: (product: IProduct) => void;
-  removeFromCart: (productId: number) => void;
+export type CartItem = {
+  id: string;
+  title: string;
+  price: number; // number (en tu mock viene string)
+  image?: string;
+  quantity: number;
+
+  stock?: number;
+  categoryName?: string;
+  eraName?: string;
+};
+
+type CartContextValue = {
+  cartItems: CartItem[];
+
+  // ✅ Lo que tú quieres: pasarle el producto entero (mock o real)
+  addProduct: (product: IProductWithDetails, quantity?: number) => void;
+
+  // (Opcional) por si ya venías usando addToCart con un objeto armado
+  addToCart: (item: Omit<CartItem, "quantity"> & { quantity?: number }) => void;
+
+  removeFromCart: (id: string) => void;
+  increaseQty: (id: string) => void;
+  decreaseQty: (id: string) => void;
+  setQty: (id: string, qty: number) => void;
   clearCart: () => void;
-  getIdItems: () => number[];
-  getTotal: () => number;
-  getItemCount: () => number;
+
+  itemsCount: number;
+  totalPrice: number;
+};
+
+const CartContext = createContext<CartContextValue | null>(null);
+
+const CART_KEY = process.env.NEXT_PUBLIC_CART_STORAGE_KEY || "retrogarage_cart";
+
+function normalizePrice(price: unknown) {
+  const n = Number(price);
+  return Number.isFinite(n) ? n : 0;
 }
 
-const CartContext = createContext<CartContextProps>({
-  cartItems: [],
-  addToCart: () => {},
-  removeFromCart: () => {},
-  clearCart: () => {},
-  getIdItems: () => [],
-  getTotal: () => 0,
-  getItemCount: () => 0,
-});
-
-interface CartProviderProps {
-  children: React.ReactNode;
+function normalizeQty(qty?: number) {
+  const n = Number(qty ?? 1);
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.floor(n));
 }
 
-export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
-  const [cartItems, setCartItems] = useState<IProduct[]>([]);
-  const [initialized, setInitialized] = useState(false);
-  const { dataUser } = useAuth();
+function toCartItem(product: IProductWithDetails, quantity?: number): CartItem {
+  return {
+    id: String(product.id),
+    title: product.title,
+    price: normalizePrice(product.price),
+    image: product.images?.[0],
+    stock: product.stock,
+    categoryName: product.category?.name,
+    eraName: product.era?.name,
+    quantity: normalizeQty(quantity),
+  };
+}
 
+export function CartProvider({ children }: { children: React.ReactNode }) {
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  // ✅ Load
   useEffect(() => {
-    if (typeof window !== "undefined" && window.localStorage) {
-      const cartdata = localStorage.getItem("cart");
-      if (cartdata) {
-        try {
-          const parsed = JSON.parse(cartdata) as IProduct[];
-          setCartItems(parsed);
-        } catch (error) {
-          console.error("Error parsing cart from localStorage", error);
-        }
-      }
+    try {
+      const raw = localStorage.getItem(CART_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as CartItem[];
+      if (Array.isArray(parsed)) setCartItems(parsed);
+    } catch (e) {
+      console.warn("CartContext: error leyendo localStorage", e);
     }
-    setInitialized(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ✅ Save
   useEffect(() => {
-    if (!initialized) return;
-
-    if (cartItems.length > 0) {
-      localStorage.setItem("cart", JSON.stringify(cartItems));
-    } else {
-      localStorage.removeItem("cart");
+    try {
+      localStorage.setItem(CART_KEY, JSON.stringify(cartItems));
+    } catch (e) {
+      console.warn("CartContext: error guardando localStorage", e);
     }
-  }, [cartItems, initialized]);
+  }, [cartItems]);
 
-  useEffect(() => {
-    if (!initialized) return;
+  // ✅ ADD (desde product)
+  const addProduct = (product: IProductWithDetails, quantity?: number) => {
+    const incoming = toCartItem(product, quantity);
 
-    if (!dataUser) {
-      setCartItems([]);
-      if (typeof window !== "undefined" && window.localStorage) {
-        localStorage.removeItem("cart");
+    setCartItems((prev) => {
+      const idx = prev.findIndex((p) => p.id === incoming.id);
+
+      if (idx !== -1) {
+        const copy = [...prev];
+        const current = copy[idx];
+        const nextQty = current.quantity + incoming.quantity;
+
+        // si hay stock, no pasarse
+        const maxQty =
+          typeof current.stock === "number" ? current.stock : undefined;
+
+        copy[idx] = {
+          ...current,
+          quantity: maxQty ? Math.min(nextQty, maxQty) : nextQty,
+        };
+        return copy;
       }
-    }
-  }, [dataUser, initialized]);
 
-  const addToCart = (product: IProduct) => {
-    if (!dataUser) {
-      showToast.warning("¡Debes iniciar sesion!", {
-        duration: 4000,
-        progress: true,
-        position: "top-center",
-        transition: "popUp",
-        icon: "",
-        sound: true,
-      });
-      return;
-    }
+      // si hay stock y quantity viene grande, limitar
+      if (typeof incoming.stock === "number") {
+        incoming.quantity = Math.min(incoming.quantity, incoming.stock);
+      }
 
-    const productExist = cartItems.some((item) => item.id === product.id);
-    if (productExist) {
-      showToast.error("¡Ya tienes este item en el carro de compras!", {
-        duration: 4000,
-        progress: true,
-        position: "top-center",
-        transition: "popUp",
-        icon: "",
-        sound: true,
-      });
-      return;
-    } else {
-      showToast.success("¡Producto agregado al carrito! 🛒", {
-        duration: 4000,
-        progress: true,
-        position: "top-center",
-        transition: "popUp",
-        icon: "",
-        sound: true,
-      });
-    }
-
-    setCartItems((prev) => [...prev, product]);
+      return [...prev, incoming];
+    });
   };
 
-  const removeFromCart = (productId: number) => {
-    setCartItems((prevItems) =>
-      prevItems.filter((item) => item.id !== productId),
+  // ✅ ADD (genérico)
+  const addToCart: CartContextValue["addToCart"] = (item) => {
+    const qtyToAdd = normalizeQty(item.quantity);
+
+    setCartItems((prev) => {
+      const idx = prev.findIndex((p) => p.id === item.id);
+
+      if (idx !== -1) {
+        const copy = [...prev];
+        const current = copy[idx];
+        const nextQty = current.quantity + qtyToAdd;
+
+        const maxQty =
+          typeof current.stock === "number" ? current.stock : undefined;
+
+        copy[idx] = {
+          ...current,
+          quantity: maxQty ? Math.min(nextQty, maxQty) : nextQty,
+        };
+        return copy;
+      }
+
+      return [
+        ...prev,
+        {
+          id: item.id,
+          title: item.title,
+          price: normalizePrice(item.price),
+          image: item.image,
+          stock: item.stock,
+          categoryName: item.categoryName,
+          eraName: item.eraName,
+          quantity: qtyToAdd,
+        },
+      ];
+    });
+  };
+
+  const removeFromCart = (id: string) => {
+    setCartItems((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const increaseQty = (id: string) => {
+    setCartItems((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const nextQty = p.quantity + 1;
+        const maxQty = typeof p.stock === "number" ? p.stock : undefined;
+        return { ...p, quantity: maxQty ? Math.min(nextQty, maxQty) : nextQty };
+      }),
     );
   };
 
-  const clearCart = () => {
-    setCartItems([]);
+  const decreaseQty = (id: string) => {
+    setCartItems((prev) =>
+      prev
+        .map((p) => (p.id === id ? { ...p, quantity: p.quantity - 1 } : p))
+        .filter((p) => p.quantity >= 1),
+    );
   };
 
-  const getIdItems = () => {
-    return cartItems
-      .map((item) => item.id)
-      .filter((id): id is number => typeof id === "number");
+  const setQty = (id: string, qty: number) => {
+    const cleanQty = normalizeQty(qty);
+
+    setCartItems((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const maxQty = typeof p.stock === "number" ? p.stock : undefined;
+        return {
+          ...p,
+          quantity: maxQty ? Math.min(cleanQty, maxQty) : cleanQty,
+        };
+      }),
+    );
   };
 
-  const getTotal = () => {
-    return cartItems.reduce((total, item) => total + item.price, 0);
-  };
+  const clearCart = () => setCartItems([]);
 
-  const getItemCount = () => {
-    return cartItems.length;
-  };
-
-  return (
-    <CartContext.Provider
-      value={{
-        cartItems,
-        addToCart,
-        removeFromCart,
-        clearCart,
-        getIdItems,
-        getTotal,
-        getItemCount,
-      }}
-    >
-      {children}
-    </CartContext.Provider>
+  const itemsCount = useMemo(
+    () => cartItems.reduce((acc, it) => acc + it.quantity, 0),
+    [cartItems],
   );
-};
 
-export const useCart = () => useContext(CartContext);
+  const totalPrice = useMemo(
+    () => cartItems.reduce((acc, it) => acc + it.price * it.quantity, 0),
+    [cartItems],
+  );
+
+  const value: CartContextValue = {
+    cartItems,
+    addProduct,
+    addToCart,
+    removeFromCart,
+    increaseQty,
+    decreaseQty,
+    setQty,
+    clearCart,
+    itemsCount,
+    totalPrice,
+  };
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+}
+
+export function useCart() {
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error("useCart debe usarse dentro de <CartProvider />");
+  return ctx;
+}

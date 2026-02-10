@@ -105,22 +105,13 @@ function Navbar() {
 
           {/* ✅ Mi Perfil SOLO si está logeado */}
           {isLogged ? (
-            <div>
+            <div className="flex items-center gap-3">
               <Link
                 href="/dashboard"
-                className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-              ></Link>
-            </div>
-          ) : null}
-
-          {isLogged ? (
-            <div className="flex items-center gap-3">
-              {/* ✅ Blindado: si no hay nombre, no renderiza el <p> */}
-              {safeName ? (
-                <p className="hidden sm:block max-w-35 truncate text-sm font-semibold text-zinc-800">
-                  {safeName}
-                </p>
-              ) : null}
+                className="hidden sm:block max-w-35 truncate text-sm font-semibold text-zinc-800 hover:text-emerald-900 transition"
+              >
+                {safeName || "Mi Perfil"}
+              </Link>
 
               <button
                 onClick={handleLogout}

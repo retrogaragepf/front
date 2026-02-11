@@ -8,36 +8,54 @@ import authService from "@/src/services/auth";
 import { showToast } from "nextjs-toast-notify";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const LoginForm = () => {
   const router = useRouter();
   const { login, isAuth } = useAuth();
   const { data: session } = useSession();
+  const [googleClicked, setGoogleClicked] = useState(false);
 
   // ----------SINCRONIZA SESIÓN DE GOOGLE CON CONTEXT----------------
   useEffect(() => {
-    if (session?.user && !isAuth) {
-      login({
-        user: {
-          id: session.user.id || session.user.email || "", // SE USA MAIL MIENTRAS SE IMPLEMNEAT GOOGLE
-          name: session.user.name || "",
-          email: session.user.email || "",
-          image: session.user.image,
-        },
-        token: session.accessToken || "google-mock-token",
-      });
-      showToast.success("¡Ingreso con Google Exitoso!", {
-        duration: 4000,
-        progress: true,
-        position: "top-center",
-        transition: "popUp",
-        icon: "",
-        sound: true,
-      });
-      router.push("/dashboard");
+    const pendingGoogle = sessionStorage.getItem("google-login");
+    if (session?.user && !isAuth && pendingGoogle) {
+      sessionStorage.removeItem("google-login"); // LIMPIA EL FLAG
+
+      //-----------ENVIA EL IDTOKEN AL BACK PAARA TENER EL JWT REAL----------
+
+      const handleGoogleLogin = async () => {
+        try {
+          const response = await authService.googleLogin({
+            idToken: (session as any).idToken ?? "", // -----------TOKEN DE GOOGLE
+          });
+          if (response.token) {
+            login({
+              user: {
+                id: response.user?.id ?? session.user?.email ?? "",
+                name: response.user?.name ?? session.user?.name ?? "",
+                email: response.user?.email ?? session.user?.email ?? "",
+              },
+                token: response.token,
+            });
+            router.push("/dashboard");
+          }
+        } catch (error) {
+          console.error("Error autenticando en Google", error);
+
+          showToast.error("Error autenticando con Google", {
+            duration: 3000,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          });
+        }
+      };
+      handleGoogleLogin();
     }
-  }, [session, isAuth, login, router]);
+  }, [session, isAuth, login, router, googleClicked]);
 
   const emailField = useFormField("email");
   const passwordField = useFormField("password");
@@ -95,13 +113,13 @@ const LoginForm = () => {
         const authData = localStorage.getItem(TOKEN_KEY);
         if (!authData) {
           console.error("No hay datos en localStorage");
-          showToast.error("Error al guardar sesión.Intenta de nuevo",{
+          showToast.error("Error al guardar sesión.Intenta de nuevo", {
             duration: 3000,
             progress: true,
             position: "top-center",
             transition: "popUp",
             icon: "",
-            sound: true,  
+            sound: true,
           });
           return;
         }
@@ -199,7 +217,10 @@ const LoginForm = () => {
             <div className="p-1 rounded-xl bg-gray-200">
               <button
                 type="button"
-                onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                onClick={() => {
+                  sessionStorage.setItem("google-login", "true");
+                  signIn("google", { callbackUrl: "/login" });
+                }}
                 className="w-full rounded-xl bg-white border border-gray-300 hover:bg-gray-50 px-4 py-3 font-medium text-gray-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 pt-3"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">

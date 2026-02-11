@@ -6,40 +6,13 @@ const API_BASE_URL =
 const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
 const axiosInstance = axios.create({
-  baseURL: API_BASE_URL?.replace(/\/$/, ""),
+  baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
 
-// Si hay token guardado, lo inyecta automáticamente
-axiosInstance.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-function normalizeAxiosError(error: any, fallback: string) {
-  const data = error?.response?.data;
-
-  // Muchos backends devuelven { message: string | string[] }
-  const message =
-    data?.message ??
-    data?.error ??
-    (typeof data === "string" ? data : null) ??
-    fallback;
-
-  return {
-    success: false,
-    error: Array.isArray(message) ? message.join(", ") : String(message),
-    raw: data,
-    status: error?.response?.status,
-  };
-}
-
-// ✅ Función para decodificar JWT (va aquí)
+// ✅ Función para decodificar JWT
 const decodeToken = (token: string | null): any => {
-  if (!token) return null; // ✅ Validar entrada
+  if (!token) return null;
   try {
     const base64Url = token.split(".")[1];
     const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
@@ -115,7 +88,40 @@ export const authService = {
 
       return response.data;
     } catch (error: any) {
-      return normalizeAxiosError(error, "Error en login");
+      return (
+        error.response?.data || { success: false, error: "Error en login" }
+      );
+    }
+  },
+
+  googleLogin: async (data: { idToken: string }): Promise<AuthResponse> => {
+    try {
+      const response = await axiosInstance.post("/auth/google", data);
+
+      if (response.data?.token) {
+        const decodedToken = decodeToken(response.data.token);
+        localStorage.setItem(
+          TOKEN_KEY,
+          JSON.stringify({
+            user: {
+              id: decodedToken?.id,
+              name: decodedToken?.name,
+              email: decodedToken?.email,
+              isAdmin: decodedToken?.isAdmin,
+            },
+            token: response.data.token,
+          }),
+        );
+      }
+
+      return response.data;
+    } catch (error: any) {
+      return (
+        error.response?.data || {
+          success: false,
+          error: "Error en Google login",
+        }
+      );
     }
   },
 
@@ -133,7 +139,7 @@ export const authService = {
   getToken: (): string | null => {
     try {
       const authData = localStorage.getItem(TOKEN_KEY);
-      if (!authData) return null; // ✅ Validar que no sea null
+      if (!authData) return null;
       return JSON.parse(authData)?.token || null;
     } catch (e) {
       return null;
@@ -141,7 +147,6 @@ export const authService = {
   },
 
   logout: (): void => {
-    if (typeof window === "undefined") return;
     localStorage.removeItem(TOKEN_KEY);
   },
 };

@@ -5,6 +5,7 @@ import { useCart } from "@/src/context/CartContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
+import { signOut } from "next-auth/react";
 
 function Navbar() {
   const { dataUser, logout } = useAuth();
@@ -30,10 +31,17 @@ function Navbar() {
     Boolean((dataUser as any)?.user) ||
     Boolean(dataUser);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+
+    //--- LIMPIAR LOCALSTORAGE Y CONTEXTO ---
+    sessionStorage.removeItem("google-login");
+    sessionStorage.removeItem("google-register");
+
     logout();
+    await signOut({redirect: false}); // Evita redirección automática para mostrar el toast primero
+    
     showToast.warning("¡Salida Exitosa!", {
-      duration: 4000,
+      duration: 1000,
       progress: true,
       position: "top-center",
       transition: "popUp",

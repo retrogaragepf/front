@@ -261,7 +261,7 @@ const RegisterForm = () => {
                   htmlFor="fullName"
                   className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider"
                 >
-                  Nombre completo
+                  Nombre Completo
                 </label>
                 <input
                   id="fullName"

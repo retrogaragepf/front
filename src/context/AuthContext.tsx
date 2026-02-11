@@ -13,6 +13,9 @@ type User = {
   id?: string | number | null;
   name?: string;
   email?: string;
+  isAdmin?: boolean;
+  iat?: number;
+  exp?: number;
   [key: string]: any;
 };
 
@@ -30,6 +33,25 @@ interface AuthContextProps {
 }
 
 const AUTH_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
+
+function decodeJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(
+      base64.length + ((4 - (base64.length % 4)) % 4),
+      "=",
+    );
+
+    const json = atob(padded);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
 
 export const AuthContext = createContext<AuthContextProps>({
   dataUser: null,
@@ -91,7 +113,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.push('/login');
   };
 
-  const isAuth = useMemo(() => Boolean(dataUser?.user?.email), [dataUser]);
+  // ✅ ahora valida sesión por token o email
+  const isAuth = useMemo(() => Boolean(dataUser?.token), [dataUser]);
 
   return (
     <AuthContext.Provider

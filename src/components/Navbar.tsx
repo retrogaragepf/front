@@ -32,10 +32,16 @@ function Navbar() {
     Boolean(dataUser);
 
   const handleLogout = async () => {
+
+    //--- LIMPIAR LOCALSTORAGE Y CONTEXTO ---
+    sessionStorage.removeItem("google-login");
+    sessionStorage.removeItem("google-register");
+
     logout();
     await signOut({redirect: false}); // Evita redirección automática para mostrar el toast primero
+    
     showToast.warning("¡Salida Exitosa!", {
-      duration: 4000,
+      duration: 1000,
       progress: true,
       position: "top-center",
       transition: "popUp",

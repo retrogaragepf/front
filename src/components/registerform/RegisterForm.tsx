@@ -27,29 +27,71 @@ const RegisterForm = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // -----------------GOOGLE CON AUTcONTEXT-------------------
-  useEffect(() => {
-    if (session?.user && !isAuth) {
-      login({
-        user: {
-          id: session.user.id || session.user.email || "", // SE USA EMAIL MIENTARS SEIMPLEMETA GOOGLE
-          name: session.user.name || "",
-          email: session.user.email || "",
-          image: session.user.image,
-        },
-        token: session.accessToken || "google-mock-token",// TOKEN, SI SE USA SE GUARDA EN LOCALSTORAGE O EN LAS COOKIES Y SIN ERROR DE TYPESCRIPT SE PUEDE GUARDAR COMO STRING, SI NO SE USA SE PUEED GUARDAR UN VALRO FIJO O SIMPLEMENTE NO GUARDAR NADA EN EL CONTEXTO, DEPENDE DE COMOSE MANEJE EN EL BACKEND
-      });
 
-      showToast.success("¡Registro con Google Exitoso!", {
-        duration: 3000,
-        progress: true,
-        position: "top-center",
-        transition: "popUp",
-        icon: "",
-        sound: true,
-      });
-      router.push("/dashboard");
+  const [googleClicked, setGoogleClicked] = useState(false);
+
+  useEffect(() => {
+    const pendingGoogle = sessionStorage.getItem("google-register");
+    if (session?.user && !isAuth && pendingGoogle) {
+      sessionStorage.removeItem("google-login");
+
+      const registerGoogleUser = async () => {
+        try {
+          const randomPassWord = crypto.randomUUID(); // GENERA UNA CONTRASEÑA ÚNICA Y SEGURA PARA EL USUARIO DE GOOGLE
+          const response: any = await authService.googleLogin({
+            idToken: (session as any).idToken, // -----------TOKEN DE GOOGLE
+          });
+          console.log("GOOGLE REGISTER EN BACK:", response);
+
+          //--------------AUNQUE LE. BACK DIGA QUE YA ESTA LO GUARDA EN CONTEXT PAR QUE SE LOGUE DIRECT--------
+
+          if (response.token) {
+            login({
+              user: {
+                id: response.user?.id || session.user.email || "",
+                name: response.user?.name || session.user.name || "",
+                email: response.user?.email || session.user.email || "",
+                image: response.user?.image,
+              },
+              token: response.token,
+            });
+
+            showToast.success("¡Registro con Google Exioso", {
+              duration: 2000,
+              progress: true,
+              position: "top-center",
+              icon: "",
+              sound: true,
+            });
+            router.push("/dashboard");
+          } else {
+            showToast.error(
+              response?.error || "Error al registrar con Google",
+              {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "popUp",
+                icon: "",
+                sound: true,
+              },
+            );
+          }
+        } catch (error) {
+          console.error("Error autenticando con Google:", error);
+          showToast.error("Error al conectar con Google", {
+            duration: 3000,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          });
+        }
+      };
+      registerGoogleUser();
     }
-  }, [session, isAuth, login, router]);
+  }, [session, isAuth, login, router, googleClicked]);
 
   const validateAll = () => {
     const isNameValid = nameField.validate();
@@ -66,7 +108,7 @@ const RegisterForm = () => {
     if (!matchOk && (confirmPasswordField.touched || passwordField.touched)) {
       // ❗ Solo mensaje, no cambia tu flujo
       showToast.error("Las contraseñas no coinciden.", {
-        duration: 3000,
+        duration: 2000,
         progress: true,
         position: "top-center",
         transition: "popUp",
@@ -118,8 +160,8 @@ const RegisterForm = () => {
         throw new Error(response?.message || "Error registrando usuario.");
       }
 
-      showToast.success("¡Usuario registrado! inicia sesión ✅", {
-        duration: 4000,
+      showToast.success("¡Usuario registrado! Ahora inicia sesión ✅", {
+        duration: 2000,
         progress: true,
         position: "top-center",
         transition: "popUp",
@@ -133,7 +175,7 @@ const RegisterForm = () => {
     onError: (error: any) => {
       const msg = error?.message || "No se pudo registrar. Revisa tus datos.";
       showToast.error(String(msg), {
-        duration: 4500,
+        duration: 200,
         progress: true,
         position: "top-center",
         transition: "popUp",
@@ -173,7 +215,10 @@ const RegisterForm = () => {
             <div className="p-1 rounded-xl bg-gray-200">
               <button
                 type="button"
-                onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                onClick={() => {
+                  sessionStorage.setItem("google-register", "true");
+                  signIn("google", { callbackUrl: "/register" });
+                }}
                 className="w-full rounded-xl bg-white border border-gray-300 hover:bg-gray-50 px-4 py-3 font-medium text-gray-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 pt-3"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">

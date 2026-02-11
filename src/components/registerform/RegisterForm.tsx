@@ -56,8 +56,8 @@ const RegisterForm = () => {
               token: response.token,
             });
 
-            showToast.success("¡Registro con Google Exioso", {
-              duration: 2000,
+            showToast.success("¡Ingreso con Google exitoso!", {
+              duration: 1000,
               progress: true,
               position: "top-center",
               icon: "",
@@ -68,7 +68,7 @@ const RegisterForm = () => {
             showToast.error(
               response?.error || "Error al registrar con Google",
               {
-                duration: 3000,
+                duration: 2000,
                 progress: true,
                 position: "top-center",
                 transition: "popUp",
@@ -80,7 +80,7 @@ const RegisterForm = () => {
         } catch (error) {
           console.error("Error autenticando con Google:", error);
           showToast.error("Error al conectar con Google", {
-            duration: 3000,
+            duration: 2000,
             progress: true,
             position: "top-center",
             transition: "popUp",
@@ -161,7 +161,7 @@ const RegisterForm = () => {
       }
 
       showToast.success("¡Usuario registrado! Ahora inicia sesión ✅", {
-        duration: 2000,
+        duration: 1000,
         progress: true,
         position: "top-center",
         transition: "popUp",
@@ -175,7 +175,7 @@ const RegisterForm = () => {
     onError: (error: any) => {
       const msg = error?.message || "No se pudo registrar. Revisa tus datos.";
       showToast.error(String(msg), {
-        duration: 200,
+        duration: 1000,
         progress: true,
         position: "top-center",
         transition: "popUp",

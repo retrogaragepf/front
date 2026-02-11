@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import AdminProductCard from "@/src/components/admin/AdminProductCard";
+import { useEffect, useState } from "react";
 
 export default function AdminDashboard() {
   const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {
-    // Trae solo productos pendientes
+
     fetch("/api/products?status=pending")
       .then((res) => res.json())
       .then((data) => setProducts(data));
@@ -49,7 +49,7 @@ export default function AdminDashboard() {
       <section className="max-w-7xl mx-auto px-6 py-12">
         {products.length === 0 ? (
           <div className="text-center py-20 text-zinc-500 text-lg">
-            No hay publicaciones pendientes 🎉
+            No hay publicaciones pendientes 
           </div>
         ) : (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">

@@ -3,39 +3,47 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/src/context/AuthContext";
-import {
-  mockEnsureUserStore,
-  mockGetMyProductsSafe,
-} from "@/src/services/products.user.mock.service";
-import type { IProductWithDetails } from "@/src/interfaces/product.interface";
 
 export default function MyProductsPanel() {
   const { dataUser, isLoadingUser, isAuth } = useAuth();
-  const [products, setProducts] = useState<IProductWithDetails[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const userId = dataUser?.user?.id ?? (dataUser as any)?.id ?? null;
-  const fullName = dataUser?.user?.name ?? (dataUser as any)?.name ?? "User";
-  const email =
-    dataUser?.user?.email ?? (dataUser as any)?.email ?? "user@retrogarage.com";
 
-  const load = async () => {
+  const load = () => {
+    if (!userId) {
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    await mockEnsureUserStore({ userId, fullName, email });
-    const res = await mockGetMyProductsSafe(userId);
-    setProducts(res);
+
+    const allProducts = JSON.parse(
+      localStorage.getItem("retrogarage_products") || "[]"
+    );
+
+    const myProducts = allProducts.filter(
+      (p: any) => p.sellerId === userId
+    );
+
+    setProducts(myProducts);
     setLoading(false);
   };
 
   useEffect(() => {
-    if (!isLoadingUser) load();
+    if (!isLoadingUser && isAuth) {
+      load();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [String(userId), isLoadingUser]);
+  }, [isLoadingUser, isAuth, String(userId)]);
 
   useEffect(() => {
     const onFocus = () => {
       if (!isLoadingUser && isAuth) load();
     };
+
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,15 +60,15 @@ export default function MyProductsPanel() {
 
         <div className="flex items-center gap-2">
           <Link
-            href="/create-product"
-            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] transition"
+            href="/createProduct"
+            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
           >
             + Publicar
           </Link>
 
           <Link
             href="/dashboard/my-products"
-            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-white text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-50 transition"
+            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-white text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
           >
             Ver todos
           </Link>
@@ -78,8 +86,8 @@ export default function MyProductsPanel() {
             Publica tu primer artículo retro y aparecerá aquí.
           </p>
           <Link
-            href="/create-product"
-            className="mt-4 inline-block px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
+            href="/createProduct"
+            className="mt-4 inline-block px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold"
           >
             Publicar producto
           </Link>
@@ -92,7 +100,6 @@ export default function MyProductsPanel() {
               className="bg-white rounded-2xl border-2 border-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] overflow-hidden"
             >
               <div className="aspect-[4/3] bg-zinc-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={p.images?.[0] ?? ""}
                   alt={p.title}
@@ -101,18 +108,32 @@ export default function MyProductsPanel() {
               </div>
 
               <div className="p-4 space-y-2">
-                <h3 className="font-extrabold text-zinc-900">{p.title}</h3>
+                <h3 className="font-extrabold text-zinc-900">
+                  {p.title}
+                </h3>
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-extrabold text-amber-900">
-                    ${Number(p.price).toLocaleString("es-CO")}
+                    ${Number(p.price).toLocaleString("es-AR")}
                   </span>
-                  <span className="text-zinc-700">Stock: {p.stock}</span>
+                  <span className="text-zinc-700">
+                    Stock: {p.stock}
+                  </span>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-zinc-700">
-                  <span>{p.category?.name}</span>
-                  <span>{p.era?.name}</span>
+                {/* 🔥 Badge de estado para demo */}
+                <div>
+                  <span
+                    className={`px-2 py-1 text-xs font-bold rounded-full ${
+                      p.status === "approved"
+                        ? "bg-green-200 text-green-800"
+                        : p.status === "pending"
+                        ? "bg-yellow-200 text-yellow-800"
+                        : "bg-red-200 text-red-800"
+                    }`}
+                  >
+                    {p.status}
+                  </span>
                 </div>
               </div>
             </article>

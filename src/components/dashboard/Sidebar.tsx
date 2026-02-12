@@ -20,7 +20,7 @@ export default function Sidebar() {
         </button>
 
         <button
-          onClick={() => router.push("/create-product")}
+          onClick={() => router.push("/createProduct")}
           className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
         >
           Vender

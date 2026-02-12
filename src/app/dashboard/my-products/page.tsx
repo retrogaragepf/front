@@ -2,48 +2,35 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/src/context/AuthContext";
-import {
-  mockEnsureUserStore,
-  mockGetMyProductsSafe,
-} from "@/src/services/products.user.mock.service";
-import type { IProductWithDetails } from "@/src/interfaces/product.interface";
 import Link from "next/link";
 
 export default function MyProductsPage() {
   const { dataUser, isAuth, isLoadingUser } = useAuth();
-  const [products, setProducts] = useState<IProductWithDetails[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const userId = dataUser?.user?.id ?? null;
-  const fullName = dataUser?.user?.name ?? "User";
-  const email = dataUser?.user?.email ?? "user@retrogarage.com";
 
-  const load = async () => {
+  const load = () => {
     setLoading(true);
 
-  
-    await mockEnsureUserStore({ userId, fullName, email });
+    const allProducts = JSON.parse(
+      localStorage.getItem("retrogarage_products") || "[]"
+    );
 
-    const res = await mockGetMyProductsSafe(userId);
-    setProducts(res);
+    const myProducts = allProducts.filter(
+      (p: any) => p.sellerId === userId
+    );
 
+    setProducts(myProducts);
     setLoading(false);
   };
 
   useEffect(() => {
-    if (!isLoadingUser) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [String(userId), isLoadingUser]);
-
-  // ✅ refresca si vuelves a la pestaña (ideal para demo)
-  useEffect(() => {
-    const onFocus = () => {
-      if (!isLoadingUser && isAuth) load();
-    };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoadingUser, isAuth, String(userId)]);
+    if (!isLoadingUser && isAuth) {
+      load();
+    }
+  }, [isLoadingUser, isAuth, userId]);
 
   if (isLoadingUser) {
     return <div className="p-6">Cargando sesión...</div>;
@@ -76,7 +63,7 @@ export default function MyProductsPage() {
         <h1 className="text-3xl font-bold">Mis productos</h1>
 
         <Link
-          href="/create-product"
+          href="/createProduct"
           className="px-4 py-2 rounded-lg border-2 border-slate-900 bg-amber-400 font-bold hover:bg-amber-300 transition"
         >
           + Publicar producto
@@ -104,20 +91,27 @@ export default function MyProductsPage() {
 
               <div className="p-4 space-y-2">
                 <h2 className="font-bold text-lg">{p.title}</h2>
-                <p className="text-sm text-zinc-600 line-clamp-2">
-                  {p.description}
-                </p>
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-bold">
-                    ${Number(p.price).toLocaleString("es-CO")}
+                    ${Number(p.price).toLocaleString("es-AR")}
                   </span>
                   <span className="text-zinc-600">Stock: {p.stock}</span>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-zinc-600">
-                  <span>{p.category?.name}</span>
-                  <span>{p.era?.name}</span>
+                {/* 🔥 ESTADO VISUAL PARA LA DEMO */}
+                <div className="mt-2">
+                  <span
+                    className={`px-2 py-1 text-xs font-bold rounded-full ${
+                      p.status === "approved"
+                        ? "bg-green-200 text-green-800"
+                        : p.status === "pending"
+                        ? "bg-yellow-200 text-yellow-800"
+                        : "bg-red-200 text-red-800"
+                    }`}
+                  >
+                    {p.status}
+                  </span>
                 </div>
               </div>
             </article>

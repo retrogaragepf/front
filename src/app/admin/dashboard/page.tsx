@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  localGetPendingProducts,
+  localApproveProduct,
+  localRejectProduct,
+} from "@/src/helpers/products.moderation.mock";
 import AdminProductCard from "@/src/components/admin/AdminProductCard";
 import { useEffect, useState } from "react";
 
@@ -7,21 +12,26 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {
-
-    fetch("/api/products?status=pending")
-      .then((res) => res.json())
-      .then((data) => setProducts(data));
-  }, []);
-
-  const handleApprove = async (id: string) => {
-    await fetch(`/api/products/${id}/approve`, { method: "PUT" });
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+  const load = async () => {
+    const pending = await localGetPendingProducts();
+    setProducts(pending);
   };
 
-  const handleReject = async (id: string) => {
-    await fetch(`/api/products/${id}/reject`, { method: "PUT" });
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-  };
+  load();
+}, []);
+
+const handleApprove = async (id: string) => {
+  await localApproveProduct(id);
+  setProducts((prev) => prev.filter((p) => p.id !== id));
+};
+
+
+const handleReject = async (id: string) => {
+  await localRejectProduct(id);
+  setProducts((prev) => prev.filter((p) => p.id !== id));
+};
+
+
 
   return (
     <main className="min-h-screen bg-[#f5f2ea]">

@@ -1,26 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { IProduct } from "@/src/interfaces/product.interface";
 import {
   getAllProducts,
   updateProductStatus,
 } from "@/src/services/products.services";
+import { getAllUsers } from "@/src/helpers/admin.users.mock";
 
 export default function ProductRequestsSection() {
   const [products, setProducts] = useState<IProduct[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+
   const [filter, setFilter] = useState<
     "all" | "pending" | "approved" | "rejected"
   >("all");
 
+  const [search, setSearch] = useState("");
+
   useEffect(() => {
-    const loadProducts = async () => {
-      const data = await getAllProducts();
-      setProducts(data);
+    const load = async () => {
+      const productData = await getAllProducts();
+      setProducts(productData);
+      setUsers(getAllUsers());
     };
 
-    loadProducts();
+    load();
   }, []);
+
+  const getSellerName = (sellerId: string) => {
+    const seller = users.find((u) => u.id === sellerId);
+    return seller ? seller.name : "Usuario desconocido";
+  };
 
   const handleStatusChange = async (
     id: string,
@@ -35,115 +46,134 @@ export default function ProductRequestsSection() {
     if (!confirmAction) return;
 
     await updateProductStatus(id, status);
-
     const updated = await getAllProducts();
     setProducts(updated);
   };
 
-  const filteredProducts =
-    filter === "all"
-      ? products
-      : products.filter((p) => p.status === filter);
+  const processedProducts = useMemo(() => {
+    let filtered =
+      filter === "all"
+        ? products
+        : products.filter((p) => p.status === filter);
+
+    filtered = filtered.filter((p) =>
+      p.title.toLowerCase().includes(search.toLowerCase())
+    );
+
+    return filtered;
+  }, [products, filter, search]);
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">
-        Product Requests
-      </h2>
+      <h1 className="font-display text-3xl text-amber-900 mb-2">
+        Solicitudes de Productos
+      </h1>
+
+      <p className="text-zinc-700 mb-6">
+        Revisá y moderá publicaciones antes de que salgan al marketplace.
+      </p>
 
       {/* Filtros */}
-      <div className="flex gap-2 mb-4">
-        {(["all", "pending", "approved", "rejected"] as const).map(
-          (f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1 border rounded ${
-                filter === f ? "bg-black text-white" : ""
-              }`}
-            >
-              {f}
-            </button>
-          )
-        )}
+      <div className="flex flex-wrap gap-3 mb-8">
+        {(["all", "pending", "approved", "rejected"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-xl border-2 border-amber-900 font-extrabold shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] ${
+              filter === f
+                ? "bg-amber-200 text-amber-900"
+                : "bg-white text-amber-900"
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+
+        <input
+          type="text"
+          placeholder="Buscar por título..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="px-4 py-2 rounded-xl border-2 border-amber-900 text-amber-900 font-semibold"
+        />
       </div>
 
-      <table className="w-full border">
-        <thead>
-          <tr className="border-b text-left">
-            <th className="p-2">Title</th>
-            <th className="p-2">Seller</th>
-            <th className="p-2">Status</th>
-            <th className="p-2">Actions</th>
-          </tr>
-        </thead>
+      {/* Cards */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {processedProducts.map((product) => (
+          <div
+            key={product.id}
+            className="bg-white border-2 border-amber-900 rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)] p-6 flex flex-col justify-between"
+          >
+            <div>
+              <h3 className="font-bold text-lg text-amber-900 mb-2">
+                {product.title}
+              </h3>
 
-        <tbody>
-          {filteredProducts.map((product) => (
-            <tr key={product.id} className="border-b">
-              <td className="p-2">{product.title}</td>
+              <p className="text-sm text-zinc-600 mb-3">
+                {product.description?.slice(0, 100)}...
+              </p>
 
-              {/* 👇 CORREGIDO */}
-              <td className="p-2">{product.sellerId}</td>
+              <p className="font-extrabold text-zinc-800 mb-2">
+                ${product.price}
+              </p>
 
-              <td className="p-2">
-                <span
-                  className={`px-2 py-1 rounded text-sm font-semibold ${
-                    product.status === "pending"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : product.status === "approved"
-                      ? "bg-green-100 text-green-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {product.status}
+              <p className="text-xs text-zinc-500 mb-4">
+                Vendedor:
+                <span className="ml-1 font-bold text-amber-900">
+                  {getSellerName(product.sellerId)}
                 </span>
-              </td>
+              </p>
 
-              <td className="p-2 flex gap-2">
+              <div className="mb-4">
                 {product.status === "pending" && (
-                  <>
-                    <button
-                      onClick={() =>
-                        handleStatusChange(
-                          product.id,
-                          "approved"
-                        )
-                      }
-                      className="px-2 py-1 bg-green-600 text-white rounded"
-                    >
-                      Approve
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        handleStatusChange(
-                          product.id,
-                          "rejected"
-                        )
-                      }
-                      className="px-2 py-1 bg-red-600 text-white rounded"
-                    >
-                      Reject
-                    </button>
-                  </>
+                  <span className="bg-yellow-200 text-yellow-800 px-3 py-1 rounded-full text-xs font-extrabold">
+                    PENDIENTE
+                  </span>
                 )}
-              </td>
-            </tr>
-          ))}
+                {product.status === "approved" && (
+                  <span className="bg-green-200 text-green-800 px-3 py-1 rounded-full text-xs font-extrabold">
+                    APROBADO
+                  </span>
+                )}
+                {product.status === "rejected" && (
+                  <span className="bg-red-200 text-red-800 px-3 py-1 rounded-full text-xs font-extrabold">
+                    RECHAZADO
+                  </span>
+                )}
+              </div>
+            </div>
 
-          {filteredProducts.length === 0 && (
-            <tr>
-              <td
-                colSpan={4}
-                className="text-center p-4 text-gray-500"
-              >
-                No products found
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            {product.status === "pending" && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() =>
+                    handleStatusChange(product.id, "approved")
+                  }
+                  className="flex-1 px-3 py-2 rounded-lg font-extrabold border-2 bg-emerald-700 text-white border-emerald-800"
+                >
+                  Aprobar
+                </button>
+
+                <button
+                  onClick={() =>
+                    handleStatusChange(product.id, "rejected")
+                  }
+                  className="flex-1 px-3 py-2 rounded-lg font-extrabold border-2 bg-red-600 text-white border-red-700"
+                >
+                  Rechazar
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {processedProducts.length === 0 && (
+        <p className="text-center text-zinc-500 mt-10">
+          No hay productos en esta categoría.
+        </p>
+      )}
     </div>
   );
 }

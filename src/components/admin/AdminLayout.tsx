@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode } from "react";
 
 type Props = {
   children: ReactNode;
@@ -8,32 +8,53 @@ type Props = {
   setSection: (s: "users" | "products") => void;
 };
 
-export default function AdminLayout({ children, section, setSection }: Props) {
+export default function AdminLayout({
+  children,
+  section,
+  setSection,
+}: Props) {
   return (
     <div className="min-h-screen flex bg-[#f5f2ea]">
-      <aside className="w-64 bg-white border-r-4 border-black p-6">
-        <h2 className="text-2xl font-extrabold mb-6">Admin</h2>
+      {/* Sidebar */}
+      <aside className="w-72 bg-white border-r-2 border-amber-900 p-8 flex flex-col shadow-[6px_0px_0px_0px_rgba(0,0,0,0.85)]">
+        
+        <h2 className="font-display text-2xl text-amber-900 font-extrabold mb-10">
+          Panel de Administración
+        </h2>
 
-        <button
-          onClick={() => setSection("users")}
-          className={`block w-full text-left mb-4 font-bold ${
-            section === "users" ? "text-red-600" : ""
-          }`}
-        >
-          Users
-        </button>
+        <nav className="flex flex-col gap-4">
+          <button
+            onClick={() => setSection("users")}
+            className={`px-4 py-3 rounded-xl border-2 border-amber-900 font-extrabold text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] transition ${
+              section === "users"
+                ? "bg-amber-200 text-amber-900"
+                : "bg-white text-amber-900 hover:bg-amber-100"
+            }`}
+          >
+            Usuarios
+          </button>
 
-        <button
-          onClick={() => setSection("products")}
-          className={`block w-full text-left font-bold ${
-            section === "products" ? "text-red-600" : ""
-          }`}
-        >
-          Product Requests
-        </button>
+          <button
+            onClick={() => setSection("products")}
+            className={`px-4 py-3 rounded-xl border-2 border-amber-900 font-extrabold text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] transition ${
+              section === "products"
+                ? "bg-amber-200 text-amber-900"
+                : "bg-white text-amber-900 hover:bg-amber-100"
+            }`}
+          >
+            Solicitudes de Productos
+          </button>
+        </nav>
+
+        <div className="mt-auto pt-10 text-sm text-zinc-500">
+          RetroGarage™ Admin
+        </div>
       </aside>
 
-      <main className="flex-1 p-10">{children}</main>
+      {/* Contenido */}
+      <main className="flex-1 p-10">
+        {children}
+      </main>
     </div>
   );
 }

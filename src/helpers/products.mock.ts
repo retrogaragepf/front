@@ -52,7 +52,7 @@ const rawProducts = [
     categoria: "Videojuegos Retro",
     stock: 10,
     imagen:
-      "https://imgs.search.brave.com/5C35k_lf-vuB3z_bHcnXRCCHwCIEGDIZp21NhPwSE3U/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9odHRwMi5tbHN0YXRpYy5j/b20vRF9RX05QXzJY/Xzg3NjkyNC1NTE05/MzIzOTIzNjY1Ml8w/OTIwMjUtVi53ZWJw",
+      "https://www.shutterstock.com/image-photo/pavia-lombardy-italy-november-23-600nw-2580471643.jpg",
   },
   {
     id: 6,
@@ -62,7 +62,7 @@ const rawProducts = [
     categoria: "Audio Retro",
     stock: 10,
     imagen:
-      "https://imgs.search.brave.com/OHWz6kRmgSX824EYeo6a0Y7f5YwQ4a_P0EM1iZsKrrs/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9odHRwMi5tbHN0YXRpYy5j/b20vRF9RX05QXzJY/XzcwNzI3OC1NTFU3/MzY2NDYyMTI5M18x/MjIwMjMtVi1yYWRp/by1wYW5hc29uaWMt/YW0tZm0tY29uZXhp/b24tYS1sdXotcmYt/MjQwMC1hbnRlbmEt/eS1waWxhcy53ZWJw",
+      "https://img.freepik.com/foto-gratis/musica-electrica-fondo-antiguo-retro_1172-313.jpg?semt=ais_hybrid&w=740&q=80",
   },
   {
     id: 7,

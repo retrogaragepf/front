@@ -1,18 +1,56 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { IProductWithDetails } from "@/src/interfaces/product.interface";
+import { useCart } from "@/src/context/CartContext";
+import { useAuth } from "@/src/context/AuthContext";
+import { showToast } from "nextjs-toast-notify";
 
 interface CardProps {
   product: IProductWithDetails;
 }
 
 function Card({ product }: CardProps) {
+  const { addProduct, cartItems } = useCart();
+  const { dataUser, isLoadingUser } = useAuth();
+
   const priceNumber = Number(product.price);
   const priceFormatted = Number.isFinite(priceNumber)
     ? priceNumber.toLocaleString("es-CO", { minimumFractionDigits: 0 })
     : String(product.price);
 
   const imageUrl = product.images?.[0] ?? "";
+  const isLogged = !!dataUser?.token;
+
+  const alreadyInCart = cartItems.some((it) => it.id === String(product.id));
+
+  const handleAddToCart = () => {
+    if (!isLogged) return;
+
+    if (alreadyInCart) {
+      showToast.info("Este producto ya está en tu carrito", {
+        duration: 2500,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+      return;
+    }
+
+    addProduct(product, 1);
+
+    showToast.success("Agregado al carrito", {
+      duration: 2500,
+      progress: true,
+      position: "top-center",
+      transition: "popUp",
+      icon: "",
+      sound: true,
+    });
+  };
 
   return (
     <div className="group w-full flex flex-col">
@@ -54,11 +92,28 @@ function Card({ product }: CardProps) {
         )}
       </div>
 
-      <Link href={`/product/${product.id}`} className="w-full">
-        <button className="font-display w-full border-2 border-amber-800 py-2 uppercase tracking-tight hover:bg-emerald-800 hover:text-amber-50 transition-all">
-          Ver Producto
-        </button>
-      </Link>
+      <div className="w-full flex flex-col gap-2 mt-2">
+        <Link href={`/product/${product.id}`} className="w-full">
+          <button className="font-display w-full border-2 border-amber-800 py-2 uppercase tracking-tight hover:bg-emerald-800 hover:text-amber-50 transition-all">
+            Ver Producto
+          </button>
+        </Link>
+
+        {/* ✅ Solo visible si está logeado */}
+        {!isLoadingUser && isLogged && (
+          <button
+            onClick={handleAddToCart}
+            className={`font-display w-full border-2 border-slate-900 py-2 uppercase tracking-tight transition-all ${
+              alreadyInCart
+                ? "bg-slate-200 text-slate-600 cursor-not-allowed"
+                : "bg-amber-400 hover:bg-amber-300"
+            }`}
+            disabled={alreadyInCart}
+          >
+            {alreadyInCart ? "Ya en el carrito" : "Agregar al carrito"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

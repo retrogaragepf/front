@@ -2,8 +2,8 @@ import Image from "next/image";
 import Card from "../components/Card";
 import { getAllProducts } from "../services/products.services";
 
-export default async function Page() {
-  const allProducts = await getAllProducts();
+export default async function Product() {
+  const allProducts = await getAllProducts() as any[];
 
   return (
     <div className="w-full bg-amber-200 text-zinc-900">

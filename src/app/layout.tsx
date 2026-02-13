@@ -8,6 +8,7 @@ import "./globals.css";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Providers from "./providers"; // ✅ AÑADE ESTO
+//
 
 const permanentMarker = Permanent_Marker({
   subsets: ["latin"],

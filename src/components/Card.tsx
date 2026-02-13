@@ -94,8 +94,8 @@ function Card({ product }: CardProps) {
 
       <div className="w-full flex flex-col gap-2 mt-2">
         <Link href={`/product/${product.id}`} className="w-full">
-          <button className="font-display w-full border-2 border-amber-800 py-2 uppercase tracking-tight hover:bg-emerald-800 hover:text-amber-50 transition-all">
-            Ver Producto
+          <button className="font-display w-full border-2 border-amber-800 py-2 uppercase tracking-tight text-sm hover:bg-emerald-800 hover:text-amber-50 transition-all">
+            Ver
           </button>
         </Link>
 
@@ -103,14 +103,14 @@ function Card({ product }: CardProps) {
         {!isLoadingUser && isLogged && (
           <button
             onClick={handleAddToCart}
-            className={`font-display w-full border-2 border-slate-900 py-2 uppercase tracking-tight transition-all ${
+            className={`font-display w-full border-2 border-slate-900 py-2 uppercase tracking-tight transition-all text-sm ${
               alreadyInCart
                 ? "bg-slate-200 text-slate-600 cursor-not-allowed"
-                : "bg-amber-400 hover:bg-amber-300"
+                : "bg-amber-100 hover:bg-amber-300"
             }`}
             disabled={alreadyInCart}
           >
-            {alreadyInCart ? "Ya en el carrito" : "Agregar al carrito"}
+            {alreadyInCart ? "Ya en el 🛒" : "🛒"}
           </button>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Card from "@/src/components/Card";
-import { mockGetAllProducts } from "@/src/services/products.mock.service";
+import { getAllProducts } from "@/src/services/products.services"; // ✅ DB
 import type { IProductWithDetails } from "@/src/interfaces/product.interface";
 
 export default function ProductPage() {
@@ -10,10 +10,16 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    setLoading(true);
-    const res = await mockGetAllProducts();
-    setProducts(res);
-    setLoading(false);
+    try {
+      setLoading(true);
+      const res = await getAllProducts(); // ✅ DB
+      setProducts(res);
+    } catch (err) {
+      console.error("Error cargando productos:", err);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -60,4 +66,3 @@ export default function ProductPage() {
     </main>
   );
 }
-

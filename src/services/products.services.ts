@@ -1,77 +1,152 @@
 import { IProduct } from "@/src/interfaces/product.interface";
+import { authService } from "@/src/services/auth";
 
-const PRODUCTS_KEY = "retrogarage_products";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+function assertBaseUrl() {
+  if (!API_BASE_URL) {
+    throw new Error("NEXT_PUBLIC_API_BASE_URL no está definido");
+  }
+}
+
+async function parseJsonSafe(res: Response) {
+  const text = await res.text();
+  const isJson = res.headers.get("content-type")?.includes("application/json");
+  return isJson && text ? JSON.parse(text) : text;
+}
 
 /* ============================
-   LOCAL HELPERS
+   GET ALL (PUBLIC)
 ============================ */
-
-const getLocalProducts = (): IProduct[] => {
-  if (typeof window === "undefined") return [];
-  const data = localStorage.getItem(PRODUCTS_KEY);
-  return data ? JSON.parse(data) : [];
-};
-
-const saveLocalProducts = (products: IProduct[]) => {
-  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
-};
-
-/* ============================
-   GET ALL
-============================ */
-
 export const getAllProducts = async (): Promise<IProduct[]> => {
-  return getLocalProducts();
+  assertBaseUrl();
+
+  const res = await fetch(`${API_BASE_URL}/products`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+
+  const data = await parseJsonSafe(res);
+
+  if (!res.ok) {
+    const msg =
+      typeof data === "string"
+        ? data
+        : data?.message
+          ? Array.isArray(data.message)
+            ? data.message.join(", ")
+            : String(data.message)
+          : "Error obteniendo productos";
+    throw new Error(msg);
+  }
+
+  return data as IProduct[];
 };
 
 /* ============================
-   CREATE
+   CREATE (PROTECTED + multipart)
 ============================ */
+function getTokenOrThrow() {
+  const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
+  const token = authService.getToken?.() || localStorage.getItem(TOKEN_KEY);
+
+  if (!token) throw new Error("No hay sesión activa. Inicia sesión.");
+  return token;
+}
 
 export const createProduct = async (
-  data: Omit<IProduct, "id" | "createdAt" | "status">,
-  sellerId: string
+  data: {
+    title: string;
+    description?: string;
+    price: number;
+    stock: number;
+    erasId: string;
+    categoryId: string;
+
+    // ✅ TEMPORAL: el back lo exige hoy por DTO
+    imgUrl: string;
+  },
+  file: File,
 ): Promise<IProduct> => {
-  const products = getLocalProducts();
+  assertBaseUrl();
+  const token = getTokenOrThrow();
 
-  const newProduct: IProduct = {
-    ...data,
-    id: crypto.randomUUID() as any,
-    sellerId: sellerId as any,
-    createdAt: new Date().toISOString() as any,
-    status: "pending",
-  };
+  const formData = new FormData();
+  formData.append("title", data.title);
+  formData.append("description", data.description ?? "");
+  formData.append("price", String(data.price));
+  formData.append("stock", String(data.stock));
+  formData.append("erasId", data.erasId);
+  formData.append("categoryId", data.categoryId);
 
-  products.push(newProduct);
-  saveLocalProducts(products);
+  // ✅ TEMPORAL para pasar validaciones del DTO
+  formData.append("imgUrl", data.imgUrl);
 
-  return newProduct;
+  // ✅ archivo exacto
+  formData.append("image", file);
+
+  const res = await fetch(`${API_BASE_URL}/products`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const created = await parseJsonSafe(res);
+
+  if (!res.ok) {
+    const msg =
+      typeof created === "string"
+        ? created
+        : created?.message
+          ? Array.isArray(created.message)
+            ? created.message.join(", ")
+            : String(created.message)
+          : "Error creando producto";
+    throw new Error(msg);
+  }
+
+  return created as IProduct;
 };
 
 /* ============================
-   BY USER
+   ADMIN: APPROVE / REJECT (PROTECTED)
 ============================ */
-
-export const getProductsByUser = async (
-  userId: string
-): Promise<IProduct[]> => {
-  const products = getLocalProducts();
-  return products.filter((p) => p.sellerId === userId);
-};
-
-/* ============================
-   UPDATE STATUS
-============================ */
-
 export const updateProductStatus = async (
   productId: string,
-  status: "approved" | "rejected"
-): Promise<void> => {
-  const products = getLocalProducts();
+  status: "approved" | "rejected",
+): Promise<IProduct> => {
+  assertBaseUrl();
+  const token = getTokenOrThrow();
 
-  const updated = products.map((p) =>
-    p.id === productId ? { ...p, status } : p
-  );
+  const endpoint =
+    status === "approved"
+      ? `/products/${productId}/approve`
+      : `/products/${productId}/reject`;
 
-  saveLocalProducts(updated);
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await parseJsonSafe(res);
+
+  if (!res.ok) {
+    const msg =
+      typeof data === "string"
+        ? data
+        : data?.message
+          ? Array.isArray(data.message)
+            ? data.message.join(", ")
+            : String(data.message)
+          : "Error actualizando estado del producto";
+    throw new Error(msg);
+  }
+
+  return data as IProduct;
 };

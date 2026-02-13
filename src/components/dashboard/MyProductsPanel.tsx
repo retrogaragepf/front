@@ -21,12 +21,10 @@ export default function MyProductsPanel() {
     setLoading(true);
 
     const allProducts = JSON.parse(
-      localStorage.getItem("retrogarage_products") || "[]"
+      localStorage.getItem("retrogarage_products") || "[]",
     );
 
-    const myProducts = allProducts.filter(
-      (p: any) => p.sellerId === userId
-    );
+    const myProducts = allProducts.filter((p: any) => p.sellerId === userId);
 
     setProducts(myProducts);
     setLoading(false);
@@ -93,52 +91,63 @@ export default function MyProductsPanel() {
           </Link>
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.slice(0, 6).map((p) => (
-            <article
-              key={p.id}
-              className="bg-white rounded-2xl border-2 border-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] overflow-hidden"
-            >
-              <div className="aspect-[4/3] bg-zinc-100">
-                <img
-                  src={p.images?.[0] ?? ""}
-                  alt={p.title}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              <div className="p-4 space-y-2">
-                <h3 className="font-extrabold text-zinc-900">
-                  {p.title}
-                </h3>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-extrabold text-amber-900">
-                    ${Number(p.price).toLocaleString("es-AR")}
-                  </span>
-                  <span className="text-zinc-700">
-                    Stock: {p.stock}
-                  </span>
+        <>
+          {/* ✅ LISTA (thumb pequeño) */}
+          <div className="mt-6 space-y-4">
+            {products.slice(0, 6).map((p) => (
+              <article
+                key={p.id}
+                className="bg-white rounded-2xl border-2 border-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] p-4 flex items-center gap-4"
+              >
+                {/* ✅ Thumbnail fijo (pequeño) */}
+                <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-amber-900 bg-zinc-100 shrink-0">
+                  <img
+                    src={p.images?.[0] ?? ""}
+                    alt={p.title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
                 </div>
 
-                {/* 🔥 Badge de estado para demo */}
-                <div>
-                  <span
-                    className={`px-2 py-1 text-xs font-bold rounded-full ${
-                      p.status === "approved"
-                        ? "bg-green-200 text-green-800"
-                        : p.status === "pending"
-                        ? "bg-yellow-200 text-yellow-800"
-                        : "bg-red-200 text-red-800"
-                    }`}
-                  >
-                    {p.status}
-                  </span>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-extrabold text-zinc-900 truncate">
+                    {p.title}
+                  </h3>
+
+                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    <span className="font-extrabold text-amber-900">
+                      ${Number(p.price).toLocaleString("es-AR")}
+                    </span>
+                    <span className="text-zinc-700">Stock: {p.stock}</span>
+
+                    <span
+                      className={`px-2 py-1 text-xs font-bold rounded-full ${
+                        p.status === "approved"
+                          ? "bg-green-200 text-green-800"
+                          : p.status === "pending"
+                            ? "bg-yellow-200 text-yellow-800"
+                            : "bg-red-200 text-red-800"
+                      }`}
+                    >
+                      {p.status}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))}
-        </div>
+
+                {/* (Opcional) CTA rápido */}
+                <Link
+                  href="/dashboard/my-products"
+                  className="px-3 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shrink-0"
+                >
+                  Gestionar
+                </Link>
+              </article>
+            ))}
+          </div>
+
+          {/* Nota: mantienes el "Ver todos" arriba; esto solo muestra preview */}
+        </>
       )}
     </section>
   );

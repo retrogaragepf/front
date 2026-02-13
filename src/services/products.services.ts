@@ -1,36 +1,77 @@
 import { IProduct } from "@/src/interfaces/product.interface";
-import { mockGetAllProducts } from "@/src/helpers/products.mock";
 
-const APIURL = process.env.NEXT_PUBLIC_API_URL;
+const PRODUCTS_KEY = "retrogarage_products";
 
-export const getAllProducts = async (): Promise<IProduct[]> => {
-  if (!APIURL) {
-    return await mockGetAllProducts();
-  }
+/* ============================
+   LOCAL HELPERS
+============================ */
 
-  try {
-    const res = await fetch(`${APIURL}/products`, { method: "GET" });
-
-    if (!res.ok) {
-      throw new Error(`Error HTTP ${res.status} al obtener productos`);
-    }
-
-    const productsResponse: IProduct[] = await res.json();
-    return productsResponse;
-  } catch {
-    return await mockGetAllProducts();
-  }
+const getLocalProducts = (): IProduct[] => {
+  if (typeof window === "undefined") return [];
+  const data = localStorage.getItem(PRODUCTS_KEY);
+  return data ? JSON.parse(data) : [];
 };
 
-export const getProductById = async (id: string): Promise<IProduct> => {
-  const allProducts = await getAllProducts();
+const saveLocalProducts = (products: IProduct[]) => {
+  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
+};
 
-  const numericId = Number(id);
-  const product = allProducts.find((p) => p.id === numericId);
+/* ============================
+   GET ALL
+============================ */
 
-  if (!product) {
-    throw new Error(`Producto no encontrado con el ID: ${id}`);
-  }
+export const getAllProducts = async (): Promise<IProduct[]> => {
+  return getLocalProducts();
+};
 
-  return product;
+/* ============================
+   CREATE
+============================ */
+
+export const createProduct = async (
+  data: Omit<IProduct, "id" | "createdAt" | "status">,
+  sellerId: string
+): Promise<IProduct> => {
+  const products = getLocalProducts();
+
+  const newProduct: IProduct = {
+    ...data,
+    id: crypto.randomUUID() as any,
+    sellerId: sellerId as any,
+    createdAt: new Date().toISOString() as any,
+    status: "pending",
+  };
+
+  products.push(newProduct);
+  saveLocalProducts(products);
+
+  return newProduct;
+};
+
+/* ============================
+   BY USER
+============================ */
+
+export const getProductsByUser = async (
+  userId: string
+): Promise<IProduct[]> => {
+  const products = getLocalProducts();
+  return products.filter((p) => p.sellerId === userId);
+};
+
+/* ============================
+   UPDATE STATUS
+============================ */
+
+export const updateProductStatus = async (
+  productId: string,
+  status: "approved" | "rejected"
+): Promise<void> => {
+  const products = getLocalProducts();
+
+  const updated = products.map((p) =>
+    p.id === productId ? { ...p, status } : p
+  );
+
+  saveLocalProducts(updated);
 };

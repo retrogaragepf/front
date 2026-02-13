@@ -6,8 +6,8 @@ import { UserRole, UUID, DateString } from '../types';
  */
 export interface IUser {
   id: UUID;
-  name: string;
-  //address: string;
+  fullName: string;
+  address: string;
   email: string;
   passwordHash: string;
   role: UserRole;
@@ -20,8 +20,8 @@ export interface IUser {
  */
 export interface IUserPublic {
   id: UUID;
-  name: string;
-  //address: string;
+  fullName: string;
+  address: string;
   email: string;
   role: UserRole;
   isActive: boolean;
@@ -32,8 +32,9 @@ export interface IUserPublic {
  * Datos para crear un nuevo usuario
  */
 export interface IUserCreate {
-  name: string;
+  fullName: string;
   email: string;
+  address: string;
   password: string;
   role?: UserRole;
 }
@@ -50,7 +51,7 @@ export interface IUserLogin {
  * Datos para actualizar usuario
  */
 export interface IUserUpdate {
-  name?: string;
+  fullName?: string;
   email?: string;
   password?: string;
   isActive?: boolean;

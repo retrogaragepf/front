@@ -1,209 +1,152 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import type { IProductWithDetails } from "@/src/interfaces/product.interface";
-import type { IUserProduct } from "@/src/interfaces/userProduct.interface";
+import { IProduct } from "@/src/interfaces/product.interface";
+import { createContext, useEffect, useState, useContext } from "react";
+import { useAuth } from "./AuthContext";
+import { showToast } from "nextjs-toast-notify";
 
-export type CartItem = {
-  id: string;
-  title: string;
-  price: number;
-  image?: string;
-  quantity: number;
-
-  stock?: number;
-  categoryName?: string;
-  eraName?: string;
-};
-
-type CartContextValue = {
-  cartItems: CartItem[];
-
-  addProduct: (product: IProductWithDetails, quantity?: number) => void;
-  addUserProduct: (product: IUserProduct, quantity?: number) => void;
-
-  removeFromCart: (id: string) => void;
-  increaseQty: (id: string) => void;
-  decreaseQty: (id: string) => void;
-  setQty: (id: string, qty: number) => void;
+interface CartContextProps {
+  cartItems: IProduct[];
+  addToCart: (product: IProduct) => void;
+  removeFromCart: (productId: number) => void;
   clearCart: () => void;
-
-  itemsCount: number;
-  totalPrice: number;
-};
-
-const CartContext = createContext<CartContextValue | null>(null);
-
-const CART_KEY = process.env.NEXT_PUBLIC_CART_STORAGE_KEY || "retrogarage_cart";
-
-function normalizePrice(price: unknown) {
-  const n = Number(price);
-  return Number.isFinite(n) ? n : 0;
+  getIdItems: () => number[];
+  getTotal: () => number;
+  getItemCount: () => number;
 }
 
-function normalizeQty(qty?: number) {
-  const n = Number(qty ?? 1);
-  if (!Number.isFinite(n)) return 1;
-  return Math.max(1, Math.floor(n));
+const CartContext = createContext<CartContextProps>({
+  cartItems: [],
+  addToCart: () => {},
+  removeFromCart: () => {},
+  clearCart: () => {},
+  getIdItems: () => [],
+  getTotal: () => 0,
+  getItemCount: () => 0,
+});
+
+interface CartProviderProps {
+  children: React.ReactNode;
 }
 
-function toCartItem(product: IProductWithDetails, quantity?: number): CartItem {
-  return {
-    id: String(product.id),
-    title: product.title,
-    price: normalizePrice(product.price),
-    image: product.images?.[0],
-    stock: product.stock,
-    categoryName: product.category?.name,
-    eraName: product.era?.name,
-    quantity: normalizeQty(quantity),
-  };
-}
+export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
+  const [cartItems, setCartItems] = useState<IProduct[]>([]);
+  const [initialized, setInitialized] = useState(false);
+  const { dataUser } = useAuth();
 
-function toCartItemFromUserProduct(
-  p: IUserProduct,
-  quantity?: number,
-): CartItem {
-  return {
-    id: String(p.id),
-    title: p.titulo,
-    price: normalizePrice(p.precio),
-    image: p.imagen,
-    stock: p.stock,
-    categoryName: p.categoria,
-    quantity: normalizeQty(quantity),
-  };
-}
-
-export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-
-  // ✅ Load
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(CART_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as CartItem[];
-      if (Array.isArray(parsed)) setCartItems(parsed);
-    } catch (e) {
-      console.warn("CartContext: error leyendo localStorage", e);
+    if (typeof window !== "undefined" && window.localStorage) {
+      const cartdata = localStorage.getItem("cart");
+      if (cartdata) {
+        try {
+          const parsed = JSON.parse(cartdata) as IProduct[];
+          setCartItems(parsed);
+        } catch (error) {
+          console.error("Error parsing cart from localStorage", error);
+        }
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setInitialized(true);
   }, []);
 
-  // ✅ Save
   useEffect(() => {
-    try {
-      localStorage.setItem(CART_KEY, JSON.stringify(cartItems));
-    } catch (e) {
-      console.warn("CartContext: error guardando localStorage", e);
+    if (!initialized) return;
+
+    if (cartItems.length > 0) {
+      localStorage.setItem("cart", JSON.stringify(cartItems));
+    } else {
+      localStorage.removeItem("cart");
     }
-  }, [cartItems]);
+  }, [cartItems, initialized]);
 
-  // ✅ ADD (solo una vez)
-  const addProduct = (product: IProductWithDetails, quantity?: number) => {
-    const incoming = toCartItem(product, quantity);
+  useEffect(() => {
+    if (!initialized) return;
 
-    setCartItems((prev) => {
-      const exists = prev.some((p) => p.id === incoming.id);
-      if (exists) return prev;
-
-      if (typeof incoming.stock === "number") {
-        incoming.quantity = Math.min(incoming.quantity, incoming.stock);
+    if (!dataUser) {
+      setCartItems([]);
+      if (typeof window !== "undefined" && window.localStorage) {
+        localStorage.removeItem("cart");
       }
-      return [...prev, incoming];
-    });
+    }
+  }, [dataUser, initialized]);
+
+  const addToCart = (product: IProduct) => {
+    if (!dataUser) {
+      showToast.warning("¡Debes iniciar sesion!", {
+        duration: 4000,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+      return;
+    }
+
+    const productExist = cartItems.some((item) => item.id === product.id);
+    if (productExist) {
+      showToast.error("¡Ya tienes este item en el carro de compras!", {
+        duration: 4000,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+      return;
+    } else {
+      showToast.success("¡Producto agregado al carrito! 🛒", {
+        duration: 4000,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+    }
+
+    setCartItems((prev) => [...prev, product]);
   };
 
-  // ✅ ADD (solo una vez) - desde arreglo por usuario
-  const addUserProduct = (product: IUserProduct, quantity?: number) => {
-    const incoming = toCartItemFromUserProduct(product, quantity);
-
-    setCartItems((prev) => {
-      const exists = prev.some((p) => p.id === incoming.id);
-      if (exists) return prev;
-
-      if (typeof incoming.stock === "number") {
-        incoming.quantity = Math.min(incoming.quantity, incoming.stock);
-      }
-      return [...prev, incoming];
-    });
-  };
-
-  const removeFromCart = (id: string) => {
-    setCartItems((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const increaseQty = (id: string) => {
-    setCartItems((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        const nextQty = p.quantity + 1;
-        const maxQty = typeof p.stock === "number" ? p.stock : undefined;
-        return { ...p, quantity: maxQty ? Math.min(nextQty, maxQty) : nextQty };
-      }),
+  const removeFromCart = (productId: number) => {
+    setCartItems((prevItems) =>
+      prevItems.filter((item) => item.id !== productId),
     );
   };
 
-  const decreaseQty = (id: string) => {
-    setCartItems((prev) =>
-      prev
-        .map((p) => (p.id === id ? { ...p, quantity: p.quantity - 1 } : p))
-        .filter((p) => p.quantity >= 1),
-    );
+  const clearCart = () => {
+    setCartItems([]);
   };
 
-  const setQty = (id: string, qty: number) => {
-    const cleanQty = normalizeQty(qty);
-
-    setCartItems((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        const maxQty = typeof p.stock === "number" ? p.stock : undefined;
-        return {
-          ...p,
-          quantity: maxQty ? Math.min(cleanQty, maxQty) : cleanQty,
-        };
-      }),
-    );
+  const getIdItems = () => {
+    return cartItems
+      .map((item) => item.id)
+      .filter((id): id is number => typeof id === "number");
   };
 
-  const clearCart = () => setCartItems([]);
+  const getTotal = () => {
+    return cartItems.reduce((total, item) => total + item.price, 0);
+  };
 
-  const itemsCount = useMemo(
-    () => cartItems.reduce((acc, it) => acc + it.quantity, 0),
-    [cartItems],
+  const getItemCount = () => {
+    return cartItems.length;
+  };
+
+  return (
+    <CartContext.Provider
+      value={{
+        cartItems,
+        addToCart,
+        removeFromCart,
+        clearCart,
+        getIdItems,
+        getTotal,
+        getItemCount,
+      }}
+    >
+      {children}
+    </CartContext.Provider>
   );
+};
 
-  const totalPrice = useMemo(
-    () => cartItems.reduce((acc, it) => acc + it.price * it.quantity, 0),
-    [cartItems],
-  );
-
-  const value: CartContextValue = {
-    cartItems,
-    addProduct,
-    addUserProduct,
-    removeFromCart,
-    increaseQty,
-    decreaseQty,
-    setQty,
-    clearCart,
-    itemsCount,
-    totalPrice,
-  };
-
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
-}
-
-export function useCart() {
-  const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart debe usarse dentro de <CartProvider />");
-  return ctx;
-}
+export const useCart = () => useContext(CartContext);

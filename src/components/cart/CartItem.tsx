@@ -1,69 +1,29 @@
-"use client";
-
-import React from "react";
-import {
-  useCart,
-  type CartItem as CartItemType,
-} from "@/src/context/CartContext";
-
-export default function CartItem({ item }: { item: CartItemType }) {
-  const { increaseQty, decreaseQty, removeFromCart } = useCart();
-
-  const priceFormatted = item.price.toLocaleString("es-CO", {
-    minimumFractionDigits: 0,
-  });
-
+export default function CartItem() {
   return (
     <div className="flex items-center gap-6 p-6 bg-white rounded-xl border shadow-sm relative">
-      <img
-        src={
-          item.image ||
-          "https://res.cloudinary.com/dyylxjijf/image/upload/v1770321127/Camara_ypblyh.png"
-        }
-        alt={item.title}
-        className="w-24 h-24 rounded-lg object-cover bg-slate-200"
-        loading="lazy"
-      />
+      <div className="w-24 h-24 bg-slate-200 rounded-lg" />
 
       <div className="flex-1">
-        <h3 className="font-handwritten text-lg font-bold">{item.title}</h3>
-
+        <h3 className="font-handwritten text-lg font-bold">
+          1970s Wood-Grain Radio
+        </h3>
         <p className="italic text-slate-500 text-sm">
-          {item.categoryName ? `${item.categoryName} • ` : ""}
-          {item.eraName ? item.eraName : "Retro"}
+          Works perfectly, slight scratch on the dial.
         </p>
 
         <div className="flex items-center gap-4 mt-4">
-          <span className="font-bold text-xl">${priceFormatted}</span>
+          <span className="font-bold text-xl">$45.00</span>
 
           <div className="flex items-center border rounded-lg">
-            <button
-              className="px-2"
-              onClick={() => decreaseQty(item.id)}
-              aria-label="Disminuir cantidad"
-            >
-              -
-            </button>
-
-            <span className="px-3">{item.quantity}</span>
-
-            <button
-              className="px-2"
-              onClick={() => increaseQty(item.id)}
-              aria-label="Aumentar cantidad"
-            >
-              +
-            </button>
+            <button className="px-2">-</button>
+            <span className="px-3">1</span>
+            <button className="px-2">+</button>
           </div>
         </div>
       </div>
 
-      <button
-        className="absolute top-4 right-4 text-slate-400"
-        onClick={() => removeFromCart(item.id)}
-        aria-label="Eliminar del carrito"
-      >
-        x
+      <button className="absolute top-4 right-4 text-slate-400">
+        delete_outline
       </button>
     </div>
   );

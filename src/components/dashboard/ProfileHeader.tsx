@@ -31,6 +31,8 @@ export default function ProfileHeader() {
 
   // ✅ Guarda el public_id (recomendado). Esto luego lo persistes en DB.
   const [avatarPublicId, setAvatarPublicId] = useState<string | null>(null);
+
+  // (Opcional) si quieres tener también secure_url por si tu backend lo necesita
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const initials = useMemo(() => {
@@ -101,11 +103,11 @@ export default function ProfileHeader() {
               {userName ? userName : "Vendedor & Comprador"}
             </p>
 
-            <div className="mt-4 h-0.5 w-full bg-amber-300" />
+            <div className="mt-4 h-[2px] w-full bg-amber-300" />
 
             <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-300 bg-amber-100 px-3 py-1">
               <span className="text-[10px] font-extrabold tracking-widest uppercase text-amber-900">
-                Mi RetroGarage™
+                Perfil RetroGarage™
               </span>
             </div>
 
@@ -116,10 +118,10 @@ export default function ProfileHeader() {
 
         <div className="hidden sm:flex flex-col items-end gap-2">
           <span className="font-handwritten text-lg text-zinc-800">
-            RetroGaragePf.com
+            Tu espacio personal
           </span>
           <span className="text-[10px] font-extrabold tracking-widest uppercase text-zinc-600">
-            Compras · Ventas · Reseñas
+            Ajustes · Ventas · Reseñas
           </span>
         </div>
       </div>

@@ -2,9 +2,8 @@
 export interface RegisterData {
   name: string;
   email: string;
-  //address: string;
+  address: string;
   password: string;
-  confirmPassword: string;
 }
 
 export interface LoginData {
@@ -13,7 +12,6 @@ export interface LoginData {
 }
 
 export interface AuthResponse {
-  data: any;
   success: boolean;
   token?: string;
   user?: {

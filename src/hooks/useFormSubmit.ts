@@ -28,7 +28,7 @@ export const useFormSubmit = <T,>({
     try {
       const formData = onGetData();
       
-      console.log('Datos a enviar:', formData);
+      console.log('📦 Datos a enviar:', formData);
       
       // ------ESPERA LA RESPUESTA DEL SERVIDOR------
       await onSuccess(formData);

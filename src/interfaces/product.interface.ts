@@ -35,7 +35,6 @@ export interface IProduct {
   categoryId: UUID;
   eraId: UUID;
   createdAt: DateString;
-  status: "pending" | "approved" | "rejected";
 }
 
 /**

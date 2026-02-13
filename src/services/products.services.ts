@@ -1,77 +1,36 @@
 import { IProduct } from "@/src/interfaces/product.interface";
+import { mockGetAllProducts } from "@/src/helpers/products.mock";
 
-const PRODUCTS_KEY = "retrogarage_products";
-
-/* ============================
-   LOCAL HELPERS
-============================ */
-
-const getLocalProducts = (): IProduct[] => {
-  if (typeof window === "undefined") return [];
-  const data = localStorage.getItem(PRODUCTS_KEY);
-  return data ? JSON.parse(data) : [];
-};
-
-const saveLocalProducts = (products: IProduct[]) => {
-  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
-};
-
-/* ============================
-   GET ALL
-============================ */
+const APIURL = process.env.NEXT_PUBLIC_API_URL;
 
 export const getAllProducts = async (): Promise<IProduct[]> => {
-  return getLocalProducts();
+  if (!APIURL) {
+    return await mockGetAllProducts();
+  }
+
+  try {
+    const res = await fetch(`${APIURL}/products`, { method: "GET" });
+
+    if (!res.ok) {
+      throw new Error(`Error HTTP ${res.status} al obtener productos`);
+    }
+
+    const productsResponse: IProduct[] = await res.json();
+    return productsResponse;
+  } catch {
+    return await mockGetAllProducts();
+  }
 };
 
-/* ============================
-   CREATE
-============================ */
+export const getProductById = async (id: string): Promise<IProduct> => {
+  const allProducts = await getAllProducts();
 
-export const createProduct = async (
-  data: Omit<IProduct, "id" | "createdAt" | "status">,
-  sellerId: string
-): Promise<IProduct> => {
-  const products = getLocalProducts();
+  const numericId = Number(id);
+  const product = allProducts.find((p) => p.id === numericId);
 
-  const newProduct: IProduct = {
-    ...data,
-    id: crypto.randomUUID() as any,
-    sellerId: sellerId as any,
-    createdAt: new Date().toISOString() as any,
-    status: "pending",
-  };
+  if (!product) {
+    throw new Error(`Producto no encontrado con el ID: ${id}`);
+  }
 
-  products.push(newProduct);
-  saveLocalProducts(products);
-
-  return newProduct;
-};
-
-/* ============================
-   BY USER
-============================ */
-
-export const getProductsByUser = async (
-  userId: string
-): Promise<IProduct[]> => {
-  const products = getLocalProducts();
-  return products.filter((p) => p.sellerId === userId);
-};
-
-/* ============================
-   UPDATE STATUS
-============================ */
-
-export const updateProductStatus = async (
-  productId: string,
-  status: "approved" | "rejected"
-): Promise<void> => {
-  const products = getLocalProducts();
-
-  const updated = products.map((p) =>
-    p.id === productId ? { ...p, status } : p
-  );
-
-  saveLocalProducts(updated);
+  return product;
 };

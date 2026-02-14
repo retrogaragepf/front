@@ -211,8 +211,8 @@ const LoginForm = () => {
 
           <div className="relative z-10 ">
             <div className="text-center space-y-2">
-              <h2 className="text-4xl font-bold text-amber-800 font-display">
-                ¡Hola de Nuevo!
+              <h2 className="text-4xl  text-amber-800 font-display">
+                RetroGarage
               </h2>
               <p className="text-lg text-emerald-800 font-handwritten pb-2">
                 Inicia sesión para acceder a tu cuenta
@@ -254,7 +254,7 @@ const LoginForm = () => {
             <div className="relative flex py-2 items-center">
               <div className="grow border-t border-gray-300"></div>
               <span className="shrink-0 mx-4 text-gray-500 text-xs">
-                O continúa con tu email
+                O continúa con tu Email
               </span>
               <div className="grow border-t border-gray-300"></div>
             </div>
@@ -368,11 +368,11 @@ const LoginForm = () => {
               </button>
             </form>
 
-            <p className="text-center text-sm text-emerald-800 pt-4 font-handwritten">
+            <p className="text-center text-sm text-black pt-4 font-handwritten">
               ¿No tienes cuenta?{" "}
               <Link
                 href="/register"
-                className="font-semibold text-amber-800 hover:text-gray-900 transition-colors"
+                className="font-semibold text-black hover:text-gray-900 transition-colors"
               >
                 Regístrate
               </Link>

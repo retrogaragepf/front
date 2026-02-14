@@ -2,204 +2,312 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import * as ToastNotify from "nextjs-toast-notify";
 import { useAuth } from "@/src/context/AuthContext";
 
-export default function Page() {
-  const { dataUser, isAuth, isLoadingUser } = useAuth();
+type MyProduct = {
+  id: string;
+  title?: string;
+  description?: string;
+  price?: number | string;
+  stock?: number | string;
+  // Back actual:
+  imgUrl?: string;
+  // Otros posibles nombres:
+  imageUrl?: string;
+  image?: string;
+  createdAt?: string;
 
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  category?: any;
+  era?: any;
+};
 
-  // ✅ compatible con tus dos formas (por si cambia el shape)
-  const userId =
-    dataUser?.user?.id ??
-    (dataUser as any)?.id ??
-    (dataUser as any)?.userId ??
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com";
+const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
+
+async function parseJsonSafe(res: Response) {
+  const text = await res.text();
+  const isJson = res.headers.get("content-type")?.includes("application/json");
+  try {
+    return isJson && text ? JSON.parse(text) : text;
+  } catch {
+    return text;
+  }
+}
+
+function formatCOP(value?: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  return value.toLocaleString("es-CO", { minimumFractionDigits: 0 });
+}
+
+// ✅ Toast wrapper seguro (no rompe si cambia export)
+function notify(
+  msg: string,
+  type: "success" | "error" | "warning" = "success",
+) {
+  const fn =
+    (ToastNotify as any)?.showToast || (ToastNotify as any)?.default?.showToast;
+
+  if (typeof fn === "function") fn(msg, type);
+  else console.log(`[toast:${type}]`, msg);
+}
+
+// ✅ Extrae JWT real aunque localStorage guarde JSON { user, token }
+function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+
+  const raw = localStorage.getItem(TOKEN_KEY);
+  if (!raw) return null;
+
+  // Caso 1: JWT plano
+  if (raw.includes(".") && raw.split(".").length === 3) return raw;
+
+  // Caso 2: JSON { user, token }
+  try {
+    const obj = JSON.parse(raw);
+    const t = obj?.token;
+    if (typeof t === "string" && t.includes(".") && t.split(".").length === 3) {
+      return t;
+    }
+  } catch {}
+
+  return null;
+}
+
+// ✅ Normaliza shape del back para el front (imgUrl -> imageUrl, price/stock -> number)
+function normalizeProduct(
+  p: any,
+): MyProduct & { imageUrl?: string; price?: number; stock?: number } {
+  const imageUrl =
+    p?.imageUrl ??
+    p?.image ??
+    p?.imgUrl ??
+    p?.image_url ??
+    (Array.isArray(p?.images)
+      ? typeof p.images[0] === "string"
+        ? p.images[0]
+        : p.images[0]?.url
+      : null) ??
+    (Array.isArray(p?.imageUrls) ? p.imageUrls[0] : null) ??
     null;
 
-  const load = () => {
-    if (!userId) {
-      setProducts([]);
-      setLoading(false);
-      return;
-    }
+  const price =
+    typeof p?.price === "string"
+      ? Number(p.price)
+      : (p?.price as number | undefined);
 
+  const stock =
+    typeof p?.stock === "string"
+      ? Number(p.stock)
+      : (p?.stock as number | undefined);
+
+  return {
+    ...p,
+    imageUrl: imageUrl ?? undefined,
+    price: Number.isFinite(price) ? price : undefined,
+    stock: Number.isFinite(stock) ? stock : undefined,
+  };
+}
+
+export default function MyProductsPage() {
+  const router = useRouter();
+  const { isAuth, isLoadingUser } = useAuth();
+
+  const [items, setItems] = useState<
+    (MyProduct & { imageUrl?: string; price?: number; stock?: number })[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+
+  const rawStorage = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(TOKEN_KEY);
+  }, []);
+
+  const fetchMyProducts = async () => {
     setLoading(true);
 
-    const allProducts = JSON.parse(
-      localStorage.getItem("retrogarage_products") || "[]",
-    );
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        notify("Debes iniciar sesión para ver tus productos", "warning");
+        router.replace("/login");
+        return;
+      }
 
-    const myProducts = allProducts.filter((p: any) => p.sellerId === userId);
+      const res = await fetch(`${API_BASE_URL}/products/my-products`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
 
-    setProducts(myProducts);
-    setLoading(false);
+      const data = await parseJsonSafe(res);
+
+      if (!res.ok) {
+        const msg =
+          typeof data === "string"
+            ? data
+            : data?.message
+              ? Array.isArray(data.message)
+                ? data.message.join(", ")
+                : data.message
+              : "No se pudieron cargar tus productos";
+
+        if (res.status === 401 || res.status === 403) {
+          notify("Tu sesión expiró. Inicia sesión de nuevo.", "warning");
+          router.replace("/login");
+          return;
+        }
+
+        notify(msg, "error");
+        setItems([]);
+        return;
+      }
+
+      const list: any[] = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.products)
+          ? data.products
+          : [];
+
+      setItems(list.map(normalizeProduct));
+    } catch (err: any) {
+      notify(err?.message || "Error cargando tus productos", "error");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    if (!isLoadingUser && isAuth) {
-      load();
-    } else if (!isLoadingUser && !isAuth) {
-      setLoading(false);
-      setProducts([]);
+    if (isLoadingUser) return;
+
+    if (!isAuth) {
+      notify("Debes iniciar sesión para entrar al dashboard", "warning");
+      router.replace("/login");
+      return;
     }
+
+    fetchMyProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoadingUser, isAuth, String(userId)]);
-
-  // ✅ refresca al volver a la pestaña (por si publicas y vuelves)
-  useEffect(() => {
-    const onFocus = () => {
-      if (!isLoadingUser && isAuth) load();
-    };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoadingUser, isAuth, String(userId)]);
-
-  const count = useMemo(() => products.length, [products]);
-
-  if (isLoadingUser) {
-    return <div className="p-6">Cargando sesión...</div>;
-  }
-
-  if (!isAuth) {
-    return (
-      <main className="max-w-6xl mx-auto px-4 py-10">
-        <section className="bg-white border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)] space-y-4">
-          <h1 className="text-2xl font-extrabold text-amber-900">
-            Mis productos
-          </h1>
-          <p className="text-zinc-700 font-bold">
-            Debes iniciar sesión para ver tus productos.
-          </p>
-          <Link
-            href="/login"
-            className="inline-block px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
-          >
-            Ir a Login
-          </Link>
-        </section>
-      </main>
-    );
-  }
-
-  if (loading) {
-    return (
-      <main className="max-w-6xl mx-auto px-4 py-10">
-        <section className="bg-white border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
-          <p className="text-zinc-700">Cargando productos...</p>
-        </section>
-      </main>
-    );
-  }
+  }, [isLoadingUser, isAuth]);
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-10">
-      <section className="bg-white border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className="min-h-screen bg-[#f5f2ea] px-6 py-10">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold text-amber-900">
+            <h1 className="font-display text-3xl text-amber-900 font-extrabold">
               Mis productos
             </h1>
-            <p className="mt-1 text-sm text-zinc-700">
-              Total:{" "}
-              <span className="font-extrabold text-amber-900">{count}</span>
+            <p className="text-sm text-slate-700">
+              Aquí ves solo los productos asociados a tu cuenta.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <Link
-              href="/dashboard"
-              className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-white text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-50 transition"
+          <div className="flex gap-3">
+            <button
+              onClick={fetchMyProducts}
+              className="border-2 border-slate-900 bg-amber-200 px-4 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
             >
-              ← Volver
-            </Link>
+              Recargar
+            </button>
 
             <Link
               href="/createProduct"
-              className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-100 transition"
+              className="border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
             >
-              + Publicar producto
+              + Crear producto
             </Link>
           </div>
         </div>
 
-        {products.length === 0 ? (
-          <div className="mt-6 p-5 bg-amber-50 rounded-xl border-2 border-dashed border-amber-900">
-            <p className="text-zinc-700 font-bold">
-              Aún no tienes productos publicados.
+        {loading ? (
+          <div className="rounded-2xl border-2 border-amber-900 bg-white p-8 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
+            <p className="text-slate-700">Cargando tus productos…</p>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="rounded-2xl border-2 border-amber-900 bg-white p-8 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
+            <p className="text-slate-700">
+              No tienes productos todavía. Crea uno para que aparezca aquí.
             </p>
-            <p className="mt-1 text-sm text-zinc-700">
-              Publica tu primer artículo retro y aparecerá aquí.
-            </p>
-            <Link
-              href="/createProduct"
-              className="mt-4 inline-block px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold"
-            >
-              Publicar producto
-            </Link>
           </div>
         ) : (
-          <div className="mt-6 space-y-4">
-            {products.map((p) => (
-              <article
-                key={p.id}
-                className="bg-white rounded-2xl border-2 border-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] p-4 flex items-center gap-4"
-              >
-                {/* ✅ thumb pequeño */}
-                <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-amber-900 bg-zinc-100 shrink-0">
-                  <img
-                    src={p.images?.[0] ?? ""}
-                    alt={p.title}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((p) => {
+              const title = p.title ?? "Sin título";
+              const img = p.imageUrl;
 
-                {/* ✅ info */}
-                <div className="flex-1 min-w-0">
-                  <h2 className="font-extrabold text-zinc-900 truncate">
-                    {p.title}
-                  </h2>
+              return (
+                <div
+                  key={p.id}
+                  className="rounded-2xl border-2 border-slate-900 bg-white p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]"
+                >
+                  <div className="mb-3 overflow-hidden rounded-xl border-2 border-slate-900 bg-amber-50">
+                    {img ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={img}
+                        alt={title}
+                        className="h-44 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-44 items-center justify-center text-sm text-slate-600">
+                        Sin imagen
+                      </div>
+                    )}
+                  </div>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                    <span className="font-extrabold text-amber-900">
-                      ${Number(p.price).toLocaleString("es-AR")}
+                  <h3 className="font-display text-xl font-extrabold text-amber-900 line-clamp-1">
+                    {title}
+                  </h3>
+
+                  <p className="mt-1 text-sm text-slate-700 line-clamp-2">
+                    {p.description || "—"}
+                  </p>
+
+                  <div className="mt-3 flex items-center justify-between text-sm">
+                    <span className="font-semibold text-slate-900">
+                      ${formatCOP(p.price)}
                     </span>
-
-                    <span className="text-zinc-700">Stock: {p.stock}</span>
-
-                    <span
-                      className={`px-2 py-1 text-xs font-bold rounded-full ${
-                        p.status === "approved"
-                          ? "bg-green-200 text-green-800"
-                          : p.status === "pending"
-                            ? "bg-yellow-200 text-yellow-800"
-                            : "bg-red-200 text-red-800"
-                      }`}
-                    >
-                      {p.status}
+                    <span className="text-slate-700">
+                      Stock: <b className="text-slate-900">{p.stock ?? "—"}</b>
                     </span>
                   </div>
-                </div>
 
-                {/* ✅ acciones demo */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <Link
-                    href={`/product/${p.id}`}
-                    className="px-3 py-2 rounded-xl border-2 border-amber-900 bg-white text-amber-900 font-extrabold hover:bg-amber-50 transition"
-                  >
-                    Ver
-                  </Link>
-
-                  {/* Si aún no tienes edición, lo dejo apuntando a createProduct */}
-                 
+                  <div className="mt-4 flex gap-2">
+                    <Link
+                      href={`/product/${p.id}`}
+                      className="w-full text-center border-2 border-slate-900 bg-amber-400 px-3 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
+                    >
+                      Ver
+                    </Link>
+                  </div>
                 </div>
-              </article>
-            ))}
+              );
+            })}
           </div>
         )}
-      </section>
-    </main>
+
+        {/* Debug (puedes borrar luego) */}
+        <div className="mt-10 text-xs text-slate-600 space-y-1">
+          <p>
+            API: <span className="font-mono">{API_BASE_URL}</span>
+          </p>
+          <p className="break-all">
+            Storage raw: <span className="font-mono">{rawStorage ?? "NO"}</span>
+          </p>
+          <p>
+            Token parseado:{" "}
+            <span className="font-mono">
+              {getAuthToken() ? "OK (JWT listo)" : "NO"}
+            </span>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

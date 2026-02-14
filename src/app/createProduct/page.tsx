@@ -128,7 +128,6 @@ export default function CreateProductPage() {
             />
           </div>
 
-          {/* Descripción */}
           <div>
             <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-2">
               Descripción
@@ -140,7 +139,6 @@ export default function CreateProductPage() {
             />
           </div>
 
-          {/* Precio y Stock */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-2">
@@ -170,7 +168,6 @@ export default function CreateProductPage() {
             </div>
           </div>
 
-          {/* Categoría */}
           <div>
             <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-2">
               Categoría *
@@ -189,7 +186,6 @@ export default function CreateProductPage() {
             </select>
           </div>
 
-          {/* Era */}
           <div>
             <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-2">
               Era *
@@ -208,7 +204,6 @@ export default function CreateProductPage() {
             </select>
           </div>
 
-          {/* Imagen Cloudinary */}
           <div>
             <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-2">
               Imagen del producto *
@@ -255,7 +250,6 @@ export default function CreateProductPage() {
             )}
           </div>
 
-          {/* Botón */}
           <button
             type="submit"
             disabled={isSubmitting}

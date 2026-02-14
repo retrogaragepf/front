@@ -14,6 +14,7 @@ export default function ProductPage() {
     try {
       setRefreshing(true);
       const res = await getAllProducts();
+      console.log("SAMPLE PRODUCT =>", res?.[0]);
       setProducts(res);
     } catch (err) {
       console.error("Error cargando productos:", err);

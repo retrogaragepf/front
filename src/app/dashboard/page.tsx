@@ -7,8 +7,7 @@ import { showToast } from "nextjs-toast-notify";
 import Sidebar from "@/src/components/dashboard/Sidebar";
 import StatsGrid from "@/src/components/dashboard/StatsGrid";
 import ProfileHeader from "@/src/components/dashboard/ProfileHeader";
-// ❌ ya no va en el main
-// import SellerReviews from "@/src/components/dashboard/SellerReviews";
+
 import MyProductsPanel from "@/src/components/dashboard/MyProductsPanel";
 
 import { useAuth } from "@/src/context/AuthContext";
@@ -69,7 +68,6 @@ export default function DashboardPage() {
 
         {/* <StatsGrid /> */}
 
-        {/* ✅ En el espacio donde estaban las reseñas, ahora van tus productos */}
         <MyProductsPanel />
       </main>
     </div>

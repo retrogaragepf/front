@@ -358,7 +358,6 @@ export default function MyProductsPanel() {
                 >
                   Gestionar
                 </Link> */}
-                
               </article>
             );
           })}

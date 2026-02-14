@@ -5,10 +5,39 @@ import Link from "next/link";
 import { IProductWithDetails } from "@/src/interfaces/product.interface";
 import { useCart } from "@/src/context/CartContext";
 import { useAuth } from "@/src/context/AuthContext";
-import { showToast } from "nextjs-toast-notify";
+import * as ToastNotify from "nextjs-toast-notify";
 
 interface CardProps {
   product: IProductWithDetails;
+}
+
+/** ✅ Toast wrapper compatible con:
+ *  1) showToast.success/info/error(msg, options)
+ *  2) showToast(msg, "success"|"warning"|"error")
+ */
+function notify(
+  type: "success" | "info" | "warning" | "error",
+  msg: string,
+  options?: any,
+) {
+  const mod: any = ToastNotify as any;
+
+  const showToastMaybe = mod?.showToast ?? mod?.default?.showToast;
+
+  // Caso A: showToast es un OBJETO con métodos (tu caso en Card)
+  if (showToastMaybe && typeof showToastMaybe === "object") {
+    const fn = showToastMaybe?.[type];
+    if (typeof fn === "function") return fn(msg, options);
+  }
+
+  // Caso B: showToast es una FUNCIÓN (msg, type)
+  if (typeof showToastMaybe === "function") {
+    const mappedType = type === "info" ? "success" : type; // por si tu función no tiene "info"
+    return showToastMaybe(msg, mappedType);
+  }
+
+  // Fallback
+  console.log(`[toast:${type}]`, msg);
 }
 
 function Card({ product }: CardProps) {
@@ -33,59 +62,50 @@ function Card({ product }: CardProps) {
   const priceNumber = Number((product as any).price);
   const priceFormatted = Number.isFinite(priceNumber)
     ? priceNumber.toLocaleString("es-CO", { minimumFractionDigits: 0 })
-    : String((product as any).price);
+    : String((product as any).price ?? "—");
 
-  const isLogged = !!dataUser?.token;
+  const isLogged = !!(dataUser as any)?.token;
+  const alreadyInCart = cartItems.some(
+    (it) => String((it as any).id) === safeId,
+  );
 
-  const alreadyInCart = cartItems.some((it) => String(it.id) === safeId);
+  const toastOpts = {
+    duration: 2500,
+    progress: true,
+    position: "top-center",
+    transition: "popUp",
+    icon: "",
+    sound: true,
+  };
 
   const handleAddToCart = () => {
     if (!isLogged) return;
 
-    // ✅ si no hay id, no dejamos agregar (evita romper el carrito)
     if (!safeId) {
-      showToast.error("Este producto no tiene ID válido (id/_id).", {
+      notify("error", "Este producto no tiene ID válido (id/_id).", {
+        ...toastOpts,
         duration: 3000,
-        progress: true,
-        position: "top-center",
-        transition: "popUp",
-        icon: "",
-        sound: true,
       });
       return;
     }
 
     if (alreadyInCart) {
-      showToast.info("Este producto ya está en tu carrito", {
-        duration: 2500,
-        progress: true,
-        position: "top-center",
-        transition: "popUp",
-        icon: "",
-        sound: true,
-      });
+      notify("info", "Este producto ya está en tu carrito", toastOpts);
       return;
     }
 
-    // ✅ Normaliza el objeto ANTES de mandarlo al CartContext
+    // ✅ Normaliza ANTES de mandarlo al CartContext
     const normalizedProduct = {
       ...product,
       id: safeId,
-      price: priceNumber, // asegura number si tu CartContext lo suma
-      imgUrl: imageUrl, // por si el carrito usa imgUrl
-      images: (product as any).images ?? (imageUrl ? [imageUrl] : []), // por si usa images[0]
+      price: Number.isFinite(priceNumber) ? priceNumber : 0,
+      imgUrl: imageUrl,
+      images: (product as any).images ?? (imageUrl ? [imageUrl] : []),
     } as any;
 
     addProduct(normalizedProduct, 1);
 
-    showToast.success("Agregado al carrito", {
-      duration: 2500,
-      progress: true,
-      position: "top-center",
-      transition: "popUp",
-      icon: "",
-      sound: true,
-    });
+    notify("success", "Agregado al carrito", toastOpts);
   };
 
   return (

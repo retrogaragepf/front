@@ -67,7 +67,7 @@ export default function DashboardPage() {
           </section>
         ) : null}
 
-        <StatsGrid />
+        {/* <StatsGrid /> */}
 
         {/* ✅ En el espacio donde estaban las reseñas, ahora van tus productos */}
         <MyProductsPanel />

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import {
   useCart,
   type CartItem as CartItemType,
@@ -9,17 +9,24 @@ import {
 export default function CartItem({ item }: { item: CartItemType }) {
   const { increaseQty, decreaseQty, removeFromCart } = useCart();
 
-  const priceFormatted = item.price.toLocaleString("es-CO", {
+  // ✅ key único/seguro para acciones (si hay remoto, usa itemId)
+  const key = useMemo(
+    () => String(item.itemId ?? item.id ?? "").trim(),
+    [item],
+  );
+
+  const priceFormatted = Number(item.price ?? 0).toLocaleString("es-CO", {
     minimumFractionDigits: 0,
   });
 
+  const fallbackImg =
+    "https://res.cloudinary.com/dyylxjijf/image/upload/v1770321127/Camara_ypblyh.png";
+
   return (
     <div className="flex items-center gap-6 p-6 bg-white rounded-xl border shadow-sm relative">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={
-          item.image ||
-          "https://res.cloudinary.com/dyylxjijf/image/upload/v1770321127/Camara_ypblyh.png"
-        }
+        src={item.image || fallbackImg}
         alt={item.title}
         className="w-24 h-24 rounded-lg object-cover bg-slate-200"
         loading="lazy"
@@ -39,8 +46,10 @@ export default function CartItem({ item }: { item: CartItemType }) {
           <div className="flex items-center border rounded-lg">
             <button
               className="px-2"
-              onClick={() => decreaseQty(item.id)}
+              onClick={() => key && decreaseQty(key)}
               aria-label="Disminuir cantidad"
+              disabled={!key}
+              title={!key ? "Item sin id válido" : ""}
             >
               -
             </button>
@@ -49,8 +58,10 @@ export default function CartItem({ item }: { item: CartItemType }) {
 
             <button
               className="px-2"
-              onClick={() => increaseQty(item.id)}
+              onClick={() => key && increaseQty(key)}
               aria-label="Aumentar cantidad"
+              disabled={!key}
+              title={!key ? "Item sin id válido" : ""}
             >
               +
             </button>
@@ -60,10 +71,21 @@ export default function CartItem({ item }: { item: CartItemType }) {
 
       <button
         className="absolute top-4 right-4 text-slate-400"
-        onClick={() => removeFromCart(item.id)}
+        onClick={() => {
+          console.log("❌ CLICK remove key =>", key, {
+            id: item.id,
+            itemId: item.itemId,
+            title: item.title,
+          });
+
+          if (!key) return; // ✅ evita borrar todo si no hay id válido
+          removeFromCart(key); // ✅ usa el mismo id seguro que +/-
+        }}
         aria-label="Eliminar del carrito"
+        disabled={!key}
+        title={!key ? "Item sin id válido" : ""}
       >
-        x
+        ❌
       </button>
     </div>
   );

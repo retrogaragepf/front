@@ -6,11 +6,9 @@ import {
   getAllProducts,
   updateProductStatus,
 } from "@/src/services/products.services";
-import { getAllUsers } from "@/src/helpers/admin.users.mock";
 
 export default function ProductRequestsSection() {
   const [products, setProducts] = useState<IProduct[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
 
   const [filter, setFilter] = useState<
     "all" | "pending" | "approved" | "rejected"
@@ -22,25 +20,27 @@ export default function ProductRequestsSection() {
     const load = async () => {
       const productData = await getAllProducts();
       setProducts(productData);
-      setUsers(getAllUsers());
     };
 
     load();
   }, []);
 
-  const getSellerName = (sellerId: string) => {
-    const seller = users.find((u) => u.id === sellerId);
-    return seller ? seller.name : "Usuario desconocido";
+  // ✅ Email vendedor: intenta varias shapes sin romper nada
+  const getSellerEmail = (product: any) => {
+    return (
+      product?.user?.email ||
+      product?.seller?.email ||
+      product?.owner?.email ||
+      "Email no disponible"
+    );
   };
 
   const handleStatusChange = async (
     id: string,
-    status: "approved" | "rejected"
+    status: "approved" | "rejected",
   ) => {
     const confirmAction = confirm(
-      `¿Seguro que querés ${
-        status === "approved" ? "aprobar" : "rechazar"
-      } este producto?`
+      `¿Seguro que querés ${status === "approved" ? "aprobar" : "rechazar"} este producto?`,
     );
 
     if (!confirmAction) return;
@@ -54,10 +54,10 @@ export default function ProductRequestsSection() {
     let filtered =
       filter === "all"
         ? products
-        : products.filter((p) => p.status === filter);
+        : products.filter((p: any) => p.status === filter);
 
-    filtered = filtered.filter((p) =>
-      p.title.toLowerCase().includes(search.toLowerCase())
+    filtered = filtered.filter((p: any) =>
+      (p.title || "").toLowerCase().includes(search.toLowerCase()),
     );
 
     return filtered;
@@ -100,7 +100,7 @@ export default function ProductRequestsSection() {
 
       {/* Cards */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {processedProducts.map((product) => (
+        {processedProducts.map((product: any) => (
           <div
             key={product.id}
             className="bg-white border-2 border-amber-900 rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)] p-6 flex flex-col justify-between"
@@ -121,7 +121,7 @@ export default function ProductRequestsSection() {
               <p className="text-xs text-zinc-500 mb-4">
                 Vendedor:
                 <span className="ml-1 font-bold text-amber-900">
-                  {getSellerName(product.sellerId)}
+                  {getSellerEmail(product)}
                 </span>
               </p>
 
@@ -147,18 +147,14 @@ export default function ProductRequestsSection() {
             {product.status === "pending" && (
               <div className="flex gap-2">
                 <button
-                  onClick={() =>
-                    handleStatusChange(product.id, "approved")
-                  }
+                  onClick={() => handleStatusChange(product.id, "approved")}
                   className="flex-1 px-3 py-2 rounded-lg font-extrabold border-2 bg-emerald-700 text-white border-emerald-800"
                 >
                   Aprobar
                 </button>
 
                 <button
-                  onClick={() =>
-                    handleStatusChange(product.id, "rejected")
-                  }
+                  onClick={() => handleStatusChange(product.id, "rejected")}
                   className="flex-1 px-3 py-2 rounded-lg font-extrabold border-2 bg-red-600 text-white border-red-700"
                 >
                   Rechazar

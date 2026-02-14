@@ -291,22 +291,6 @@ export default function MyProductsPage() {
             })}
           </div>
         )}
-
-        {/* Debug (puedes borrar luego) */}
-        <div className="mt-10 text-xs text-slate-600 space-y-1">
-          <p>
-            API: <span className="font-mono">{API_BASE_URL}</span>
-          </p>
-          <p className="break-all">
-            Storage raw: <span className="font-mono">{rawStorage ?? "NO"}</span>
-          </p>
-          <p>
-            Token parseado:{" "}
-            <span className="font-mono">
-              {getAuthToken() ? "OK (JWT listo)" : "NO"}
-            </span>
-          </p>
-        </div>
       </div>
     </div>
   );

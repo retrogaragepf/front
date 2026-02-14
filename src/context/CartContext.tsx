@@ -17,11 +17,8 @@ import { useAuth } from "@/src/context/AuthContext";
 // Types
 // =====================
 export type CartItem = {
-  // ✅ En UI seguimos usando id como "productId" (para no romper tu app)
-  id: string; // productId
-
-  // ✅ Esto es lo que necesita DELETE /cart/{itemId}
-  itemId?: string; // cartItemId (del back)
+  id: string; // productId (UI)
+  itemId?: string; // cartItemId (back)
 
   title: string;
   price: number;
@@ -55,39 +52,65 @@ type CartContextValue = {
 const CartContext = createContext<CartContextValue | null>(null);
 
 // =====================
-// Axios client (con token)
+// Config
 // =====================
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com";
-const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
+// ⚠️ tu proyecto ha usado varias keys en distintos momentos.
+// Esta lista hace el token “a prueba de cambios”.
+const TOKEN_KEYS = [
+  process.env.NEXT_PUBLIC_JWT_TOKEN_KEY,
+  "retrogarage_auth",
+  "auth_token",
+  "authToken",
+  "token",
+].filter(Boolean) as string[];
+
+const CART_KEY_BASE =
+  process.env.NEXT_PUBLIC_CART_STORAGE_KEY || "retrogarage_cart";
+
+// =====================
+// Token helper (robusto)
+// =====================
+function getTokenFromStorage(): string | null {
+  if (typeof window === "undefined") return null;
+
+  for (const key of TOKEN_KEYS) {
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+
+    // Caso 1: JSON {"token":"..."}
+    try {
+      const parsed = JSON.parse(raw);
+      const t = parsed?.token;
+      if (typeof t === "string" && t.length > 10) return t;
+    } catch {
+      // Caso 2: string plano "eyJ..."
+      if (raw.length > 10) return raw;
+    }
+  }
+
+  return null;
+}
+
+// =====================
+// Axios client
+// =====================
 const cartApi = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
 
 cartApi.interceptors.request.use((config) => {
-  if (typeof window === "undefined") return config;
-
-  const raw = localStorage.getItem(TOKEN_KEY);
-  if (!raw) return config;
-
-  try {
-    const parsed = JSON.parse(raw);
-    const token = parsed?.token;
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  } catch {
-    // ignore
-  }
+  const token = getTokenFromStorage();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
 // =====================
 // Helpers
 // =====================
-const CART_KEY_BASE =
-  process.env.NEXT_PUBLIC_CART_STORAGE_KEY || "retrogarage_cart";
-
 function buildCartKey(userId?: string | number | null) {
   const id =
     userId === undefined || userId === null || userId === ""
@@ -107,15 +130,22 @@ function normalizeQty(qty?: number) {
   return Math.max(1, Math.floor(n));
 }
 
+function safeProductId(p: any) {
+  return String(p?.id ?? p?._id ?? p?.productId ?? "");
+}
+
 function toCartItem(product: IProductWithDetails, quantity?: number): CartItem {
+  const p: any = product as any;
+  const id = safeProductId(p);
+
   return {
-    id: String(product.id),
-    title: product.title,
-    price: normalizePrice(product.price),
-    image: product.images?.[0],
-    stock: product.stock,
-    categoryName: product.category?.name,
-    eraName: product.era?.name,
+    id,
+    title: p.title ?? p.name ?? "Producto",
+    price: normalizePrice(p.price),
+    image: p.imgUrl ?? p.imageUrl ?? p.images?.[0] ?? p.image,
+    stock: p.stock,
+    categoryName: p.category?.name ?? p.categoryName,
+    eraName: p.era?.name ?? p.eraName,
     quantity: normalizeQty(quantity),
   };
 }
@@ -124,32 +154,26 @@ function toCartItemFromUserProduct(
   p: IUserProduct,
   quantity?: number,
 ): CartItem {
+  const anyP: any = p as any;
   return {
-    id: String(p.id),
-    title: p.titulo,
-    price: normalizePrice(p.precio),
-    image: p.imagen,
-    stock: p.stock,
-    categoryName: p.categoria,
+    id: String(anyP.id ?? anyP._id ?? ""),
+    title: anyP.titulo ?? anyP.title ?? "Producto",
+    price: normalizePrice(anyP.precio ?? anyP.price),
+    image: anyP.imagen ?? anyP.image,
+    stock: anyP.stock,
+    categoryName: anyP.categoria ?? anyP.categoryName,
     quantity: normalizeQty(quantity),
   };
 }
 
-/**
- * ✅ Mapea lo que venga del back (Swagger GET /cart) a tu UI
- * Soporta varias formas comunes:
- * - [{ id, quantity, product: {...} }]
- * - [{ itemId, quantity, product: {...} }]
- * - { items: [...] }
- */
 function mapRemoteCartToUI(payload: any): CartItem[] {
   const items = Array.isArray(payload) ? payload : (payload?.items ?? []);
-
   if (!Array.isArray(items)) return [];
 
   return items
     .map((it: any) => {
       const prod = it.product ?? it.Product ?? it.productData ?? it.product_id;
+
       const productId = String(
         it.productId ??
           it.product_id ??
@@ -167,7 +191,8 @@ function mapRemoteCartToUI(payload: any): CartItem[] {
         quantity: normalizeQty(it.quantity),
         title: prod?.title ?? prod?.name ?? "Producto",
         price: normalizePrice(prod?.price),
-        image: prod?.images?.[0] ?? prod?.image,
+        image:
+          prod?.images?.[0] ?? prod?.imgUrl ?? prod?.imageUrl ?? prod?.image,
         stock: prod?.stock,
         categoryName: prod?.category?.name ?? prod?.categoryName,
         eraName: prod?.era?.name ?? prod?.eraName,
@@ -177,24 +202,18 @@ function mapRemoteCartToUI(payload: any): CartItem[] {
 }
 
 // =====================
-// Remote operations (Swagger)
+// Remote operations
 // =====================
 async function remoteGetCart(): Promise<CartItem[]> {
   const res = await cartApi.get("/cart");
   return mapRemoteCartToUI(res.data);
 }
 
-/**
- * Swagger muestra POST /cart
- * Lo normal es que reciba: { productId, quantity }
- * (Si tu back usa otro nombre, abajo está el fallback product_id)
- */
 async function remoteUpsertItem(productId: string, quantity: number) {
   try {
     const res = await cartApi.post("/cart", { productId, quantity });
     return res.data;
   } catch {
-    // fallback por si back espera product_id
     const res = await cartApi.post("/cart", {
       product_id: productId,
       quantity,
@@ -213,83 +232,25 @@ async function remoteDeleteItem(itemId: string) {
 // =====================
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const { dataUser } = useAuth();
-  const userId = dataUser?.user?.id ?? null;
 
-  const isRemote = Boolean(userId); // ✅ si hay user, usamos back
+  // ✅ userId robusto (por si cambia el shape de auth)
+  const userId =
+    dataUser?.user?.id ??
+    (dataUser as any)?.id ??
+    (dataUser as any)?.userId ??
+    null;
+
+  // ✅ remoto SOLO si hay token; si falla, no nos quedamos sin carrito
+  const hasToken = Boolean(dataUser?.token || getTokenFromStorage());
+  const isRemote = Boolean(userId && hasToken);
+
   const cartKey = useMemo(() => buildCartKey(userId), [userId]);
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
 
   // ---------
-  // Hydrate
-  // ---------
-  useEffect(() => {
-    let cancelled = false;
-
-    async function hydrate() {
-      // guest
-      if (!isRemote) {
-        try {
-          const raw = localStorage.getItem(cartKey);
-          if (!raw) {
-            setCartItems([]);
-            return;
-          }
-          const parsed = JSON.parse(raw) as CartItem[];
-          setCartItems(Array.isArray(parsed) ? parsed : []);
-        } catch {
-          setCartItems([]);
-        }
-        return;
-      }
-
-      // remote
-      setIsSyncing(true);
-      try {
-        const remote = await remoteGetCart();
-        if (!cancelled) setCartItems(remote);
-      } catch (e) {
-        if (!cancelled) setCartItems([]);
-        console.warn("CartContext: GET /cart falló", e);
-      } finally {
-        if (!cancelled) setIsSyncing(false);
-      }
-    }
-
-    hydrate();
-    return () => {
-      cancelled = true;
-    };
-  }, [isRemote, cartKey]);
-
-  // ---------
-  // Save guest
-  // ---------
-  useEffect(() => {
-    if (isRemote) return;
-    try {
-      localStorage.setItem(cartKey, JSON.stringify(cartItems));
-    } catch {
-      // ignore
-    }
-  }, [isRemote, cartKey, cartItems]);
-
-  // ---------
-  // Sync helper (refetch)
-  // ---------
-  const refetchRemote = useCallback(async () => {
-    setIsSyncing(true);
-    try {
-      const remote = await remoteGetCart();
-      setCartItems(remote);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, []);
-
-  // ---------
-  // Local helper (sumar qty, como back)
+  // Local upsert (optimista)
   // ---------
   const upsertLocalSum = useCallback((incoming: CartItem) => {
     setCartItems((prev) => {
@@ -315,23 +276,93 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // ---------
+  // Hydrate
+  // ---------
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrate() {
+      // 1) carga local siempre (para que el badge no quede en 0)
+      try {
+        const raw = localStorage.getItem(cartKey);
+        const parsed = raw ? (JSON.parse(raw) as CartItem[]) : [];
+        if (!cancelled) setCartItems(Array.isArray(parsed) ? parsed : []);
+      } catch {
+        if (!cancelled) setCartItems([]);
+      }
+
+      // 2) si remoto, intenta reemplazar con lo del back
+      if (!isRemote) return;
+
+      setIsSyncing(true);
+      try {
+        const remote = await remoteGetCart();
+        if (!cancelled) setCartItems(remote);
+      } catch (e) {
+        // ✅ si el back falla, nos quedamos con local (no “rompe” el carrito)
+        console.warn("CartContext: GET /cart falló (fallback a local)", e);
+      } finally {
+        if (!cancelled) setIsSyncing(false);
+      }
+    }
+
+    hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [isRemote, cartKey]);
+
+  // ---------
+  // Save local always (incluye usuario)
+  // ---------
+  useEffect(() => {
+    try {
+      localStorage.setItem(cartKey, JSON.stringify(cartItems));
+    } catch {
+      // ignore
+    }
+  }, [cartKey, cartItems]);
+
+  // ---------
+  // Refetch remote
+  // ---------
+  const refetchRemote = useCallback(async () => {
+    if (!isRemote) return;
+    setIsSyncing(true);
+    try {
+      const remote = await remoteGetCart();
+      setCartItems(remote);
+    } catch (e) {
+      console.warn("CartContext: refetchRemote falló (se mantiene local)", e);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isRemote]);
+
   // =====================
   // Actions
   // =====================
   const addProduct = (product: IProductWithDetails, quantity?: number) => {
     const incoming = toCartItem(product, quantity);
 
-    if (!isRemote) {
-      upsertLocalSum(incoming);
+    // ✅ si no hay id/_id válido, no rompemos estado
+    if (!incoming.id) {
+      console.warn("CartContext: producto sin id/_id:", product);
       return;
     }
 
-    // remoto: POST /cart (back crea o actualiza CartItem)
+    // ✅ OPTIMISTA: actualiza UI SIEMPRE
+    upsertLocalSum(incoming);
+
+    // ✅ luego intenta sync remoto (si aplica)
+    if (!isRemote) return;
+
     setIsSyncing(true);
     remoteUpsertItem(incoming.id, incoming.quantity)
       .then(() => refetchRemote())
       .catch((e) => {
-        console.warn("CartContext: POST /cart falló", e);
+        console.warn("CartContext: POST /cart falló (se mantiene local)", e);
         setIsSyncing(false);
       });
   };
@@ -339,16 +370,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addUserProduct = (product: IUserProduct, quantity?: number) => {
     const incoming = toCartItemFromUserProduct(product, quantity);
 
-    if (!isRemote) {
-      upsertLocalSum(incoming);
+    if (!incoming.id) {
+      console.warn("CartContext: userProduct sin id/_id:", product);
       return;
     }
+
+    upsertLocalSum(incoming);
+
+    if (!isRemote) return;
 
     setIsSyncing(true);
     remoteUpsertItem(incoming.id, incoming.quantity)
       .then(() => refetchRemote())
       .catch((e) => {
-        console.warn("CartContext: POST /cart falló", e);
+        console.warn("CartContext: POST /cart falló (se mantiene local)", e);
         setIsSyncing(false);
       });
   };
@@ -356,25 +391,28 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const setQty = (productId: string, qty: number) => {
     const cleanQty = normalizeQty(qty);
 
-    if (!isRemote) {
-      setCartItems((prev) =>
-        prev.map((p) => {
-          if (p.id !== productId) return p;
-          const maxQty = typeof p.stock === "number" ? p.stock : undefined;
-          return {
-            ...p,
-            quantity: maxQty ? Math.min(cleanQty, maxQty) : cleanQty,
-          };
-        }),
-      );
-      return;
-    }
+    // ✅ actualiza local primero
+    setCartItems((prev) =>
+      prev.map((p) => {
+        if (p.id !== productId) return p;
+        const maxQty = typeof p.stock === "number" ? p.stock : undefined;
+        return {
+          ...p,
+          quantity: maxQty ? Math.min(cleanQty, maxQty) : cleanQty,
+        };
+      }),
+    );
+
+    if (!isRemote) return;
 
     setIsSyncing(true);
     remoteUpsertItem(productId, cleanQty)
       .then(() => refetchRemote())
       .catch((e) => {
-        console.warn("CartContext: POST /cart (setQty) falló", e);
+        console.warn(
+          "CartContext: POST /cart (setQty) falló (se mantiene local)",
+          e,
+        );
         setIsSyncing(false);
       });
   };
@@ -397,29 +435,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeFromCart = (productId: string) => {
-    if (!isRemote) {
-      setCartItems((prev) => prev.filter((p) => p.id !== productId));
-      return;
-    }
+    // ✅ local primero
+    setCartItems((prev) => prev.filter((p) => p.id !== productId));
 
-    // DELETE requiere itemId
+    if (!isRemote) return;
+
     const found = cartItems.find((p) => p.id === productId);
     const itemId = found?.itemId;
 
     if (!itemId) {
-      // Si por alguna razón no vino itemId, rehidrata y vuelve a intentar
-      setIsSyncing(true);
-      refetchRemote()
-        .then(() => {
-          const again = cartItems.find((p) => p.id === productId)?.itemId;
-          if (!again) throw new Error("No hay itemId para borrar");
-          return remoteDeleteItem(again);
-        })
-        .then(() => refetchRemote())
-        .catch((e) => {
-          console.warn("CartContext: DELETE /cart/{itemId} falló", e);
-          setIsSyncing(false);
-        });
+      // si no hay itemId, intenta refetch (pero sin romper UI)
+      refetchRemote().catch(() => {});
       return;
     }
 
@@ -427,31 +453,28 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     remoteDeleteItem(itemId)
       .then(() => refetchRemote())
       .catch((e) => {
-        console.warn("CartContext: DELETE /cart/{itemId} falló", e);
+        console.warn(
+          "CartContext: DELETE /cart/{itemId} falló (se mantiene local)",
+          e,
+        );
         setIsSyncing(false);
       });
   };
 
   const clearCart = () => {
-    if (!isRemote) {
-      setCartItems([]);
-      return;
-    }
+    // ✅ local primero
+    setCartItems([]);
 
-    // No hay DELETE /cart para clear en tu swagger,
-    // entonces borramos item por item usando DELETE /cart/{itemId}
+    if (!isRemote) return;
+
     const ids = cartItems.map((p) => p.itemId).filter(Boolean) as string[];
-
-    if (ids.length === 0) {
-      setCartItems([]);
-      return;
-    }
+    if (ids.length === 0) return;
 
     setIsSyncing(true);
     Promise.allSettled(ids.map((id) => remoteDeleteItem(id)))
       .then(() => refetchRemote())
       .catch((e) => {
-        console.warn("CartContext: clearCart falló", e);
+        console.warn("CartContext: clearCart falló (se mantiene local)", e);
         setIsSyncing(false);
       });
   };

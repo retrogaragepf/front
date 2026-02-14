@@ -1,7 +1,8 @@
 import { IProduct } from "@/src/interfaces/product.interface";
 import { authService } from "@/src/services/auth";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com";
 
 function assertBaseUrl() {
   if (!API_BASE_URL) {
@@ -42,6 +43,41 @@ export const getAllProducts = async (): Promise<IProduct[]> => {
   }
 
   return data as IProduct[];
+};
+
+/* ============================
+   GET BY ID (PUBLIC) ✅ NUEVO
+============================ */
+export const getProductById = async (id: string): Promise<IProduct> => {
+  assertBaseUrl();
+
+  // ✅ toma el JWT REAL del back si está guardado
+  const token = authService.getToken?.() || null;
+
+  const res = await fetch(`${API_BASE_URL}/products/${id}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    cache: "no-store",
+  });
+
+  const data = await parseJsonSafe(res);
+
+  if (!res.ok) {
+    const msg =
+      typeof data === "string"
+        ? data
+        : data?.message
+          ? Array.isArray(data.message)
+            ? data.message.join(", ")
+            : String(data.message)
+          : "Error obteniendo producto";
+    throw new Error(msg);
+  }
+
+  return data as IProduct;
 };
 
 /* ============================

@@ -57,7 +57,7 @@ export default function ProductPage() {
           </p>
         </div>
       ) : (
-        <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
           {products.map((p) => (
             <Card key={p.id} product={p} />
           ))}

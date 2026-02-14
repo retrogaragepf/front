@@ -1,8 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/src/context/AuthContext";
+import { ReactNode } from "react";
 
 type Props = {
   children: ReactNode;
@@ -10,51 +8,7 @@ type Props = {
   setSection: (s: "users" | "products") => void;
 };
 
-const AUTH_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
-
-function getIsAdminFromStorage(): boolean {
-  try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    return Boolean(parsed?.user?.isAdmin);
-  } catch {
-    return false;
-  }
-}
-
 export default function AdminLayout({ children, section, setSection }: Props) {
-  const router = useRouter();
-  const { dataUser, isLoadingUser } = useAuth();
-
-  // ✅ Protección admin (mínimo cambio)
-  useEffect(() => {
-    if (isLoadingUser) return;
-
-    const token = (dataUser as any)?.token || null;
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-
-    const isAdmin =
-      Boolean((dataUser as any)?.user?.isAdmin) || getIsAdminFromStorage();
-
-    if (!isAdmin) {
-      router.replace("/dashboard");
-    }
-  }, [dataUser, isLoadingUser, router]);
-
-  // ✅ Evita “flash” mientras valida
-  if (isLoadingUser) return null;
-
-  const token = (dataUser as any)?.token || null;
-  const isAdmin =
-    Boolean((dataUser as any)?.user?.isAdmin) ||
-    (typeof window !== "undefined" && getIsAdminFromStorage());
-
-  if (!token || !isAdmin) return null;
-
   return (
     <div className="min-h-screen flex bg-[#f5f2ea]">
       {/* Sidebar */}

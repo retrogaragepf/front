@@ -4,14 +4,16 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { mockGetProductById } from "@/src/services/products.mock.service";
+import { getProductById } from "@/src/services/products.services";
 import AddToCartButton from "@/src/components/products/AddToCartButton";
 import type { IProductWithDetails } from "@/src/interfaces/product.interface";
 
 export default function ProductDetailPage() {
-  const params = useParams<{ id: string }>();
+  const params = useParams();
   const router = useRouter();
-  const id = params?.id;
+  const id = (params as any)?.id as string | undefined;
+
+  console.log("ID:", id);
 
   const [product, setProduct] = useState<IProductWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,10 +27,10 @@ export default function ProductDetailPage() {
 
       try {
         setLoading(true);
-        const p = await mockGetProductById(String(id));
-        setProduct(p);
+        const p = await getProductById(String(id));
+        setProduct(p as any);
       } catch (err) {
-        console.error("mockGetProductById error:", err);
+        console.error("getProductById error:", err);
         router.push("/products");
       } finally {
         setLoading(false);
@@ -38,13 +40,10 @@ export default function ProductDetailPage() {
     run();
   }, [id, router]);
 
-  if (loading) {
-    return <div className="p-6">Cargando producto...</div>;
-  }
-
+  if (loading) return <div className="p-6">Cargando producto...</div>;
   if (!product) return null;
 
-  const imageUrl = product.images?.[0] ?? "";
+  const imageUrl = (product as any).imgUrl ?? "";
 
   const priceNumber = Number(product.price);
   const priceFormatted = Number.isFinite(priceNumber)
@@ -54,31 +53,13 @@ export default function ProductDetailPage() {
   return (
     <div className="w-full bg-amber-100 text-zinc-900">
       <main className="max-w-7xl mx-auto px-6 py-10">
-        {/* Back / breadcrumbs */}
-        <div className="flex items-center gap-3">
-          <Link
-            href="/products"
-            className="font-handwritten text-sm font-extrabold tracking-wide text-amber-900 uppercase border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-          >
-            ← Volver a productos
-          </Link>
-
-          <span className="text-amber-900/40">•</span>
-        </div>
-
-        {/* Card */}
         <section
           className="
-            mt-6
-            rounded-2xl
-            border-2 border-amber-900
-            bg-amber-50
-            shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]
-            overflow-hidden
+            mt-6 rounded-2xl border-2 border-amber-900 bg-amber-50
+            shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)] overflow-hidden
           "
         >
           <div className="grid grid-cols-1 md:grid-cols-2">
-            {/* Image */}
             <div className="p-5 md:p-6 border-b-2 md:border-b-0 md:border-r-2 border-amber-900">
               <div className="relative aspect-square rounded-xl border border-amber-300 bg-amber-100 overflow-hidden">
                 {imageUrl ? (
@@ -96,18 +77,16 @@ export default function ProductDetailPage() {
                 )}
               </div>
 
-              {/* Mini etiqueta retro */}
               <div className="mt-4 flex items-center gap-2">
                 <span className="inline-flex items-center px-3 py-1 rounded-full border border-amber-300 bg-amber-100 text-amber-900 text-xs font-extrabold tracking-widest uppercase">
                   Vintage Verified
                 </span>
                 <span className="inline-flex items-center px-3 py-1 rounded-full border border-emerald-900/30 bg-emerald-800 text-amber-50 text-xs font-extrabold tracking-widest uppercase">
-                  Stock: {product.stock}
+                  Stock: {(product as any).stock}
                 </span>
               </div>
             </div>
 
-            {/* Details */}
             <div className="p-5 md:p-6">
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-wide text-amber-900">
                 {product.title}
@@ -124,10 +103,8 @@ export default function ProductDetailPage() {
                 </p>
               )}
 
-              {/* Divider */}
               <div className="my-6 h-0.5 w-full bg-amber-300" />
 
-              {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <AddToCartButton product={product} />
 
@@ -147,11 +124,6 @@ export default function ProductDetailPage() {
                   Ver carrito
                 </Link>
               </div>
-
-              <p className="mt-4 text-xs text-zinc-600">
-                Tip: si el stock llega a 0, podemos deshabilitar el botón y
-                mostrar “Agotado” con badge rojo/amber.
-              </p>
             </div>
           </div>
         </section>

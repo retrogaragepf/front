@@ -14,7 +14,6 @@ function Navbar() {
   const { cartItems } = useCart();
   const itemsCart = cartItems.length;
 
-  // ✅ Blindado: aunque dataUser venga null/undefined o con forma distinta
   const safeName =
     (dataUser as any)?.user?.name ??
     (dataUser as any)?.name ??
@@ -24,22 +23,66 @@ function Navbar() {
     (dataUser as any)?.username ??
     "";
 
-  // ✅ Logged: soporta varios shapes
   const isLogged =
     Boolean((dataUser as any)?.user?.email) ||
     Boolean((dataUser as any)?.email) ||
     Boolean((dataUser as any)?.user) ||
     Boolean(dataUser);
 
-  const handleLogout = async () => {
+  const AUTH_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
-    //--- LIMPIAR LOCALSTORAGE Y CONTEXTO ---
+  const decodeIsAdminFromJwt = (token: string | null): boolean => {
+    if (!token) return false;
+    try {
+      const parts = token.split(".");
+      if (parts.length !== 3) return false;
+
+      const base64Url = parts[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64.padEnd(
+        base64.length + ((4 - (base64.length % 4)) % 4),
+        "=",
+      );
+
+      const json = atob(padded);
+      const payload = JSON.parse(json);
+      return Boolean(payload?.isAdmin);
+    } catch {
+      return false;
+    }
+  };
+
+  // ✅ Decide destino al MOMENTO del click (con storage + fallback al token)
+  const goToProfile = () => {
+    let admin = false;
+
+    try {
+      const raw = localStorage.getItem(AUTH_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        admin =
+          Boolean(parsed?.user?.isAdmin) ||
+          decodeIsAdminFromJwt(parsed?.token ?? null);
+      }
+    } catch {
+      admin = false;
+    }
+
+    const target = admin ? "/admin/dashboard" : "/dashboard";
+
+    // Debug rápido (puedes quitar luego)
+    console.log("[Navbar] goToProfile ->", { admin, target });
+
+    router.push(target);
+  };
+
+  const handleLogout = async () => {
     sessionStorage.removeItem("google-login");
     sessionStorage.removeItem("google-register");
 
     logout();
-    await signOut({redirect: false}); // Evita redirección automática para mostrar el toast primero
-    
+    await signOut({ redirect: false });
+
     showToast.warning("¡Salida Exitosa!", {
       duration: 1000,
       progress: true,
@@ -48,13 +91,13 @@ function Navbar() {
       icon: "",
       sound: true,
     });
+
     router.push("/");
   };
 
   return (
     <header className="w-full bg-amber-100 text-zinc-900 border-b-2 border-amber-300 sticky top-0 z-50">
       <div className="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        {/* IZQUIERDA: Brand */}
         <Link
           href="/"
           className="text-xl font-extrabold tracking-wide text-amber-900 hover:text-emerald-900 transition"
@@ -62,7 +105,6 @@ function Navbar() {
           RetroGarage™
         </Link>
 
-        {/* CENTRO: Links */}
         <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2">
           <ul className="flex items-center gap-8 text-sm font-extrabold tracking-wide text-amber-900 uppercase list-none m-0 p-0">
             <li>
@@ -79,7 +121,7 @@ function Navbar() {
                 href="/product"
                 className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
               >
-                Productos Destacados
+                Productos Disponibles
               </Link>
             </li>
 
@@ -94,9 +136,7 @@ function Navbar() {
           </ul>
         </nav>
 
-        {/* DERECHA: acciones */}
         <div className="flex items-center gap-3">
-          {/* Cart icon-like */}
           <Link
             href="/cart"
             className="relative inline-flex items-center justify-center w-10 h-10 rounded-full border border-amber-300 bg-amber-50 hover:bg-amber-200 transition"
@@ -111,15 +151,16 @@ function Navbar() {
             )}
           </Link>
 
-          {/* ✅ Mi Perfil SOLO si está logeado */}
           {isLogged ? (
             <div className="flex items-center gap-3">
-              <Link
-                href="/dashboard"
+              {/* ✅ en vez de Link fijo, decide al click */}
+              <button
+                type="button"
+                onClick={goToProfile}
                 className="hidden sm:block max-w-35 truncate text-sm font-semibold text-zinc-800 hover:text-emerald-900 transition"
               >
                 {safeName || "Mi Perfil"}
-              </Link>
+              </button>
 
               <button
                 onClick={handleLogout}
@@ -137,7 +178,6 @@ function Navbar() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              {/* Acceso */}
               <Link
                 href="/login"
                 className="
@@ -153,7 +193,6 @@ function Navbar() {
                 Acceso
               </Link>
 
-              {/* Registro */}
               <Link
                 href="/register"
                 className="
@@ -173,7 +212,6 @@ function Navbar() {
         </div>
       </div>
 
-      {/* MOBILE: nav centrada debajo */}
       <div className="md:hidden border-t border-amber-300">
         <nav className="max-w-7xl mx-auto px-6 py-3">
           <ul className="flex items-center justify-center gap-6 text-xs font-extrabold tracking-widest uppercase text-amber-900 list-none m-0 p-0">
@@ -195,15 +233,16 @@ function Navbar() {
               </Link>
             </li>
 
-            {/* ✅ Mobile Dashboard SOLO si está logeado */}
             {isLogged && (
               <li>
-                <Link
-                  href="/dashboard"
+                {/* ✅ decide al click */}
+                <button
+                  type="button"
+                  onClick={goToProfile}
                   className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
                 >
                   Mi Perfil
-                </Link>
+                </button>
               </li>
             )}
 

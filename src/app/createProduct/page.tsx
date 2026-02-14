@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/context/AuthContext";
 import type { IProductCreate } from "@/src/interfaces/product.interface";
@@ -8,9 +8,24 @@ import { showToast } from "nextjs-toast-notify";
 import { CldUploadWidget } from "next-cloudinary";
 import Image from "next/image";
 
+// ✅ Service
+import { createProduct } from "@/src/services/products.services";
+
+// ✅ Constantes (UUID reales)
+import { CATEGORY_OPTIONS } from "@/src/constants/categories";
+import { ERA_OPTIONS } from "@/src/constants/eras";
+
+async function urlToFile(url: string, filename = "product.jpg") {
+  const res = await fetch(url);
+  if (!res.ok)
+    throw new Error("No se pudo descargar la imagen desde Cloudinary");
+  const blob = await res.blob();
+  return new File([blob], filename, { type: blob.type || "image/jpeg" });
+}
+
 export default function CreateProductPage() {
   const router = useRouter();
-  const { dataUser, isAuth } = useAuth();
+  const { isAuth } = useAuth();
 
   const [form, setForm] = useState<IProductCreate>({
     title: "",
@@ -24,10 +39,11 @@ export default function CreateProductPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isAuth) {
-    router.push("/login");
-    return null;
-  }
+  useEffect(() => {
+    if (!isAuth) router.push("/login");
+  }, [isAuth, router]);
+
+  if (!isAuth) return null;
 
   const handleChange = (field: keyof IProductCreate, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -46,40 +62,55 @@ export default function CreateProductPage() {
       return;
     }
 
+    const priceNumber = Number(form.price);
+    const stockNumber = Number(form.stock);
+
+    if (!Number.isFinite(priceNumber) || priceNumber <= 0) {
+      showToast.error("El precio debe ser un número positivo");
+      return;
+    }
+
+    if (!Number.isFinite(stockNumber) || stockNumber < 0) {
+      showToast.error("El stock debe ser 0 o mayor");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const existingProducts = JSON.parse(
-        localStorage.getItem("retrogarage_products") || "[]"
-      );
+      // ✅ Cloudinary URL (y también lo mandamos como imgUrl TEMPORAL por validación del back)
+      const imgUrl = form.images[0];
+      const imageFile = await urlToFile(imgUrl, "product.jpg");
 
-      const newProduct = {
-        ...form,
-        id: crypto.randomUUID(),
-        sellerId: dataUser?.user?.id,
-        createdAt: new Date().toISOString(),
-        status: "pending",
-      };
+      await createProduct(
+        {
+          title: form.title,
+          description: form.description || "",
+          price: priceNumber,
+          stock: stockNumber,
+          erasId: form.eraId,
+          categoryId: form.categoryId,
 
-      localStorage.setItem(
-        "retrogarage_products",
-        JSON.stringify([...existingProducts, newProduct])
+          // ✅ TEMPORAL: si tu back aún exige imgUrl por DTO
+          imgUrl,
+        } as any,
+        imageFile,
       );
 
       showToast.success("Producto enviado para revisión");
       router.push("/dashboard/my-products");
-    } catch (error) {
-      showToast.error("Error creando producto");
+    } catch (error: any) {
+      showToast.error(error?.message ?? "Error creando producto");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-[#f5f2ea] py-12 px-6">
-      <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg p-10">
+    <main className="min-h-screen bg-amber-200 py-12 px-6">
+      <div className="max-w-3xl mx-auto bg-amber-100 rounded-3xl shadow-lg p-10">
         <h1 className="text-3xl font-bold text-amber-800 mb-8">
-          Publicar nuevo producto
+          Completa los datos del producto
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -92,7 +123,7 @@ export default function CreateProductPage() {
               type="text"
               value={form.title}
               onChange={(e) => handleChange("title", e.target.value)}
-              className="w-full bg-gray-100 rounded-xl px-4 py-3 outline-none"
+              className="w-full bg-amber-200 rounded-xl px-4 py-3 outline-none"
               placeholder="Ej: Walkman Sony 1982"
             />
           </div>
@@ -105,7 +136,7 @@ export default function CreateProductPage() {
             <textarea
               value={form.description}
               onChange={(e) => handleChange("description", e.target.value)}
-              className="w-full bg-gray-100 rounded-xl px-4 py-3 h-32 outline-none"
+              className="w-full  bg-amber-200 rounded-xl px-4 py-3 h-32 outline-none"
             />
           </div>
 
@@ -119,7 +150,9 @@ export default function CreateProductPage() {
                 type="number"
                 value={form.price}
                 onChange={(e) => handleChange("price", e.target.value)}
-                className="w-full bg-gray-100 rounded-xl px-4 py-3 outline-none"
+                className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
+                min={0}
+                step="0.01"
               />
             </div>
 
@@ -130,10 +163,9 @@ export default function CreateProductPage() {
               <input
                 type="number"
                 value={form.stock}
-                onChange={(e) =>
-                  handleChange("stock", Number(e.target.value))
-                }
-                className="w-full bg-gray-100 rounded-xl px-4 py-3 outline-none"
+                onChange={(e) => handleChange("stock", Number(e.target.value))}
+                className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
+                min={0}
               />
             </div>
           </div>
@@ -145,21 +177,15 @@ export default function CreateProductPage() {
             </label>
             <select
               value={form.categoryId}
-              onChange={(e) =>
-                handleChange("categoryId", e.target.value)
-              }
-              className="w-full bg-gray-100 rounded-xl px-4 py-3 outline-none"
+              onChange={(e) => handleChange("categoryId", e.target.value)}
+              className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
             >
               <option value="">Selecciona categoría</option>
-              <option value="11111111-1111-1111-1111-111111111111">
-                Videojuegos Retro
-              </option>
-              <option value="dddddddd-dddd-dddd-dddd-dddddddddddd">
-                Audio Retro
-              </option>
-              <option value="55555555-5555-5555-5555-555555555555">
-                Decoración Retro
-              </option>
+              {CATEGORY_OPTIONS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -171,18 +197,14 @@ export default function CreateProductPage() {
             <select
               value={form.eraId}
               onChange={(e) => handleChange("eraId", e.target.value)}
-              className="w-full bg-gray-100 rounded-xl px-4 py-3 outline-none"
+              className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
             >
               <option value="">Selecciona era</option>
-              <option value="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb">
-                70s
-              </option>
-              <option value="cccccccc-cccc-cccc-cccc-cccccccccccc">
-                80s
-              </option>
-              <option value="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee">
-                90s
-              </option>
+              {ERA_OPTIONS.map((era) => (
+                <option key={era.id} value={era.id}>
+                  {era.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -193,10 +215,11 @@ export default function CreateProductPage() {
             </label>
 
             <CldUploadWidget
-              uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET as string}
+              uploadPreset={
+                process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET as string
+              }
               options={{
-                cloudName:
-                  process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+                cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
               }}
               onSuccess={(result: any) => {
                 const secureUrl = result?.info?.secure_url;

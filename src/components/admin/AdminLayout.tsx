@@ -8,16 +8,11 @@ type Props = {
   setSection: (s: "users" | "products") => void;
 };
 
-export default function AdminLayout({
-  children,
-  section,
-  setSection,
-}: Props) {
+export default function AdminLayout({ children, section, setSection }: Props) {
   return (
     <div className="min-h-screen flex bg-[#f5f2ea]">
       {/* Sidebar */}
       <aside className="w-72 bg-white border-r-2 border-amber-900 p-8 flex flex-col shadow-[6px_0px_0px_0px_rgba(0,0,0,0.85)]">
-        
         <h2 className="font-display text-2xl text-amber-900 font-extrabold mb-10">
           Panel de Administración
         </h2>
@@ -52,9 +47,7 @@ export default function AdminLayout({
       </aside>
 
       {/* Contenido */}
-      <main className="flex-1 p-10">
-        {children}
-      </main>
+      <main className="flex-1 p-10">{children}</main>
     </div>
   );
 }

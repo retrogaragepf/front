@@ -1,0 +1,112 @@
+// src/services/users.services.ts
+
+export type AdminUser = {
+  id: string;
+  name?: string | null;
+  email: string;
+
+  role?: string;
+  isBanned?: boolean;
+  isBlocked?: boolean;
+};
+
+export type AdminUIUser = AdminUser & { isBanned: boolean };
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+// ✅ IMPORTANTE: misma key que usa authService (no rompemos nada)
+const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
+
+// ✅ La única ruta confirmada que existe es /users (401 cuando no hay token)
+const ENDPOINTS = {
+  all: "/users",
+  // ⚠️ dejo block/unblock alineados a /users para no volver a /admin (que 404)
+  block: (id: string) => `/users/${id}/block`,
+  unblock: (id: string) => `/users/${id}/unblock`,
+};
+
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(TOKEN_KEY);
+    if (!raw) return null;
+
+    // authService guarda JSON con { user, token }
+    const parsed = JSON.parse(raw);
+    return parsed?.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function parseJsonSafe(response: Response) {
+  const text = await response.text();
+  const isJson = response.headers
+    .get("content-type")
+    ?.includes("application/json");
+
+  const data = isJson && text ? JSON.parse(text) : text;
+
+  if (!response.ok) {
+    const msg =
+      (typeof data === "object" && data && "message" in data
+        ? (data as any).message
+        : null) ||
+      (typeof data === "string" ? data : null) ||
+      `HTTP ${response.status}`;
+
+    throw new Error(Array.isArray(msg) ? msg.join(", ") : String(msg));
+  }
+
+  return data;
+}
+
+function normalizeUser(u: AdminUser): AdminUIUser {
+  return {
+    ...u,
+    isBanned: Boolean(u.isBanned ?? u.isBlocked),
+  };
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!API_BASE_URL) {
+    throw new Error("NEXT_PUBLIC_API_BASE_URL no está configurado.");
+  }
+
+  const token = getToken();
+  if (!token) {
+    throw new Error(
+      `Unauthorized: no hay token guardado. (Revisa localStorage["${TOKEN_KEY}"])`,
+    );
+  }
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...(init?.headers || {}),
+    },
+    cache: "no-store",
+  });
+
+  return parseJsonSafe(res) as Promise<T>;
+}
+
+/** ✅ Ya devuelve isBanned normalizado */
+export async function getAllUsers(): Promise<AdminUIUser[]> {
+  const data = await request<AdminUser[]>(ENDPOINTS.all, { method: "GET" });
+  return (data ?? []).map(normalizeUser);
+}
+
+export async function blockUser(id: string): Promise<AdminUIUser> {
+  const data = await request<any>(ENDPOINTS.block(id), { method: "PATCH" });
+  const user: AdminUser = (data?.user ?? data) as AdminUser;
+  return normalizeUser(user);
+}
+
+export async function unblockUser(id: string): Promise<AdminUIUser> {
+  const data = await request<any>(ENDPOINTS.unblock(id), { method: "PATCH" });
+  const user: AdminUser = (data?.user ?? data) as AdminUser;
+  return normalizeUser(user);
+}

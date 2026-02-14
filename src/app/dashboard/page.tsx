@@ -25,14 +25,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isLoadingUser && !isLogged) {
-      showToast.warning("Debes registrarte para acceder al Dashboard", {
-        duration: 4000,
-        progress: true,
-        position: "top-center",
-        transition: "popUp",
-        icon: "",
-        sound: true,
-      });
+      // showToast.warning("Debes registrarte para acceder al Dashboard", {
+      //   duration: 4000,
+      //   progress: true,
+      //   position: "top-center",
+      //   transition: "popUp",
+      //   icon: "",
+      //   sound: true,
+      // });
 
       router.replace("/register");
     }

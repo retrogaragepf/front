@@ -1,26 +1,48 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { mockGetProductById } from "@/src/services/products.mock.service";
 import AddToCartButton from "@/src/components/products/AddToCartButton";
+import type { IProductWithDetails } from "@/src/interfaces/product.interface";
 
-type Params = { id: string };
-
-export default async function ProductDetailPage(props: {
-  params: Params | Promise<Params>;
-}) {
-  const params = await props.params;
+export default function ProductDetailPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
   const id = params?.id;
 
-  if (!id) notFound();
+  const [product, setProduct] = useState<IProductWithDetails | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  let product;
-  try {
-    product = await mockGetProductById(id);
-  } catch (err) {
-    console.error("mockGetProductById error:", err);
-    notFound();
+  useEffect(() => {
+    const run = async () => {
+      if (!id) {
+        router.push("/products");
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const p = await mockGetProductById(String(id));
+        setProduct(p);
+      } catch (err) {
+        console.error("mockGetProductById error:", err);
+        router.push("/products");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    run();
+  }, [id, router]);
+
+  if (loading) {
+    return <div className="p-6">Cargando producto...</div>;
   }
+
+  if (!product) return null;
 
   const imageUrl = product.images?.[0] ?? "";
 
@@ -35,7 +57,7 @@ export default async function ProductDetailPage(props: {
         {/* Back / breadcrumbs */}
         <div className="flex items-center gap-3">
           <Link
-            href="/product"
+            href="/products"
             className="font-handwritten text-sm font-extrabold tracking-wide text-amber-900 uppercase border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
           >
             ← Volver a productos
@@ -105,28 +127,27 @@ export default async function ProductDetailPage(props: {
               {/* Divider */}
               <div className="my-6 h-0.5 w-full bg-amber-300" />
 
-              {/* Actions (placeholder estilo Navbar) */}
+              {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <AddToCartButton product={product} />
 
                 <Link
                   href="/cart"
                   className="
-      w-full sm:w-auto text-center
-      font-handwritten px-4 py-3 rounded-xl
-      border-2 border-amber-900
-      bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm
-      shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
-      hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
-      active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
-      transition
-    "
+                    w-full sm:w-auto text-center
+                    font-handwritten px-4 py-3 rounded-xl
+                    border-2 border-amber-900
+                    bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm
+                    shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
+                    hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+                    active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
+                    transition
+                  "
                 >
                   Ver carrito
                 </Link>
               </div>
 
-              {/* Nota mini */}
               <p className="mt-4 text-xs text-zinc-600">
                 Tip: si el stock llega a 0, podemos deshabilitar el botón y
                 mostrar “Agotado” con badge rojo/amber.

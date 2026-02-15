@@ -43,7 +43,6 @@ export const localApproveProduct = async (id: string) => {
   saveAllProducts(updated);
 };
 
-// ❌ Rechazar producto
 export const localRejectProduct = async (id: string) => {
   const products = getAllProducts();
 

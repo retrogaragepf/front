@@ -5,7 +5,6 @@ export default function AboutUsPage() {
   return (
     <div className="w-full min-h-screen bg-amber-200">
       <main className="max-w-6xl mx-auto px-4 py-10">
-        {/* Header */}
         <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-3xl sm:text-4xl font-handwritten text-black">
@@ -26,14 +25,10 @@ export default function AboutUsPage() {
           </Link>
         </header>
 
-        {/* Divider */}
         <div className="mt-8 h-px w-full bg-amber-800" />
 
-        {/* Content */}
         <section className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left: main story */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Problema / Contexto */}
             <article className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur p-6 sm:p-8">
               <h2 className="font-handwritten text-xl font-bold text-black">
                 Contexto
@@ -51,7 +46,6 @@ export default function AboutUsPage() {
               </p>
             </article>
 
-            {/* Solución */}
             <article className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur p-6 sm:p-8">
               <h2 className="font-handwritten text-xl font-bold text-black">
                 Nuestra Solucion
@@ -69,7 +63,6 @@ export default function AboutUsPage() {
               </p>
             </article>
 
-            {/* Propuesta de valor */}
             <article className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur p-6 sm:p-8">
               <h2 className="text-xl font-bold text-black font-handwritten">
                 Diferenciación
@@ -90,7 +83,6 @@ export default function AboutUsPage() {
             </article>
           </div>
 
-          {/* Right: highlights */}
           <aside className="lg:col-span-1 space-y-4">
             <div className="rounded-2xl bg-black text-white p-6">
               <h3 className="text-lg font-bold font-handwritten">
@@ -137,9 +129,8 @@ export default function AboutUsPage() {
           </aside>
         </section>
 
-        {/* Footer mini */}
         <footer className="font-handwritten mt-12 rounded-2xl border border-black/10 bg-white/60 p-6 text-sm text-black/70">
-          <p>RetroGarage — donde lo retro encuentra un nuevo hogar. 🏁</p>
+          <p>RetroGarage — donde lo retro encuentra un nuevo hogar. </p>
         </footer>
       </main>
     </div>

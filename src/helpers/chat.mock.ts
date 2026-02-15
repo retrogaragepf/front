@@ -53,3 +53,4 @@ export const sampleMessages: ChatMessage[] = [
     time: "14:05",
   },
 ];
+

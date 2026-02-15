@@ -1,36 +1,240 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/src/context/AuthContext";
-import {
-  mockEnsureUserStore,
-  mockGetMyProductsSafe,
-} from "@/src/services/products.user.mock.service";
-import type { IProductWithDetails } from "@/src/interfaces/product.interface";
+import * as ToastNotify from "nextjs-toast-notify";
+
+type AnyProduct = any;
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com";
+const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
+
+async function parseJsonSafe(res: Response) {
+  const text = await res.text();
+  const isJson = res.headers.get("content-type")?.includes("application/json");
+  try {
+    return isJson && text ? JSON.parse(text) : text;
+  } catch {
+    return text;
+  }
+}
+
+function normalizeProducts(payload: any): AnyProduct[] {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+
+  const candidates = [
+    payload.data,
+    payload.products,
+    payload.items,
+    payload.results,
+  ];
+  for (const c of candidates) if (Array.isArray(c)) return c;
+
+  const nested = payload.data?.products || payload.data?.items;
+  if (Array.isArray(nested)) return nested;
+
+  return [];
+}
+
+// ✅ Toast wrapper compatible con:
+// - showToast.success/info/error(msg, options)
+// - showToast(msg, "success"|"warning"|"error")
+function notify(
+  type: "success" | "info" | "warning" | "error",
+  msg: string,
+  options?: any,
+) {
+  const mod: any = ToastNotify as any;
+  const showToastMaybe = mod?.showToast ?? mod?.default?.showToast;
+
+  if (showToastMaybe && typeof showToastMaybe === "object") {
+    const fn = showToastMaybe?.[type];
+    if (typeof fn === "function") return fn(msg, options);
+  }
+
+  if (typeof showToastMaybe === "function") {
+    const mappedType = type === "info" ? "success" : type;
+    return showToastMaybe(msg, mappedType);
+  }
+
+  console.log(`[toast:${type}]`, msg);
+}
+
+// ✅ Extrae JWT real aunque localStorage guarde JSON { user, token }
+function getAuthTokenFromStorage(): string | null {
+  if (typeof window === "undefined") return null;
+
+  const raw = localStorage.getItem(TOKEN_KEY);
+  if (!raw) return null;
+
+  // JWT plano
+  if (raw.includes(".") && raw.split(".").length === 3) return raw;
+
+  // JSON { user, token }
+  try {
+    const obj = JSON.parse(raw);
+    const t = obj?.token;
+    if (typeof t === "string" && t.includes(".") && t.split(".").length === 3)
+      return t;
+  } catch {}
+
+  return null;
+}
+
+function getOwnerId(p: any) {
+  return (
+    p?.user_id ??
+    p?.userId ??
+    p?.sellerId ??
+    p?.seller?.id ??
+    p?.seller?._id ??
+    p?.ownerId ??
+    p?.owner?.id ??
+    p?.user?.id ??
+    null
+  );
+}
+
+// ✅ Normaliza producto (imgUrl -> image, price/stock numéricos, id seguro)
+function normalizeProduct(p: any) {
+  const id = String(p?.id ?? p?._id ?? p?.productId ?? "");
+
+  const image =
+    p?.imgUrl ??
+    p?.image ??
+    p?.imageUrl ??
+    p?.thumbnail ??
+    p?.images?.[0] ??
+    p?.image_url ??
+    "";
+
+  const title = p?.title ?? p?.name ?? "Producto";
+
+  const priceRaw = p?.price;
+  const price =
+    typeof priceRaw === "string" ? Number(priceRaw) : Number(priceRaw);
+
+  const stockRaw = p?.stock ?? p?.quantity;
+  const stock =
+    typeof stockRaw === "string" ? Number(stockRaw) : Number(stockRaw);
+
+  const status = p?.status ?? p?.state ?? "published";
+
+  return {
+    ...p,
+    id,
+    image,
+    title,
+    price: Number.isFinite(price) ? price : undefined,
+    stock: Number.isFinite(stock) ? stock : undefined,
+    status,
+  };
+}
 
 export default function MyProductsPanel() {
   const { dataUser, isLoadingUser, isAuth } = useAuth();
-  const [products, setProducts] = useState<IProductWithDetails[]>([]);
+
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const userId = dataUser?.user?.id ?? (dataUser as any)?.id ?? null;
-  const fullName = dataUser?.user?.name ?? (dataUser as any)?.name ?? "User";
-  const email =
-    dataUser?.user?.email ?? (dataUser as any)?.email ?? "user@retrogarage.com";
+  const userId = useMemo(() => {
+    return (dataUser as any)?.user?.id ?? (dataUser as any)?.id ?? null;
+  }, [dataUser]);
 
-  const load = async () => {
+  // ✅ Token: primero del contexto, si no, del storage (por si el context no lo expone)
+  const token = useMemo(() => {
+    return (dataUser as any)?.token ?? getAuthTokenFromStorage();
+  }, [dataUser]);
+
+  const load = useCallback(async () => {
+    if (!API_BASE_URL) {
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+
+    if (!userId) {
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    await mockEnsureUserStore({ userId, fullName, email });
-    const res = await mockGetMyProductsSafe(userId);
-    setProducts(res);
-    setLoading(false);
-  };
+
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    // ✅ 1) Ruta correcta: my-products (protegida)
+    try {
+      const res = await fetch(`${API_BASE_URL}/products/my-products`, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+      });
+
+      const data = await parseJsonSafe(res);
+
+      if (!res.ok) {
+        // si no hay token o expiró
+        if (res.status === 401 || res.status === 403) {
+          setProducts([]);
+          notify("warning", "Tu sesión expiró. Inicia sesión de nuevo.");
+          setLoading(false);
+          return;
+        }
+
+        const msg =
+          typeof data === "string"
+            ? data
+            : data?.message
+              ? Array.isArray(data.message)
+                ? data.message.join(", ")
+                : data.message
+              : "No se pudieron cargar tus productos";
+
+        notify("error", msg);
+        setProducts([]);
+        setLoading(false);
+        return;
+      }
+
+      const list = normalizeProducts(data).map(normalizeProduct);
+      setProducts(list);
+      setLoading(false);
+      return;
+    } catch {
+      // seguimos al fallback
+    }
+
+    // ✅ 2) Fallback: traer todos y filtrar por userId
+    try {
+      const res2 = await fetch(`${API_BASE_URL}/products`, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+      });
+
+      const data2 = await parseJsonSafe(res2);
+      const list2 = normalizeProducts(data2);
+
+      const mine = list2
+        .filter((p: any) => String(getOwnerId(p) ?? "") === String(userId))
+        .map(normalizeProduct);
+
+      setProducts(mine);
+      setLoading(false);
+    } catch {
+      setProducts([]);
+      setLoading(false);
+    }
+  }, [token, userId]);
 
   useEffect(() => {
-    if (!isLoadingUser) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [String(userId), isLoadingUser]);
+    if (!isLoadingUser && isAuth) load();
+  }, [isLoadingUser, isAuth, load]);
 
   useEffect(() => {
     const onFocus = () => {
@@ -38,8 +242,7 @@ export default function MyProductsPanel() {
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoadingUser, isAuth, String(userId)]);
+  }, [isLoadingUser, isAuth, load]);
 
   if (isLoadingUser) return null;
 
@@ -52,15 +255,15 @@ export default function MyProductsPanel() {
 
         <div className="flex items-center gap-2">
           <Link
-            href="/create-product"
-            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:translate-x-1px hover:translate-y-1px active:translate-x-px active:translate-y-px transition"
+            href="/createProduct"
+            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
           >
             + Publicar
           </Link>
 
           <Link
             href="/dashboard/my-products"
-            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-white text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-50 transition"
+            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-white text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
           >
             Ver todos
           </Link>
@@ -78,45 +281,86 @@ export default function MyProductsPanel() {
             Publica tu primer artículo retro y aparecerá aquí.
           </p>
           <Link
-            href="/create-product"
-            className="mt-4 inline-block px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:translate-x-1px hover:translate-y-1px active:translate-x-px active:translate-y-px transition"
+            href="/createProduct"
+            className="mt-4 inline-block px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold"
           >
             Publicar producto
           </Link>
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.slice(0, 6).map((p) => (
-            <article
-              key={p.id}
-              className="bg-white rounded-2xl border-2 border-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] overflow-hidden"
-            >
-              <div className="aspect-4/3 bg-zinc-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={p.images?.[0] ?? ""}
-                  alt={p.title}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+        <div className="mt-6 space-y-4">
+          {products.slice(0, 6).map((p: any) => {
+            const image = p.image || "";
+            const title = p.title || "Producto";
+            const price = p.price;
+            const stock = p.stock ?? "—";
+            const status = String(p.status ?? "published");
 
-              <div className="p-4 space-y-2">
-                <h3 className="font-extrabold text-zinc-900">{p.title}</h3>
+            const statusKey = status.toLowerCase();
+            const statusClass =
+              statusKey === "approved"
+                ? "bg-green-200 text-green-800"
+                : statusKey === "pending"
+                  ? "bg-yellow-200 text-yellow-800"
+                  : statusKey === "rejected"
+                    ? "bg-red-200 text-red-800"
+                    : "bg-slate-200 text-slate-800";
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-extrabold text-amber-900">
-                    ${Number(p.price).toLocaleString("es-CO")}
-                  </span>
-                  <span className="text-zinc-700">Stock: {p.stock}</span>
+            return (
+              <article
+                key={p.id || `${title}-${image}`}
+                className="bg-white rounded-2xl border-2 border-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] p-4 flex items-center gap-4"
+              >
+                <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-amber-900 bg-zinc-100 shrink-0">
+                  {image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={image}
+                      alt={title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-zinc-600">
+                      Sin imagen
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-zinc-700">
-                  <span>{p.category?.name}</span>
-                  <span>{p.era?.name}</span>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-extrabold text-zinc-900 truncate">
+                    {title}
+                  </h3>
+
+                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    <span className="font-extrabold text-amber-900">
+                      $
+                      {typeof price === "number"
+                        ? price.toLocaleString("es-CO", {
+                            minimumFractionDigits: 0,
+                          })
+                        : "—"}
+                    </span>
+
+                    <span className="text-zinc-700">Stock: {stock}</span>
+
+                    <span
+                      className={`px-2 py-1 text-xs font-bold rounded-full ${statusClass}`}
+                    >
+                      {status}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))}
+
+                {/* <Link
+                  href="/dashboard/my-products"
+                  className="px-3 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shrink-0"
+                >
+                  Gestionar
+                </Link> */}
+              </article>
+            );
+          })}
         </div>
       )}
     </section>

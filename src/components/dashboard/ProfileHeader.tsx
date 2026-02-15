@@ -31,8 +31,6 @@ export default function ProfileHeader() {
 
   // ✅ Guarda el public_id (recomendado). Esto luego lo persistes en DB.
   const [avatarPublicId, setAvatarPublicId] = useState<string | null>(null);
-
-  // (Opcional) si quieres tener también secure_url por si tu backend lo necesita
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const initials = useMemo(() => {

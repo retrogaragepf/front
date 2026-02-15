@@ -10,7 +10,6 @@
   --font-handwritten: var(--font-handwritten);
 }
 
-/* ✅ Edge: ocultar el icono nativo "reveal password" para que no se duplique */
 .no-native-password-toggle::-ms-reveal,
 .no-native-password-toggle::-ms-clear {
   display: none;

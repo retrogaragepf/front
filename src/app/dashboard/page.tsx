@@ -7,8 +7,7 @@ import { showToast } from "nextjs-toast-notify";
 import Sidebar from "@/src/components/dashboard/Sidebar";
 import StatsGrid from "@/src/components/dashboard/StatsGrid";
 import ProfileHeader from "@/src/components/dashboard/ProfileHeader";
-// ❌ ya no va en el main
-// import SellerReviews from "@/src/components/dashboard/SellerReviews";
+
 import MyProductsPanel from "@/src/components/dashboard/MyProductsPanel";
 
 import { useAuth } from "@/src/context/AuthContext";
@@ -25,14 +24,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isLoadingUser && !isLogged) {
-      showToast.warning("Debes registrarte para acceder al Dashboard", {
-        duration: 4000,
-        progress: true,
-        position: "top-center",
-        transition: "popUp",
-        icon: "",
-        sound: true,
-      });
+      // showToast.warning("Debes registrarte para acceder al Dashboard", {
+      //   duration: 4000,
+      //   progress: true,
+      //   position: "top-center",
+      //   transition: "popUp",
+      //   icon: "",
+      //   sound: true,
+      // });
 
       router.replace("/register");
     }
@@ -67,9 +66,8 @@ export default function DashboardPage() {
           </section>
         ) : null}
 
-        <StatsGrid />
+        {/* <StatsGrid /> */}
 
-        {/* ✅ En el espacio donde estaban las reseñas, ahora van tus productos */}
         <MyProductsPanel />
       </main>
     </div>

@@ -54,7 +54,8 @@ export default function ReviewsPage() {
 
             <button
               onClick={() => router.push("/dashboard")}
-              className="px-5 py-2 rounded-xl border-2 border-amber-900 bg-white text-amber-900 font-extrabold tracking-wide shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:translate-x-1px hover:translate-y-1px active:translate-x-2px active:translate-y-2pxtransition"
+              className="px-5 py-2 rounded-xl border-2 border-amber-900 bg-white text-amber-900 font-extrabold tracking-wide shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:translate-x-px hover:translate-y
+              -px active:translate-x-0.5 active:translate-y-0.5np transition"
             >
               Volver al Dashboard
             </button>

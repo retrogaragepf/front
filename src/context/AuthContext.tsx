@@ -22,6 +22,7 @@ type User = {
 export type UserSession = {
   user: User;
   token: string | null;
+  email: string;
 };
 
 interface AuthContextProps {

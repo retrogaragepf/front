@@ -94,7 +94,7 @@ export default function MyProductsPage() {
               key={p.id}
               className="bg-white rounded-xl border-2 border-slate-900 shadow-sm overflow-hidden"
             >
-              <div className="aspect-[4/3] bg-zinc-100">
+              <div className="aspect-4/3 bg-zinc-100">
                 <img
                   src={p.images?.[0] ?? ""}
                   alt={p.title}

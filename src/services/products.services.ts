@@ -24,9 +24,9 @@ export const getAllProducts = async (): Promise<IProduct[]> => {
 
 export const getProductById = async (id: string): Promise<IProduct> => {
   const allProducts = await getAllProducts();
-
-  const numericId = Number(id);
-  const product = allProducts.find((p) => p.id === numericId);
+// -----const numericId = Number(id); --- 
+//---------const product = allProducts.find((p) => p.id === numericId); --- 
+  const product = allProducts.find((p) => String(p.id) === String(id));
 
   if (!product) {
     throw new Error(`Producto no encontrado con el ID: ${id}`);

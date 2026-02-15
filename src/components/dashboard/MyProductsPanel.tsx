@@ -53,7 +53,7 @@ export default function MyProductsPanel() {
         <div className="flex items-center gap-2">
           <Link
             href="/create-product"
-            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] transition"
+            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:translate-x-1px hover:translate-y-1px active:translate-x-px active:translate-y-px transition"
           >
             + Publicar
           </Link>
@@ -79,7 +79,7 @@ export default function MyProductsPanel() {
           </p>
           <Link
             href="/create-product"
-            className="mt-4 inline-block px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
+            className="mt-4 inline-block px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:translate-x-1px hover:translate-y-1px active:translate-x-px active:translate-y-px transition"
           >
             Publicar producto
           </Link>
@@ -91,7 +91,7 @@ export default function MyProductsPanel() {
               key={p.id}
               className="bg-white rounded-2xl border-2 border-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] overflow-hidden"
             >
-              <div className="aspect-[4/3] bg-zinc-100">
+              <div className="aspect-4/3 bg-zinc-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={p.images?.[0] ?? ""}

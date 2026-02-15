@@ -8,7 +8,7 @@ function formatDateFromUnixSeconds(sec?: number) {
   const d = new Date(sec * 1000);
   return d.toLocaleString("es-CO", {
     year: "numeric",
-    month: "2-digit",
+    month: "2-digit", 
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
@@ -111,7 +111,7 @@ export default function UserSessionCard() {
           <Card label="Expira" value={formatDateFromUnixSeconds(exp)} />
         </div>
 
-        <div className="mt-5 h-[2px] w-full bg-amber-300" />
+        <div className="mt-5 h-0.5 w-full bg-amber-300" />
 
         <p className="mt-3 text-xs text-zinc-700">
           Para mostrar{" "}

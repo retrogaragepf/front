@@ -2,7 +2,7 @@ import { useState } from "react";
 import validations from "../validations/validations";
 import { IValidationResult } from "../types/types";
 
-type FieldName = "name" | "email"  | "password" | "confirmPassword"; //| "address"
+type FieldName = "name" | "email" | "address" | "password" | "confirmPassword";
 
 // ✅ Solo para TypeScript (no cambia runtime)
 const typedValidations = validations as Record<

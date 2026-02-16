@@ -6,6 +6,7 @@ import { useAuth } from "@/src/context/AuthContext";
 function formatDateFromUnixSeconds(sec?: number) {
   if (!sec) return "";
   const d = new Date(sec * 1000);
+  // es-CO y tu timezone (Bogotá) lo maneja el navegador si está en Colombia
   return d.toLocaleString("es-CO", {
     year: "numeric",
     month: "2-digit", 
@@ -18,39 +19,14 @@ function formatDateFromUnixSeconds(sec?: number) {
 export default function UserSessionCard() {
   const { dataUser, isLoadingUser } = useAuth();
 
-  // Soporta: payload directo, { user: payload, token }, { payload }, etc.
+  // Soporta que dataUser sea: payload directo o { user: payload, token }
   const payload = useMemo(() => {
-    const du: any = dataUser as any;
-
-    return (
-      du?.user ?? // { user, token }
-      du?.payload ?? // { payload }
-      du?.data ?? // { data }
-      du ?? // payload directo
-      null
-    );
+    return (dataUser as any)?.user ?? (dataUser as any) ?? null;
   }, [dataUser]);
 
-  // 🔥 Campos posibles (por si cambian nombres)
-  const name =
-    payload?.name ??
-    payload?.fullName ??
-    payload?.username ??
-    payload?.userName ??
-    "";
-
   const email = payload?.mail ?? payload?.email ?? "";
-
-  const id =
-    payload?.id ??
-    payload?.userId ??
-    payload?._id ??
-    payload?.sub ?? // a veces el JWT usa "sub"
-    "";
-
-  const isAdmin = Boolean(
-    payload?.isAdmin ?? payload?.admin ?? payload?.role === "admin",
-  );
+  const id = payload?.id ?? payload?.userId ?? payload?._id ?? "";
+  const isAdmin = Boolean(payload?.isAdmin);
   const iat = payload?.iat;
   const exp = payload?.exp;
 
@@ -59,29 +35,16 @@ export default function UserSessionCard() {
     ? "border-emerald-950 bg-emerald-900 text-amber-50"
     : "border-amber-900 bg-amber-100 text-amber-900";
 
-  const Card = ({
-    label,
-    value,
-    mono,
-  }: {
-    label: string;
-    value: string;
-    mono?: boolean;
-  }) => (
-    <div className="rounded-2xl border-2 border-amber-900 bg-amber-100/40 p-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]">
-      <p className="text-[10px] font-extrabold tracking-widest uppercase text-zinc-700">
-        {label}
-      </p>
-      <p
-        className={`mt-1 ${mono ? "font-mono text-sm" : "font-extrabold"} text-amber-900 break-all`}
-      >
-        {isLoadingUser ? "Cargando..." : value || "—"}
-      </p>
-    </div>
-  );
-
   return (
-    <section className="rounded-2xl border-2 border-amber-900 bg-amber-50 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)] overflow-hidden">
+    <section
+      className="
+        rounded-2xl
+        border-2 border-amber-900
+        bg-amber-50
+        shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]
+        overflow-hidden
+      "
+    >
       <div className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -101,14 +64,45 @@ export default function UserSessionCard() {
         </div>
 
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card label="Nombre" value={name} />
-          <Card label="Email" value={email} />
-          <Card label="ID Usuario" value={id} mono />
-          <Card
-            label="Sesión iniciada"
-            value={formatDateFromUnixSeconds(iat)}
-          />
-          <Card label="Expira" value={formatDateFromUnixSeconds(exp)} />
+          <div className="rounded-2xl border-2 border-amber-900 bg-amber-100/40 p-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]">
+            <p className="text-[10px] font-extrabold tracking-widest uppercase text-zinc-700">
+              Email
+            </p>
+            <p className="mt-1 font-extrabold text-amber-900 break-all">
+              {isLoadingUser ? "Cargando..." : email || "—"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border-2 border-amber-900 bg-amber-100/40 p-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]">
+            <p className="text-[10px] font-extrabold tracking-widest uppercase text-zinc-700">
+              ID Usuario
+            </p>
+            <p className="mt-1 font-mono text-sm text-amber-900 break-all">
+              {isLoadingUser ? "Cargando..." : id || "—"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border-2 border-amber-900 bg-amber-100/40 p-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]">
+            <p className="text-[10px] font-extrabold tracking-widest uppercase text-zinc-700">
+              Sesión iniciada
+            </p>
+            <p className="mt-1 text-sm font-extrabold text-amber-900">
+              {isLoadingUser
+                ? "Cargando..."
+                : formatDateFromUnixSeconds(iat) || "—"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border-2 border-amber-900 bg-amber-100/40 p-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]">
+            <p className="text-[10px] font-extrabold tracking-widest uppercase text-zinc-700">
+              Expira
+            </p>
+            <p className="mt-1 text-sm font-extrabold text-amber-900">
+              {isLoadingUser
+                ? "Cargando..."
+                : formatDateFromUnixSeconds(exp) || "—"}
+            </p>
+          </div>
         </div>
 
         <div className="mt-5 h-0.5 w-full bg-amber-300" />
@@ -116,9 +110,9 @@ export default function UserSessionCard() {
         <p className="mt-3 text-xs text-zinc-700">
           Para mostrar{" "}
           <span className="font-extrabold text-amber-900">
-            teléfono, dirección, avatar
+            nombre, teléfono, dirección, avatar
           </span>
-          , necesitas que el backend devuelva esos datos (por ejemplo en{" "}
+          , etc., el backend debe entregar un endpoint de perfil (por ejemplo{" "}
           <span className="font-mono">/users/me</span>).
         </p>
       </div>

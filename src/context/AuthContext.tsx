@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const parsed = JSON.parse(raw) as UserSession;
       if (parsed?.user) {
         setDataUser(parsed);
-        console.log('✅ Sesión cargada:', parsed.user);
+        console.log("✅ Sesión cargada:", parsed.user);
       }
     } catch (e) {
       console.error("Error leyendo auth:", e);
@@ -104,14 +104,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [dataUser]);
 
   const login = (payload: UserSession) => {
-    console.log('Login - Guardando:', payload.user);
+    console.log("Login - Guardando:", payload.user);
     setDataUser(payload);
   };
 
   const logout = () => {
     setDataUser(null);
     localStorage.removeItem(AUTH_KEY);
-    router.push('/login');
+    router.push("/login");
   };
 
   // ✅ ahora valida sesión por token o email

@@ -3,6 +3,9 @@
 import { ChatPanelProps } from "@/src/types/chat.types";
 
 const ChatPanel = ({ conversations, activeConversation, messages }: ChatPanelProps) => {
+
+  const sellerName = activeConversation?.sellerName ?? activeConversation?.seller?.name ??
+    "el vendedor";
   return (
     <section className="flex-1 w-full bg-amber-200 text-zinc-900">
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
@@ -27,7 +30,7 @@ const ChatPanel = ({ conversations, activeConversation, messages }: ChatPanelPro
           <div>
             <h1 className="font-handwritten text-3xl sm:text-4xl  text-amber-900">Conversaciones</h1>
             <p className="font-sans text-sm sm:text-base text-emerald-900">
-              Gestiona los chats con tus compradores.
+              Conversa con {sellerName}
             </p>
           </div>
         </header>
@@ -57,7 +60,7 @@ const ChatPanel = ({ conversations, activeConversation, messages }: ChatPanelPro
                           {conversation.customer}
                         </p>
                         <p className="text-xs text-amber-900/80 italic">
-                          {conversation.product}
+                          {activeConversation.product}
                         </p>
                       </div>
                       <span className="text-[11px] text-amber-900/70">
@@ -86,6 +89,9 @@ const ChatPanel = ({ conversations, activeConversation, messages }: ChatPanelPro
                 </p>
                 <p className="text-sm text-amber-900/80 italic">
                   {activeConversation.product}
+                </p>
+                <p className="text-xs text-emerald-900/70">
+                  Vendedor: {sellerName}
                 </p>
               </div>
               <span className="text-xs text-amber-900/70">Responde en menos de 2h</span>

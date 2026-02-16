@@ -1,6 +1,8 @@
 export type ChatParticipant = "customer" | "seller";
 
 export interface ChatConversation {
+  sellerName: any;
+  seller: any;
   id: string;
   customer: string;
   product: string;

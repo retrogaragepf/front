@@ -154,7 +154,7 @@ function Card({ product }: CardProps) {
           href={safeId ? `/product/${safeId}` : "/products"}
           className="w-full"
         >
-          <button className="font-display w-full border-2 border-amber-800 py-2 uppercase tracking-tight text-sm hover:bg-emerald-800 hover:text-amber-50 transition-all">
+          <button className="bg-amber-100 font-display w-full border-2 border-amber-800 py-2 uppercase tracking-tight text-sm hover:bg-emerald-800 hover:text-amber-50 transition-all">
             Ver
           </button>
         </Link>
@@ -165,7 +165,7 @@ function Card({ product }: CardProps) {
             className={`font-display w-full border-2 border-slate-900 py-2 uppercase tracking-tight transition-all text-sm ${
               alreadyInCart
                 ? "bg-slate-200 text-slate-600 cursor-not-allowed"
-                : "bg-amber-100 hover:bg-amber-300"
+                : "bg-emerald-900 hover:bg-amber-300"
             }`}
             disabled={alreadyInCart}
           >

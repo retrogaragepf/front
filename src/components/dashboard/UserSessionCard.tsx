@@ -9,7 +9,7 @@ function formatDateFromUnixSeconds(sec?: number) {
   // es-CO y tu timezone (Bogotá) lo maneja el navegador si está en Colombia
   return d.toLocaleString("es-CO", {
     year: "numeric",
-    month: "2-digit",
+    month: "2-digit", 
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",

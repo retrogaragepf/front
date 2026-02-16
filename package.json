@@ -13,7 +13,7 @@
     "cloudinary": "^2.9.0",
     "formik": "^2.4.9",
     "jwt-decode": "^4.0.0",
-    "next": "16.0.3",
+    "next": "^16.0.4",
     "next-auth": "^4.24.13",
     "next-cloudinary": "^6.17.5",
     "nextjs-toast-notify": "^1.57.0",
@@ -28,7 +28,7 @@
     "@types/react-dom": "^19",
     "baseline-browser-mapping": "^2.9.19",
     "eslint": "^9",
-    "eslint-config-next": "16.0.3",
+    "eslint-config-next": "^16.0.4",
     "tailwindcss": "^4",
     "typescript": "5.4"
   }

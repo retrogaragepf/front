@@ -1,5 +1,20 @@
-import NextAuth from "next-auth/next";
+import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+
+export const runtime = "nodejs";
+
+const requiredEnv = [
+  "NEXTAUTH_SECRET",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+] as const;
+
+const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+if (missingEnv.length > 0) {
+  throw new Error(
+    `[NextAuth] Missing required environment variables: ${missingEnv.join(", ")}`,
+  );
+}
 
 const handler = NextAuth({
   secret: process.env.NEXTAUTH_SECRET,

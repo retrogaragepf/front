@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+:root {
+  --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Impact", "Arial Black", "Segoe UI", sans-serif;
+  --font-handwritten: "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive;
+}
+
 @theme inline {
   --color-azulapple: #0071e3;
   --color-negroapple: #050505;

@@ -1,94 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-
-const LAST_ORDER_KEY = "retrogarage_last_order";
-const CHECKOUT_MODE = (
-  process.env.NEXT_PUBLIC_CHECKOUT_MODE || "mock"
-).toLowerCase(); // mock | stripe
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { showToast } from "nextjs-toast-notify";
+import { useCart } from "@/src/context/CartContext";
 
 export default function SuccessPage() {
-  const [order, setOrder] = useState<any>(null);
+  const router = useRouter();
+  const { clearCart } = useCart();
 
   useEffect(() => {
-    const raw = localStorage.getItem(LAST_ORDER_KEY);
-    if (raw) {
-      try {
-        setOrder(JSON.parse(raw));
-      } catch {
-        setOrder(null);
-      }
-    }
-  }, []);
-
-  const totalFormatted = useMemo(() => {
-    if (!order?.totalPrice) return "";
-    const n = Number(order.totalPrice);
-    return Number.isFinite(n)
-      ? n.toLocaleString("es-CO", { minimumFractionDigits: 0 })
-      : "";
-  }, [order]);
-
-  const subtitle = order
-    ? "(Simulación tipo Stripe - MOCK)"
-    : CHECKOUT_MODE === "stripe"
-      ? "(Stripe Checkout - TEST)"
-      : "(Checkout completado)";
+    clearCart(); // ✅ carrito limpio tras pagar
+    showToast.success("¡Pago aprobado! Estamos registrando tu orden.");
+    const t = setTimeout(() => router.push("/dashboard/orders"), 1200);
+    return () => clearTimeout(t);
+  }, [clearCart, router]);
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-10">
-      <h1 className="font-display text-3xl">✅ Pago exitoso</h1>
-      <p className="mt-2 text-zinc-700 italic">{subtitle}</p>
-
-      {/* ✅ Caso MOCK: muestra detalles de “orden” */}
-      {order ? (
-        <div className="mt-6 p-6 bg-white rounded-xl border shadow-sm space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-600 italic">Orden</span>
-            <span className="font-bold">{order.id}</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-slate-600 italic">Estado</span>
-            <span className="font-bold">{order.status}</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-slate-600 italic">Total</span>
-            <span className="font-bold text-xl">${totalFormatted}</span>
-          </div>
-
-          <div className="pt-2 text-sm text-zinc-700 italic opacity-80">
-            Pasarela: {order.provider}
-          </div>
-        </div>
-      ) : (
-        /* ✅ Caso Stripe: fallback bonito */
-        <div className="mt-6 p-6 bg-white rounded-xl border shadow-sm space-y-3">
-          <p className="text-zinc-800">Tu pago se completó correctamente.</p>
-          <p className="text-sm text-zinc-700 italic opacity-80">
-            En producción, RetroGarage confirmaría el pago con un webhook de
-            Stripe y crearía la orden en la base de datos.
-          </p>
-        </div>
-      )}
-
-      <div className="mt-8 flex flex-col sm:flex-row gap-3">
-        <Link
-          href="/product"
-          className="w-full sm:w-auto text-center px-4 py-3 rounded-lg border-2 border-slate-900 font-bold bg-amber-400 hover:bg-amber-300 transition"
-        >
-          Seguir comprando
-        </Link>
-
-        <Link
-          href="/cart"
-          className="w-full sm:w-auto text-center px-4 py-3 rounded-lg border-2 border-slate-900 font-bold bg-white hover:bg-amber-100 transition"
-        >
-          Volver al carrito
-        </Link>
+    <div className="min-h-screen bg-[#f5f2ea] flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-white border-2 border-amber-900 p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
+        <h1 className="font-display text-2xl text-amber-900 font-extrabold mb-2">
+          Pago exitoso
+        </h1>
+        <p className="text-slate-800">
+          Listo. Si tu orden no aparece de inmediato, espera unos segundos: el
+          webhook la confirma.
+        </p>
       </div>
-    </main>
+    </div>
   );
 }

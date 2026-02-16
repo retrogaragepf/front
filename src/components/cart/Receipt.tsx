@@ -66,9 +66,19 @@ export default function Receipt() {
     clearCart();
     router.push("/checkout/success");
   };
-
   const runStripeCheckout = async () => {
-    const { url } = await createCheckoutSession(cartItems);
+    const items = cartItems
+      .map((it) => ({
+        productId: String(it.id ?? "").trim(), // ✅ tu UI id = productId real
+        quantity: Number(it.quantity ?? 0),
+      }))
+      .filter((x) => x.productId && x.quantity > 0);
+
+    if (!items.length) {
+      throw new Error("Tu carrito está vacío.");
+    }
+
+    const { url } = await createCheckoutSession(items);
 
     showToast.success("Redirigiendo a Stripe (TEST)...", {
       duration: 2000,
@@ -81,6 +91,7 @@ export default function Receipt() {
 
     window.location.href = url;
   };
+
 
   const handleCheckout = async () => {
     if (isEmpty || isPaying) return;

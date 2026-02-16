@@ -8,20 +8,16 @@ export default function CartList() {
 
   return (
     <section className="space-y-8">
-      <h2 className="font-display text-2xl mb-6">Tus compras</h2>
+      <h2 className="font-display text-2xl mb-6">
+        Tus compras
+      </h2>
 
       {cartItems.length === 0 ? (
-        <div className="p-6 bg-white rounded-xl border shadow-sm">
-          <p className="text-slate-600 italic">
-            Tu carrito está vacío por ahora.
-          </p>
-        </div>
+        <p className="text-slate-600">Tu carrito esta vacio por ahora.</p>
       ) : (
-        <div className="space-y-6">
-          {cartItems.map((item) => (
-            <CartItem key={item.id} item={item} />
-          ))}
-        </div>
+        cartItems.map((item) => (
+          <CartItem key={item.itemId ?? item.id} item={item} />
+        ))
       )}
     </section>
   );

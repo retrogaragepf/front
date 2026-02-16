@@ -122,8 +122,7 @@ export default function ProductDetailPage() {
 
               {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3">
-                <AddToCartButton product={product} />
-
+                <AddToCartButton product={product} />  
                 <Link
                   href="/cart"
                   className="
@@ -138,6 +137,22 @@ export default function ProductDetailPage() {
                   "
                 >
                   Ver carrito
+                </Link>
+
+                <Link
+                  href="/chat"
+                  className="
+                    w-full sm:w-auto text-center
+                    font-handwritten px-4 py-3 rounded-xl
+                    border-2 border-amber-900
+                    bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm
+                    shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
+                    hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+                    active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
+                    transition
+                  "
+                >
+                  Chatea con el vendedor
                 </Link>
               </div>
 

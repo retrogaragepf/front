@@ -4,12 +4,13 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/context/AuthContext";
 import useFormField from "@/src/hooks/useFormField";
 import { useFormSubmit } from "@/src/hooks/useFormSubmit";
-import authService from "@/src/services/auth";
 import { showToast } from "nextjs-toast-notify";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
+import { authService } from "@/src/services/auth";
+
 
 type JwtPayload = {
   isAdmin?: boolean;
@@ -18,7 +19,7 @@ type JwtPayload = {
 const LoginForm = () => {
   const router = useRouter();
   const { login, isAuth } = useAuth();
-  const { data: session } = useSession();
+  const { data: session } = useSession(); 
   const [googleClicked, setGoogleClicked] = useState(false);
 
   // ----------SINCRONIZA SESIÓN DE GOOGLE CON CONTEXT----------------
@@ -44,6 +45,7 @@ const LoginForm = () => {
                 email: response.user?.email ?? session.user?.email ?? "",
               },
               token: response.token,
+              email: response.user?.email ?? session.user?.email ?? "",
             });
 
             // ✅ NUEVO: revisa isAdmin en el JWT y redirige
@@ -150,6 +152,7 @@ const LoginForm = () => {
             email: savedData.user.email,
           },
           token: savedData.token,
+          email: savedData.user.email,
         });
 
         console.log("LOGIN EXITOSO - Datos guardados en contexto");

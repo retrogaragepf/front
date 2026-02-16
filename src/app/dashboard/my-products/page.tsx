@@ -185,15 +185,19 @@ export default function MyProductsPage() {
   useEffect(() => {
     if (isLoadingUser) return;
 
-    if (!isAuth) {
+    const token = getAuthToken();
+
+    // ✅ si NO hay token real, ahí sí sacas
+    if (!token) {
       notify("Debes iniciar sesión para entrar al dashboard", "warning");
       router.replace("/login");
       return;
     }
 
+    // ✅ si hay token, NO redirijas por isAuth (puede estar false 1 momento)
     fetchMyProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoadingUser, isAuth]);
+  }, [isLoadingUser]);
 
   return (
     <div className="min-h-screen bg-[#f5f2ea] px-6 py-10">
@@ -281,7 +285,7 @@ export default function MyProductsPage() {
                   <div className="mt-4 flex gap-2">
                     <Link
                       href={`/product/${p.id}`}
-                      className="w-full text-center border-2 border-slate-900 bg-amber-400 px-3 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
+                      className="w-full text-center border-2 border-slate-900 bg-emerald-900 px-3 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
                     >
                       Ver
                     </Link>

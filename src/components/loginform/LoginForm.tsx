@@ -9,6 +9,7 @@ import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
+import { authService } from "@/src/services/auth";
 
 
 type JwtPayload = {
@@ -44,6 +45,7 @@ const LoginForm = () => {
                 email: response.user?.email ?? session.user?.email ?? "",
               },
               token: response.token,
+              email: response.user?.email ?? session.user?.email ?? "",
             });
 
             // ✅ NUEVO: revisa isAdmin en el JWT y redirige
@@ -150,6 +152,7 @@ const LoginForm = () => {
             email: savedData.user.email,
           },
           token: savedData.token,
+          email: savedData.user.email,
         });
 
         console.log("LOGIN EXITOSO - Datos guardados en contexto");

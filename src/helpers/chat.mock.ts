@@ -3,6 +3,8 @@ import { ChatConversation, ChatMessage } from "@/src/types/chat.types";
 export const sampleConversations: ChatConversation[] = [
   {
     id: "conv-1",
+    sellerName: "Retro Garage",
+    seller: { name: "Retro Garage" },
     customer: "Clara Restrepo",
     product: "Maleta de cuero vintage",
     lastMessage: "¿Podrías reservarla hasta mañana?",
@@ -11,6 +13,8 @@ export const sampleConversations: ChatConversation[] = [
   },
   {
     id: "conv-2",
+    sellerName: "Retro Garage",
+    seller: { name: "Retro Garage" },
     customer: "Julio Álvarez",
     product: "Cámara Polaroid 636",
     lastMessage: "Gracias, me llega perfecto.",
@@ -19,6 +23,8 @@ export const sampleConversations: ChatConversation[] = [
   },
   {
     id: "conv-3",
+    sellerName: "Retro Garage",
+    seller: { name: "Retro Garage" },
     customer: "Mara Gómez",
     product: "Silla Eames réplica 50s",
     lastMessage: "¿Sigue disponible?",
@@ -53,4 +59,3 @@ export const sampleMessages: ChatMessage[] = [
     time: "14:05",
   },
 ];
-

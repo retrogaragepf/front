@@ -9,6 +9,11 @@ import { showToast } from "nextjs-toast-notify";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { jwtDecode } from "jwt-decode";
+
+type JwtPayload = {
+  isAdmin?: boolean;
+};
 
 const LoginForm = () => {
   const router = useRouter();
@@ -29,16 +34,26 @@ const LoginForm = () => {
           const response = await authService.googleLogin({
             idToken: (session as any).idToken ?? "", // -----------TOKEN DE GOOGLE
           });
+
           if (response.token) {
+            // ✅ Guarda en context (igual que ya lo tienes)
             login({
               user: {
                 id: response.user?.id ?? session.user?.email ?? "",
                 name: response.user?.name ?? session.user?.name ?? "",
                 email: response.user?.email ?? session.user?.email ?? "",
               },
-                token: response.token,
+              token: response.token,
             });
-            router.push("/dashboard");
+
+            // ✅ NUEVO: revisa isAdmin en el JWT y redirige
+            let isAdmin = false;
+            try {
+              const decoded = jwtDecode<JwtPayload>(response.token);
+              isAdmin = decoded?.isAdmin === true;
+            } catch {}
+
+            router.push(isAdmin ? "/admin/dashboard" : "/dashboard");
           }
         } catch (error) {
           console.error("Error autenticando en Google", error);
@@ -107,6 +122,7 @@ const LoginForm = () => {
           });
           return;
         }
+
         //---------DATOS DEL LOCALSTORAGE ANTES DE GUARDAR SESIÓN----------------
         const TOKEN_KEY =
           process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
@@ -126,9 +142,7 @@ const LoginForm = () => {
         const savedData = JSON.parse(authData);
         console.log("DATOS DEL LOCALSTORAGE", savedData);
 
-        //const token = response?.token;
-
-        //-----------GUARDA EN OCNTEXTO CON DATOS REALE/ QUEVIEN EN EL TOKEN----------------
+        //-----------GUARDA EN CONTEXTO CON DATOS REALES/ QUE VIENEN EN EL TOKEN----------------
         login({
           user: {
             id: savedData.user.id,
@@ -140,24 +154,6 @@ const LoginForm = () => {
 
         console.log("LOGIN EXITOSO - Datos guardados en contexto");
 
-        /**
-         *   if (!token) {
-          showToast.error("Login sin token. Revisa respuesta del backend.", {
-            duration: 4000,
-            progress: true,
-            position: "top-center",
-            transition: "popUp",
-            icon: "",
-            sound: true,
-          });
-          console.log("Respuesta login sin token:", response);
-          return;
-        }
-
-        // ✅ AQUÍ LA CLAVE: guarda sesión con token real
-        login({ token });
-         */
-
         showToast.success("¡Ingreso Exitoso!", {
           duration: 4000,
           progress: true,
@@ -166,7 +162,17 @@ const LoginForm = () => {
           icon: "",
           sound: true,
         });
-        router.push("/dashboard");
+
+        // ✅ NUEVO: revisa isAdmin desde el token que YA guardaste (savedData.token)
+        let isAdmin = false;
+        try {
+          const decoded = jwtDecode<JwtPayload>(savedData.token);
+          isAdmin = decoded?.isAdmin === true;
+        } catch (e) {
+          console.warn("No se pudo decodificar JWT para isAdmin:", e);
+        }
+
+        router.push(isAdmin ? "/admin/dashboard" : "/dashboard");
       } catch (error) {
         console.error("Error en login:", error);
         showToast.error("Error en login", {
@@ -205,8 +211,8 @@ const LoginForm = () => {
 
           <div className="relative z-10 ">
             <div className="text-center space-y-2">
-              <h2 className="text-4xl font-bold text-amber-800 font-display">
-                ¡Hola de Nuevo!
+              <h2 className="text-4xl  text-amber-800 font-display">
+                RetroGarage
               </h2>
               <p className="text-lg text-emerald-800 font-handwritten pb-2">
                 Inicia sesión para acceder a tu cuenta
@@ -248,7 +254,7 @@ const LoginForm = () => {
             <div className="relative flex py-2 items-center">
               <div className="grow border-t border-gray-300"></div>
               <span className="shrink-0 mx-4 text-gray-500 text-xs">
-                O continúa con tu email
+                O continúa con tu Email
               </span>
               <div className="grow border-t border-gray-300"></div>
             </div>
@@ -361,11 +367,12 @@ const LoginForm = () => {
                 )}
               </button>
             </form>
-            <p className="text-center text-sm text-emerald-800 pt-4 font-handwritten">
+
+            <p className="text-center text-sm text-black pt-4 font-handwritten">
               ¿No tienes cuenta?{" "}
               <Link
                 href="/register"
-                className="font-semibold text-amber-800 hover:text-gray-900 transition-colors"
+                className="font-semibold text-black hover:text-gray-900 transition-colors"
               >
                 Regístrate
               </Link>

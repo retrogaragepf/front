@@ -111,7 +111,7 @@ export default function UserSessionCard() {
           <Card label="Expira" value={formatDateFromUnixSeconds(exp)} />
         </div>
 
-        <div className="mt-5 h-[2px] w-full bg-amber-300" />
+        <div className="mt-5 h-0.5 w-full bg-amber-300" />
 
         <p className="mt-3 text-xs text-zinc-700">
           Para mostrar{" "}

@@ -9,7 +9,7 @@ const validations = {
       );
     return {
       isValid,
-      errorMessage: isValid ? "" : "Solo peude llevar letras , y espacios",
+      errorMessage: isValid ? "" : "Solo Puede llevar letras , y espacios",
     };
   },
 
@@ -32,7 +32,7 @@ const validations = {
       isValid,
       errorMessage: isValid
         ? ""
-        : "Contraseña no valida. La conraseña debe tener min 8 caracteres,al menos  1 letra mayuscula y caracter especial ",
+        : "Contraseña no valida. La contraseña debe tener min 8 caracteres:  1 letra mayuscula y caracter especial ",
     };
   },
 

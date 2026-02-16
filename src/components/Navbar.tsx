@@ -84,7 +84,7 @@ function Navbar() {
     await signOut({ redirect: false });
 
     showToast.warning("¡Salida Exitosa!", {
-      duration: 1000,
+      duration: 700,
       progress: true,
       position: "top-center",
       transition: "popUp",

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/src/components/Card";
 import { getAllProducts } from "@/src/services/products.services";
 import type { IProduct } from "@/src/interfaces/product.interface";
@@ -30,13 +30,10 @@ export default function ProductPage() {
     load();
   }, []);
 
-  // Si esto era lo que te molestaba, déjalo apagado:
-  // (si lo quieres, lo activas pero igual ya NO muestra "Cargando...")
-  // useEffect(() => {
-  //   const onFocus = () => load();
-  //   window.addEventListener("focus", onFocus);
-  //   return () => window.removeEventListener("focus", onFocus);
-  // }, []);
+  // ✅ SOLO APROBADOS (no toca tu fetch ni tu estado, solo la vista)
+  const approvedProducts = useMemo(() => {
+    return (products || []).filter((p: any) => p?.status === "approved");
+  }, [products]);
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-10">
@@ -57,8 +54,8 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {/* Nunca mostramos "Cargando productos..." */}
-      {ready && products.length === 0 ? (
+      {/* ✅ Nunca mostramos "Cargando productos..." y ahora contamos SOLO aprobados */}
+      {ready && approvedProducts.length === 0 ? (
         <div className="mt-8 p-6 bg-white rounded-xl border-2 border-dashed border-slate-300">
           <p className="text-zinc-700">
             Aún no hay productos publicados. Ve a “Vender” y crea el primero.
@@ -66,7 +63,7 @@ export default function ProductPage() {
         </div>
       ) : (
         <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {products.map((p) => (
+          {approvedProducts.map((p) => (
             <Card key={p.id} product={p as any} />
           ))}
         </section>

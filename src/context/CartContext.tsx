@@ -98,11 +98,11 @@ const cartApi = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-cartApi.interceptors.request.use((config) => {
-  const token = getTokenFromStorage();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// helper: arma headers con token (prioriza token del context)
+function authHeaders(tokenOverride?: string | null) {
+  const token = tokenOverride || getTokenFromStorage();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 // =====================
 // Helpers
@@ -163,83 +163,75 @@ function toCartItemFromUserProduct(
 }
 
 /**
- * ✅ FIX 1.1 (CLAVE):
- * - NO usar it.id como itemId si realmente es productId
- * - itemId solo se acepta si es distinto a productId
+ * ✅ Adaptado a tu BACK:
+ * GET /cart => Cart { cartItems: [ { id, quantity, priceAtMoment, product: {...} } ] }
+ *
+ * ✅ FIX 1.1 se mantiene:
+ * - itemId es el id del cartItem
+ * - id es el productId (para UI)
  */
 function mapRemoteCartToUI(payload: any): CartItem[] {
-  const items = Array.isArray(payload) ? payload : (payload?.items ?? []);
+  const items = payload?.cartItems;
   if (!Array.isArray(items)) return [];
 
   return items
     .map((it: any) => {
-      const prod = it.product ?? it.Product ?? it.productData ?? it.product_id;
+      const prod = it?.product;
 
       const productId = String(
-        it.productId ??
-          it.product_id ??
-          prod?.id ??
-          prod?.productId ??
-          prod?._id ??
-          "",
+        prod?.id ?? it?.productId ?? it?.product_id ?? "",
       ).trim();
 
-      // intentamos capturar posibles nombres de itemId del back
-      const rawItemId = String(
-        it.itemId ??
-          it.cartItemId ??
-          it.cart_item_id ??
-          it.item_id ??
-          it.itemId ??
-          it.id ??
-          "",
+      const itemId = String(
+        it?.id ?? it?.itemId ?? it?.cartItemId ?? "",
       ).trim();
 
-      // ✅ si rawItemId es igual al productId, NO es un itemId real
-      const itemId =
-        rawItemId && productId && rawItemId !== productId
-          ? rawItemId
-          : undefined;
+      if (!productId) return null;
 
       return {
-        id: productId,
-        itemId,
-        quantity: normalizeQty(it.quantity),
-        title: prod?.title ?? prod?.name ?? "Producto",
-        price: normalizePrice(prod?.price),
+        id: productId, // ✅ productId (UI)
+        itemId: itemId || undefined, // ✅ cartItemId (back)
+
+        quantity: normalizeQty(it?.quantity),
+        title: prod?.title ?? "Producto",
+        // ✅ usa priceAtMoment si existe (ideal para carrito persistente)
+        price: normalizePrice(it?.priceAtMoment ?? prod?.price),
         image:
-          prod?.images?.[0] ?? prod?.imgUrl ?? prod?.imageUrl ?? prod?.image,
+          prod?.imgUrl ?? prod?.imageUrl ?? prod?.images?.[0] ?? prod?.image,
+
         stock: prod?.stock,
         categoryName: prod?.category?.name ?? prod?.categoryName,
         eraName: prod?.era?.name ?? prod?.eraName,
       } as CartItem;
     })
-    .filter((x) => x.id);
+    .filter(Boolean) as CartItem[];
 }
 
 // =====================
-// Remote operations
+// Remote operations (con token override)
 // =====================
-async function remoteGetCart(): Promise<CartItem[]> {
-  const res = await cartApi.get("/cart");
+async function remoteGetCart(token?: string | null): Promise<CartItem[]> {
+  const res = await cartApi.get("/cart", { headers: authHeaders(token) });
   return mapRemoteCartToUI(res.data);
 }
 
-async function remoteUpsertItem(productId: string, quantity: number) {
-  try {
-    const res = await cartApi.post("/cart", { productId, quantity });
-    return res.data;
-  } catch {
-    const res = await cartApi.post("/cart", {
-      product_id: productId,
-      quantity,
-    });
-    return res.data;
-  }
+async function remoteUpsertItem(
+  productId: string,
+  quantity: number,
+  token?: string | null,
+) {
+  const res = await cartApi.post(
+    "/cart",
+    { productId, quantity },
+    { headers: authHeaders(token) },
+  );
+  return res.data;
 }
 
-async function remoteDeleteItem(itemId: string) {
-  const res = await cartApi.delete(`/cart/${itemId}`);
+async function remoteDeleteItem(itemId: string, token?: string | null) {
+  const res = await cartApi.delete(`/cart/${itemId}`, {
+    headers: authHeaders(token),
+  });
   return res.data;
 }
 
@@ -249,13 +241,16 @@ async function remoteDeleteItem(itemId: string) {
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const { dataUser } = useAuth();
 
+  const tokenFromCtx =
+    (dataUser as any)?.token ?? (dataUser as any)?.user?.token ?? null;
+
   const userId =
     (dataUser as any)?.user?.id ??
     (dataUser as any)?.id ??
     (dataUser as any)?.userId ??
     null;
 
-  const hasToken = Boolean((dataUser as any)?.token || getTokenFromStorage());
+  const hasToken = Boolean(tokenFromCtx || getTokenFromStorage());
   const isRemote = Boolean(userId && hasToken);
 
   const cartKey = useMemo(() => buildCartKey(userId), [userId]);
@@ -311,6 +306,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     async function hydrate() {
+      // 1) carga local
       try {
         const raw = localStorage.getItem(cartKey);
         const parsed = raw ? (JSON.parse(raw) as CartItem[]) : [];
@@ -319,11 +315,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled) setCartItems([]);
       }
 
+      // 2) si remoto, pisar con DB (carrito por usuario)
       if (!isRemote) return;
 
       setIsSyncing(true);
       try {
-        const remote = await remoteGetCart();
+        const remote = await remoteGetCart(tokenFromCtx);
         if (!cancelled) setCartItems(remote);
       } catch (e) {
         console.warn("CartContext: GET /cart falló (fallback a local)", e);
@@ -336,7 +333,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [isRemote, cartKey]);
+  }, [isRemote, cartKey, tokenFromCtx]);
 
   // ---------
   // Save local always
@@ -356,14 +353,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (!isRemote) return;
     setIsSyncing(true);
     try {
-      const remote = await remoteGetCart();
+      const remote = await remoteGetCart(tokenFromCtx);
       setCartItems(remote);
     } catch (e) {
       console.warn("CartContext: refetchRemote falló (se mantiene local)", e);
     } finally {
       setIsSyncing(false);
     }
-  }, [isRemote]);
+  }, [isRemote, tokenFromCtx]);
 
   // ✅ Resolver: si UI pasa itemId, lo convertimos a productId para qty
   const resolveProductId = useCallback(
@@ -387,18 +384,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // =====================
   const addProduct = (product: IProductWithDetails, quantity?: number) => {
     const incoming = toCartItem(product, quantity);
-
-    if (!incoming.id) {
-      console.warn("CartContext: producto sin id/_id:", product);
-      return;
-    }
+    if (!incoming.id) return;
 
     upsertLocalSum(incoming);
 
     if (!isRemote) return;
 
     setIsSyncing(true);
-    remoteUpsertItem(incoming.id, incoming.quantity)
+    remoteUpsertItem(incoming.id, incoming.quantity, tokenFromCtx)
       .then(() => refetchRemote())
       .catch((e) => {
         console.warn("CartContext: POST /cart falló (se mantiene local)", e);
@@ -408,18 +401,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addUserProduct = (product: IUserProduct, quantity?: number) => {
     const incoming = toCartItemFromUserProduct(product, quantity);
-
-    if (!incoming.id) {
-      console.warn("CartContext: userProduct sin id/_id:", product);
-      return;
-    }
+    if (!incoming.id) return;
 
     upsertLocalSum(incoming);
 
     if (!isRemote) return;
 
     setIsSyncing(true);
-    remoteUpsertItem(incoming.id, incoming.quantity)
+    remoteUpsertItem(incoming.id, incoming.quantity, tokenFromCtx)
       .then(() => refetchRemote())
       .catch((e) => {
         console.warn("CartContext: POST /cart falló (se mantiene local)", e);
@@ -444,7 +433,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (!isRemote) return;
 
     setIsSyncing(true);
-    remoteUpsertItem(String(productId), cleanQty)
+    remoteUpsertItem(String(productId), cleanQty, tokenFromCtx)
       .then(() => refetchRemote())
       .catch((e) => {
         console.warn("CartContext: POST /cart (setQty) falló", e);
@@ -477,15 +466,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   /**
-   * ✅ FIX 1.1 (continuación):
-   * - Si NO hay itemId real, NO llames refetchRemote aquí (evita pisar estado)
-   * - Solo delete remoto cuando exista itemId real
+   * ✅ FIX 1.1:
+   * - delete remoto SOLO con itemId real
+   * - no refetchRemote si no hay itemId
    */
   const removeFromCart = (productIdOrItemId: string) => {
     const key = String(productIdOrItemId ?? "").trim();
     if (!key) return;
 
-    // Local primero: borra SOLO 1
     removeOneLocal(key);
 
     if (!isRemote) return;
@@ -495,17 +483,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       cartItems.find((p) => String(p.id) === key);
 
     const itemId = found?.itemId;
-
-    if (!itemId) {
-      console.warn(
-        "CartContext: no hay itemId real para borrar en remoto. Se borró local:",
-        { key },
-      );
-      return;
-    }
+    if (!itemId) return;
 
     setIsSyncing(true);
-    remoteDeleteItem(String(itemId))
+    remoteDeleteItem(String(itemId), tokenFromCtx)
       .then(() => refetchRemote())
       .catch((e) => {
         console.warn("CartContext: DELETE /cart/{itemId} falló", e);
@@ -522,7 +503,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (ids.length === 0) return;
 
     setIsSyncing(true);
-    Promise.allSettled(ids.map((id) => remoteDeleteItem(id)))
+    Promise.allSettled(ids.map((id) => remoteDeleteItem(id, tokenFromCtx)))
       .then(() => refetchRemote())
       .catch((e) => {
         console.warn("CartContext: clearCart falló (se mantiene local)", e);

@@ -1,9 +1,65 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Card from "../components/Card";
-import { getAllProducts } from "../services/products.services";
+import type { IProduct } from "@/src/interfaces/product.interface";
+import { showToast } from "nextjs-toast-notify";
 
-export default async function Page() {
-  const allProducts = await getAllProducts();
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
+
+async function parseJsonSafe(res: Response) {
+  const text = await res.text();
+  const isJson = res.headers.get("content-type")?.includes("application/json");
+  return isJson && text ? JSON.parse(text) : text;
+}
+
+export default function Product() {
+  const [allProducts, setAllProducts] = useState<IProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        if (!API_BASE_URL)
+          throw new Error("NEXT_PUBLIC_API_BASE_URL no está definido");
+
+        const token = localStorage.getItem(TOKEN_KEY);
+
+        const res = await fetch(`${API_BASE_URL}/products`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          cache: "no-store",
+        });
+
+        const data = await parseJsonSafe(res);
+
+        if (!res.ok) {
+          const msg =
+            typeof data === "string"
+              ? data
+              : data?.message
+                ? Array.isArray(data.message)
+                  ? data.message.join(", ")
+                  : String(data.message)
+                : "Error obteniendo productos";
+          throw new Error(msg);
+        }
+
+        setAllProducts(Array.isArray(data) ? data : []);
+      } catch (e: any) {
+        showToast.error(e?.message ?? "No se pudieron cargar productos");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    run();
+  }, []);
 
   return (
     <div className="w-full bg-amber-200 text-zinc-900">
@@ -55,7 +111,7 @@ export default async function Page() {
 
               <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-amber-300 p-2 shadow-lg -rotate-12 flex items-center justify-center text-center border border-amber-700/30">
                 <p className="font-display  text-amber-950 leading-none text-lg">
-                  ¡Sale!
+                  ¡Sale 30% off!
                 </p>
               </div>
             </div>
@@ -76,11 +132,17 @@ export default async function Page() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
-          {allProducts?.slice(0, 8).map((product) => (
-            <Card key={product.title} product={product} />
-          ))}
-        </div>
+        {loading ? (
+          <p className="font-handwritten text-amber-900 font-semibold">
+            Cargando productos...
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
+            {allProducts?.slice(0, 8).map((product: any) => (
+              <Card key={product.id ?? product.title} product={product} />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

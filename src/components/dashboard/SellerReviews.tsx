@@ -165,7 +165,7 @@ export default function SellerReviews() {
                 ${
                   filter === b.key
                     ? "border-emerald-950 bg-emerald-900 text-amber-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]"
-                    : "border-amber-900 bg-amber-50 text-amber-900 hover:-translate-y-[1px] shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]"
+                    : "border-amber-900 bg-amber-50 text-amber-900 hover:-translate-y-px shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]"
                 }
               `}
             >
@@ -175,7 +175,7 @@ export default function SellerReviews() {
         </div>
       </div>
 
-      <div className="h-[2px] w-full bg-amber-300" />
+      <div className="h-0.5 w-full bg-amber-300" />
 
       {/* List */}
       <ul className="p-6 space-y-4">
@@ -224,7 +224,7 @@ export default function SellerReviews() {
                 {r.comment}
               </p>
 
-              <div className="mt-4 h-[2px] w-full bg-amber-300" />
+              <div className="mt-4 h-0.5 w-full bg-amber-300" />
 
               <p className="mt-3 text-xs font-extrabold tracking-widest uppercase text-zinc-700">
                 Producto: <span className="text-amber-900">{r.product}</span>

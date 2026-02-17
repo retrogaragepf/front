@@ -48,7 +48,7 @@ export default function RootLayout({
           min-h-screen
           flex
           flex-col
-          bg-amber-200
+          bg-amber-100
           text-zinc-900
         `}
       >

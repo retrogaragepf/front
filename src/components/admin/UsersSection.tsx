@@ -100,11 +100,11 @@ export default function UsersSection() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl text-amber-900 mb-2">Usuarios</h1>
+      <h1 className="font-display text-3xl text-amber-900 mb-2">
+        Gestión RetroGarage™
+      </h1>
 
-      <p className="text-zinc-700 mb-6">
-        Gestión de cuentas dentro de RetroGarage™
-      </p>
+      <p className="text-zinc-700 mb-6">Manejo Admin de Usuarios</p>
 
       {/* Filtros */}
       <div className="flex gap-3 mb-6">

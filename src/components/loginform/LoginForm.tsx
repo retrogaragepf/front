@@ -220,7 +220,7 @@ const LoginForm = () => {
             </div>
 
             {/* ----------------------BOTÓN DE GOOGLE ----------------------------*/}
-            <div className="p-1 rounded-xl bg-gray-200">
+            <div className="p-1 rounded-xl bg-amber-100">
               <button
                 type="button"
                 onClick={() => {
@@ -319,7 +319,7 @@ const LoginForm = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
+                className="w-full rounded-xl bg-emerald-800 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
               >
                 {isSubmitting ? (
                   <>
@@ -372,7 +372,7 @@ const LoginForm = () => {
               ¿No tienes cuenta?{" "}
               <Link
                 href="/register"
-                className="font-semibold text-black hover:text-gray-900 transition-colors"
+                className="font-semibold text-shadow-emerald-900 hover:text-gray-900 transition-colors"
               >
                 Regístrate
               </Link>

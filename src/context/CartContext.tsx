@@ -237,7 +237,7 @@ async function remoteUpsertItem(
 }
 
 async function remoteDeleteItem(itemId: string, token?: string | null) {
-  const res = await cartApi.delete(`/cart/${itemId}`, {
+  const res = await cartApi.delete(`/cart/item/${itemId}`, {
     headers: authHeaders(token),
   });
   return res.data;
@@ -498,42 +498,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const key = String(productIdOrItemId ?? "").trim();
     if (!key) return;
 
-    removeOneLocal(key);
-
-    if (!isRemote) return;
-
     const found =
       cartItems.find((p) => String(p.itemId ?? "") === key) ??
       cartItems.find((p) => String(p.id) === key);
 
     const itemId = found?.itemId;
+
+    removeOneLocal(key);
+
+    if (!isRemote) return;
     if (!itemId) return;
 
     setIsSyncing(true);
     remoteDeleteItem(String(itemId), tokenFromCtx)
       .then(() => refetchRemote())
       .catch((e) => {
-        console.warn(
-          "CartContext: DELETE /cart/{itemId} falló (se mantiene local)",
-          e,
-        );
+        console.warn("CartContext: DELETE /cart/item/{id} falló", e);
         setIsSyncing(false);
       });
   };
 
   const clearCart = () => {
+    const ids = cartItems.map((p) => p.itemId).filter(Boolean) as string[];
+
     setCartItems([]);
 
     if (!isRemote) return;
-
-    const ids = cartItems.map((p) => p.itemId).filter(Boolean) as string[];
     if (ids.length === 0) return;
 
     setIsSyncing(true);
     Promise.allSettled(ids.map((id) => remoteDeleteItem(id, tokenFromCtx)))
       .then(() => refetchRemote())
       .catch((e) => {
-        console.warn("CartContext: clearCart falló (se mantiene local)", e);
+        console.warn("CartContext: clearCart falló", e);
         setIsSyncing(false);
       });
   };

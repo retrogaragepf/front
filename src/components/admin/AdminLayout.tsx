@@ -10,9 +10,9 @@ type Props = {
 
 export default function AdminLayout({ children, section, setSection }: Props) {
   return (
-    <div className="min-h-screen flex bg-[#f5f2ea]">
+    <div className="min-h-screen flex bg-amber-100]">
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-r-2 border-amber-900 p-8 flex flex-col shadow-[6px_0px_0px_0px_rgba(0,0,0,0.85)]">
+      <aside className="w-72 bg-amber-100 -r-2 border-amber-900 p-8 flex flex-col shadow-[6px_0px_0px_0px_rgba(0,0,0,0.85)]">
         <h2 className="font-display text-2xl text-amber-900 font-extrabold mb-10">
           Panel de Administración
         </h2>
@@ -26,7 +26,7 @@ export default function AdminLayout({ children, section, setSection }: Props) {
                 : "bg-white text-amber-900 hover:bg-amber-100"
             }`}
           >
-            Usuarios
+            Usuarios Registrados
           </button>
 
           <button
@@ -37,7 +37,7 @@ export default function AdminLayout({ children, section, setSection }: Props) {
                 : "bg-white text-amber-900 hover:bg-amber-100"
             }`}
           >
-            Solicitudes de Productos
+            Validacion Productos
           </button>
         </nav>
 

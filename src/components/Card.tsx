@@ -154,7 +154,11 @@ function Card({ product }: CardProps) {
           href={safeId ? `/product/${safeId}` : "/products"}
           className="w-full"
         >
-          <button className="bg-amber-100 font-display w-full border-2 border-amber-800 py-2 uppercase tracking-tight text-sm hover:bg-emerald-800 hover:text-amber-50 transition-all">
+          <button
+            className="border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm
+          font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+          hover:bg-amber-300 transition"
+          >
             Ver
           </button>
         </Link>
@@ -162,14 +166,20 @@ function Card({ product }: CardProps) {
         {!isLoadingUser && isLogged && (
           <button
             onClick={handleAddToCart}
-            className={`font-display w-full border-2 border-slate-900 py-2 uppercase tracking-tight transition-all text-sm ${
-              alreadyInCart
-                ? "bg-slate-200 text-slate-600 cursor-not-allowed"
-                : "bg-emerald-900 hover:bg-amber-300"
-            }`}
+            // className={`font-display w-full border-2 border-slate-900 py-2 uppercase tracking-tight transition-all text-sm
+
+            className={`border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm
+          font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+          hover:bg-amber-300 transition"
+              
+              ${
+                alreadyInCart
+                  ? "bg-slate-200 text-emerald-900 cursor-not-allowed"
+                  : "bg-emerald-900 text-amber-100 hover:bg-amber-300"
+              }`}
             disabled={alreadyInCart}
           >
-            {alreadyInCart ? "Ya en el 🛒" : "🛒"}
+            {alreadyInCart ? "Ya en el 🛒" : "Agregar al 🛒"}
           </button>
         )}
       </div>

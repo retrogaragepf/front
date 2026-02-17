@@ -217,14 +217,14 @@ export default function MyProductsPage() {
               onClick={fetchMyProducts}
               className="border-2 border-slate-900 bg-amber-200 px-4 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
             >
-              Recargar
+              Actualizar
             </button>
 
             <Link
               href="/createProduct"
               className="border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
             >
-              + Crear producto
+              + Publicar
             </Link>
           </div>
         </div>

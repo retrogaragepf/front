@@ -107,7 +107,7 @@ export default function CreateProductPage() {
   };
 
   return (
-    <main className="min-h-screen bg-amber-200 py-12 px-6">
+    <main className="min-h-screen bg-amber-100 py-12 px-6">
       <div className="max-w-3xl mx-auto bg-amber-100 rounded-3xl shadow-lg p-10">
         <h1 className="text-3xl font-bold text-amber-800 mb-8">
           Completa los datos del producto
@@ -230,7 +230,7 @@ export default function CreateProductPage() {
                 <button
                   type="button"
                   onClick={() => open()}
-                  className="px-4 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700"
+                  className="px-4 py-3 bg-emerald-900 text-white rounded-xl hover:bg-gray-700"
                 >
                   Subir imagen
                 </button>
@@ -253,7 +253,7 @@ export default function CreateProductPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-gray-700 hover:bg-gray-800 text-white font-semibold py-4 rounded-xl transition-all shadow-md"
+            className="w-full bg-emerald-900 hover:bg-gray-800 text-white font-semibold py-4 rounded-xl transition-all shadow-md"
           >
             {isSubmitting ? "Publicando..." : "Publicar producto"}
           </button>

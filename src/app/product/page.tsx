@@ -36,38 +36,40 @@ export default function ProductPage() {
   }, [products]);
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-10">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <h1 className="text-2xl font-extrabold">Productos</h1>
+    <div className="bg-amber-100">
+      <main className="max-w-6xl mx-auto px-4 py-10">
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <h1 className="text-2xl font-extrabold">Productos</h1>
 
-        <div className="flex items-center gap-3">
-          {refreshing && (
-            <span className="text-sm text-zinc-600">Actualizando…</span>
-          )}
+          <div className="flex items-center gap-3">
+            {refreshing && (
+              <span className="text-sm text-zinc-600">Actualizando…</span>
+            )}
 
-          <button
-            onClick={load}
-            className="px-4 py-2 rounded-lg border-2 border-slate-900 bg-amber-400 font-bold hover:bg-amber-300 transition"
-          >
-            Actualizar
-          </button>
+            <button
+              onClick={load}
+              className="border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
+            >
+              Actualizar
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* ✅ Nunca mostramos "Cargando productos..." y ahora contamos SOLO aprobados */}
-      {ready && approvedProducts.length === 0 ? (
-        <div className="mt-8 p-6 bg-white rounded-xl border-2 border-dashed border-slate-300">
-          <p className="text-zinc-700">
-            Aún no hay productos publicados. Ve a “Vender” y crea el primero.
-          </p>
-        </div>
-      ) : (
-        <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {approvedProducts.map((p) => (
-            <Card key={p.id} product={p as any} />
-          ))}
-        </section>
-      )}
-    </main>
+        {/* ✅ Nunca mostramos "Cargando productos..." y ahora contamos SOLO aprobados */}
+        {ready && approvedProducts.length === 0 ? (
+          <div className="mt-8 p-6 bg-white rounded-xl border-2 border-dashed border-slate-300">
+            <p className="text-zinc-700">
+              Aún no hay productos publicados. Ve a “Vender” y crea el primero.
+            </p>
+          </div>
+        ) : (
+          <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {approvedProducts.map((p) => (
+              <Card key={p.id} product={p as any} />
+            ))}
+          </section>
+        )}
+      </main>
+    </div>
   );
 }

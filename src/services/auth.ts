@@ -1,7 +1,9 @@
 import axios from 'axios';
 import { AuthResponse, LoginData, RegisterData } from "../types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com"
+).replace(/\/$/, "");
 const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
 const axiosInstance = axios.create({

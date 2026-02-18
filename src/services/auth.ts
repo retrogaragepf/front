@@ -1,25 +1,25 @@
 import axios from "axios";
 import { AuthResponse, LoginData, RegisterData } from "../types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
-function getApiBaseUrlOrThrow() {
-  if (!API_BASE_URL) {
-    throw new Error("NEXT_PUBLIC_API_BASE_URL no esta definido");
-  }
-  return API_BASE_URL;
-}
 
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL || undefined,
-  headers: { "Content-Type": "application/json" },
-});
+function getApiBaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
+  if (!url) throw new Error("NEXT_PUBLIC_API_BASE_URL no está definido");
+  return url;
+}
+// YA NO USAMOS AXXIOSINSTANCE GLOBAL  CN BASE FIJA
+async function apiPost(path: string, data: unknown) {
+  const baseURL = getApiBaseUrl();
+  return axios.post(`${baseURL}${path}`, data, {
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 export const authService = {
   register: async (data: RegisterData): Promise<AuthResponse> => {
     try {
-      getApiBaseUrlOrThrow();
-      const response = await axiosInstance.post("/users", data);
+      const response = await apiPost("/users", data);
       return response.data;
     } catch (error: any) {
       return (
@@ -30,8 +30,7 @@ export const authService = {
 
   login: async (data: LoginData): Promise<AuthResponse> => {
     try {
-      getApiBaseUrlOrThrow();
-      const response = await axiosInstance.post("/auth/signin", data);
+      const response = await apiPost("/auth/signin", data);
       return response.data;
     } catch (error: any) {
       return error.response?.data || { success: false, error: "Error en login" };
@@ -40,8 +39,7 @@ export const authService = {
 
   googleLogin: async (data: { idToken: string }): Promise<AuthResponse> => {
     try {
-      getApiBaseUrlOrThrow();
-      const response = await axiosInstance.post("/auth/google", data);
+      const response = await apiPost("/auth/google", data);
       return response.data;
     } catch (error: any) {
       return (

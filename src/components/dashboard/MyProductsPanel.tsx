@@ -247,7 +247,7 @@ export default function MyProductsPanel() {
   if (isLoadingUser) return null;
 
   return (
-    <section className="bg-white border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
+    <section className="bg-amber-100 border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <h2 className="text-xl font-extrabold tracking-wide text-amber-900">
           Mis productos
@@ -256,14 +256,14 @@ export default function MyProductsPanel() {
         <div className="flex items-center gap-2">
           <Link
             href="/createProduct"
-            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
+            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-100 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
           >
             + Publicar
           </Link>
 
           <Link
             href="/dashboard/my-products"
-            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-white text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
+            className="px-4 py-2 rounded-xl border-2 border-amber-900 bg-amber-100 text-amber-900 font-extrabold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
           >
             Ver todos
           </Link>
@@ -309,7 +309,7 @@ export default function MyProductsPanel() {
             return (
               <article
                 key={p.id || `${title}-${image}`}
-                className="bg-white rounded-2xl border-2 border-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] p-4 flex items-center gap-4"
+                className="bg-amber-100 rounded-2xl border-2 border-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] p-4 flex items-center gap-4"
               >
                 <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-amber-900 bg-zinc-100 shrink-0">
                   {image ? (

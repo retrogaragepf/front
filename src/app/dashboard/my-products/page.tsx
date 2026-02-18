@@ -200,7 +200,7 @@ export default function MyProductsPage() {
   }, [isLoadingUser]);
 
   return (
-    <div className="min-h-screen bg-[#f5f2ea] px-6 py-10">
+    <div className="min-h-screen px-6 py-10">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -217,14 +217,14 @@ export default function MyProductsPage() {
               onClick={fetchMyProducts}
               className="border-2 border-slate-900 bg-amber-200 px-4 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
             >
-              Recargar
+              Actualizar
             </button>
 
             <Link
               href="/createProduct"
               className="border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
             >
-              + Crear producto
+              + Publicar
             </Link>
           </div>
         </div>
@@ -248,9 +248,9 @@ export default function MyProductsPage() {
               return (
                 <div
                   key={p.id}
-                  className="rounded-2xl border-2 border-slate-900 bg-white p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]"
+                  className="rounded-2xl border-2 border-slate-900 bg-amber-100 p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]"
                 >
-                  <div className="mb-3 overflow-hidden rounded-xl border-2 border-slate-900 bg-amber-50">
+                  <div className="mb-3 overflow-hidden rounded-xl border-2 border-slate-900 bg-amber-100">
                     {img ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -285,7 +285,7 @@ export default function MyProductsPage() {
                   <div className="mt-4 flex gap-2">
                     <Link
                       href={`/product/${p.id}`}
-                      className="w-full text-center border-2 border-slate-900 bg-emerald-900 px-3 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
+                      className="w-full text-center border-2 border-slate-900 bg-amber-400 px-3 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
                     >
                       Ver
                     </Link>

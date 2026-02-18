@@ -30,7 +30,7 @@ export default function CartSummary() {
   };
 
   return (
-    <aside className="p-6 bg-white rounded-xl border shadow-sm space-y-4">
+    <aside className="p-6 bg-amber-100 rounded-xl border shadow-sm space-y-4">
       <h3 className="font-display text-xl">Resumen</h3>
 
       <div className="flex items-center justify-between">

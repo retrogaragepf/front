@@ -107,8 +107,8 @@ export default function CreateProductPage() {
   };
 
   return (
-    <main className="min-h-screen bg-amber-200 py-12 px-6">
-      <div className="max-w-3xl mx-auto bg-amber-100 rounded-3xl shadow-lg p-10">
+    <main className="min-h-screen bg-amber-100 py-12 px-6">
+      <div className="max-w-3xl mx-auto bg-amber-200 rounded-3xl shadow-lg p-10">
         <h1 className="text-3xl font-bold text-amber-800 mb-8">
           Completa los datos del producto
         </h1>
@@ -123,7 +123,7 @@ export default function CreateProductPage() {
               type="text"
               value={form.title}
               onChange={(e) => handleChange("title", e.target.value)}
-              className="w-full bg-amber-200 rounded-xl px-4 py-3 outline-none"
+              className="w-full bg-amber-100 rounded-xl px-4 py-3 outline-none"
               placeholder="Ej: Walkman Sony 1982"
             />
           </div>
@@ -135,7 +135,7 @@ export default function CreateProductPage() {
             <textarea
               value={form.description}
               onChange={(e) => handleChange("description", e.target.value)}
-              className="w-full  bg-amber-200 rounded-xl px-4 py-3 h-32 outline-none"
+              className="w-full  bg-amber-100 rounded-xl px-4 py-3 h-32 outline-none"
             />
           </div>
 
@@ -148,7 +148,7 @@ export default function CreateProductPage() {
                 type="number"
                 value={form.price}
                 onChange={(e) => handleChange("price", e.target.value)}
-                className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
+                className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
                 min={0}
                 step="0.01"
               />
@@ -162,7 +162,7 @@ export default function CreateProductPage() {
                 type="number"
                 value={form.stock}
                 onChange={(e) => handleChange("stock", Number(e.target.value))}
-                className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
+                className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
                 min={0}
               />
             </div>
@@ -175,7 +175,7 @@ export default function CreateProductPage() {
             <select
               value={form.categoryId}
               onChange={(e) => handleChange("categoryId", e.target.value)}
-              className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
+              className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
             >
               <option value="">Selecciona categoría</option>
               {CATEGORY_OPTIONS.map((c) => (
@@ -193,7 +193,7 @@ export default function CreateProductPage() {
             <select
               value={form.eraId}
               onChange={(e) => handleChange("eraId", e.target.value)}
-              className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
+              className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
             >
               <option value="">Selecciona era</option>
               {ERA_OPTIONS.map((era) => (
@@ -230,7 +230,7 @@ export default function CreateProductPage() {
                 <button
                   type="button"
                   onClick={() => open()}
-                  className="px-4 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700"
+                  className="px-4 py-3 bg-emerald-900 text-white rounded-xl hover:bg-amber-900"
                 >
                   Subir imagen
                 </button>
@@ -253,7 +253,7 @@ export default function CreateProductPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-gray-700 hover:bg-gray-800 text-white font-semibold py-4 rounded-xl transition-all shadow-md"
+            className="w-full bg-emerald-900 hover:bg-amber-900 text-white font-semibold py-4 rounded-xl transition-all shadow-md"
           >
             {isSubmitting ? "Publicando..." : "Publicar producto"}
           </button>

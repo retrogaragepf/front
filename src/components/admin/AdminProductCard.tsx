@@ -11,7 +11,6 @@ export default function AdminProductCard({
 }: Props) {
   return (
     <article className="bg-white border-4 border-black rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all">
-      
       {/* Imagen */}
       <div className="aspect-[4/3] bg-zinc-100 border-b-4 border-black">
         <img

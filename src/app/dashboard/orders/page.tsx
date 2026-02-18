@@ -73,21 +73,17 @@ export default function SuccessPage() {
     let cancelled = false;
 
     const waitForOrderThenRedirect = async () => {
-      // Polling: hasta ~10s (10 intentos cada 1s)
       for (let i = 0; i < 10; i++) {
         if (cancelled) return;
 
         try {
           const orders = await fetchMyOrders();
           if (Array.isArray(orders) && orders.length > 0) {
-            // ✅ ya hay órdenes, redirigimos
             clearCart();
             router.push("/dashboard/orders");
             return;
           }
-        } catch {
-          // si falla, seguimos intentando (puede ser que el webhook aún no cree)
-        }
+        } catch {}
 
         await new Promise((r) => setTimeout(r, 1000));
       }

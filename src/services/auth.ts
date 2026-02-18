@@ -19,7 +19,7 @@ async function apiPost(path: string, data: unknown) {
 export const authService = {
   register: async (data: RegisterData): Promise<AuthResponse> => {
     try {
-      const response = await apiPost("/users", data);
+      const response = await apiPost("/auth/signup", data);
       return response.data;
     } catch (error: any) {
       return (

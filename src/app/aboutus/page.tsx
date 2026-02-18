@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default function AboutUsPage() {
   return (
-    <div className="w-full min-h-screen bg-amber-200">
+    <div className="w-full min-h-screen bg-amber-100">
       <main className="max-w-6xl mx-auto px-4 py-10">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -19,7 +19,7 @@ export default function AboutUsPage() {
 
           <Link
             href="/"
-            className="font-handwritten inline-flex items-center justify-center rounded-xl bg-white/70 px-5 py-3 text-black text-sm font-semibold  hover:bg-amber-800"
+            className="bg-emerald-900 font-handwritten inline-flex items-center justify-center rounded-xl  px-5 py-3 text-white text-sm font-semibold  hover:bg-amber-800"
           >
             Volver al Home
           </Link>
@@ -84,11 +84,11 @@ export default function AboutUsPage() {
           </div>
 
           <aside className="lg:col-span-1 space-y-4">
-            <div className="rounded-2xl bg-black text-white p-6">
+            <div className="rounded-2xl bg-amber-100 text-black p-6">
               <h3 className="text-lg font-bold font-handwritten">
                 Lo que defendemos
               </h3>
-              <ul className="mt-4 space-y-3 text-sm text-white/90 font-handwritten">
+              <ul className="mt-4 space-y-3 text-sm text-black font-handwritten">
                 <li className="flex gap-2">
                   <span className="font-handwritten mt-1 h-2 w-2 rounded-full bg-amber-300" />
                   Especialización: solo vintage, retro y antigüedades.
@@ -121,7 +121,7 @@ export default function AboutUsPage() {
 
               <Link
                 href="/product"
-                className="font-handwritten mt-5 inline-flex w-full items-center justify-center rounded-xl border border-black/20 bg-white/70 px-5 py-3 text-sm font-semibold text-black hover:bg-amber-800 "
+                className="font-handwritten mt-5 inline-flex w-full items-center justify-center rounded-xl border border-black/20 bg-emerald-900 px-5 py-3 text-sm font-semibold text-white hover:bg-amber-800 "
               >
                 Ir a ver productos
               </Link>

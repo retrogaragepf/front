@@ -100,11 +100,11 @@ export default function UsersSection() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl text-amber-900 mb-2">Usuarios</h1>
+      <h1 className="font-display text-3xl text-amber-900 mb-2">
+        Gestión RetroGarage™
+      </h1>
 
-      <p className="text-zinc-700 mb-6">
-        Gestión de cuentas dentro de RetroGarage™
-      </p>
+      <p className="text-zinc-700 mb-6">Manejo Admin de Usuarios</p>
 
       {/* Filtros */}
       <div className="flex gap-3 mb-6">
@@ -143,7 +143,7 @@ export default function UsersSection() {
       )}
 
       {/* Tabla */}
-      <div className="bg-white border-2 border-amber-900 rounded-2xl overflow-hidden shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
+      <div className="bg-amber-100 border-2 border-amber-900 rounded-2xl overflow-hidden shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
         <table className="w-full">
           <thead className="bg-amber-100 border-b-2 border-amber-900">
             <tr>

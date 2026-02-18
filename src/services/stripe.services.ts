@@ -1,6 +1,6 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export type CheckoutItem = { productId: string; quantity: number };
+type CheckoutItem = { productId: string; quantity: number };
 
 const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
@@ -19,10 +19,10 @@ function getAuthToken(): string | null {
   const raw = localStorage.getItem(TOKEN_KEY);
   if (!raw) return null;
 
-  // Si ya es un JWT pelado
+  // JWT pelado
   if (raw.startsWith("eyJ")) return raw;
 
-  // Si es JSON con forma { user, token }
+  // JSON { token }
   try {
     const parsed = JSON.parse(raw);
     if (typeof parsed?.token === "string") return parsed.token;
@@ -32,8 +32,8 @@ function getAuthToken(): string | null {
 }
 
 export async function createCheckoutSession(items: CheckoutItem[]) {
-  const token = getAuthToken();
   const baseUrl = assertApiBaseUrl();
+  const token = getAuthToken();
 
   const res = await fetch(`${baseUrl}/api/stripe/checkout`, {
     method: "POST",

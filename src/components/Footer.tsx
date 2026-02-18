@@ -28,7 +28,7 @@ function Footer() {
 
             <Link
               href="#"
-              className="w-9 h-9 rounded-full border border-amber-300 bg-amber-50 flex items-center justify-center hover:bg-amber-200 transition"
+              className="w-9 h-9 rounded-full border border-amber-800 bg-amber-50 flex items-center justify-center hover:bg-amber-200 transition"
               aria-label="Facebook"
               title="Facebook"
             >

@@ -82,6 +82,7 @@ const RegisterForm = () => {
       }
 
       if (
+        response?.success === false ||
         typeof response === "object" &&
         (response?.error ||
           response?.message?.toLowerCase?.().includes("error"))

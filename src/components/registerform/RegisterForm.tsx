@@ -91,7 +91,7 @@ const RegisterForm = () => {
       }
 
       showToast.success("¡Usuario registrado! Ahora inicia sesión ✅", {
-        duration: 4000,
+        duration: 2500,
         progress: true,
         position: "top-center",
         transition: "popUp",
@@ -103,9 +103,9 @@ const RegisterForm = () => {
     },
 
     onError: (error: any) => {
-      const msg = error?.message || "No se pudo registrar. Revisa tus datos.";
+      const msg = error?.message || "No se pudo registrar. Correo ya registrado.";
       showToast.error(String(msg), {
-        duration: 4500,
+        duration: 2500,
         progress: true,
         position: "top-center",
         transition: "popUp",

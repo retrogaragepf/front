@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
+import { signIn } from "next-auth/react";
 
 import useFormField from "@/src/hooks/useFormField";
 import { useFormSubmit } from "@/src/hooks/useFormSubmit";
@@ -144,6 +145,10 @@ const RegisterForm = () => {
             {/* Botón Google (solo UI) */}
             <button
               type="button"
+              onClick={() => {
+                sessionStorage.setItem("google-login", "true");
+                signIn("google", { callbackUrl: "/login" });
+              }}
               className="w-full flex items-center justify-center gap-3 border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl transition-colors"
             >
               <svg className="w-5 h-5" viewBox="0 0 48 48">

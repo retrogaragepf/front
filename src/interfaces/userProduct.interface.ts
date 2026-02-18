@@ -1,9 +1,12 @@
 export interface IUserProduct {
-  id: number;
-  titulo: string;
-  precio: number;
-  descripcion?: string;
-  categoria: string;
+  id: string | number;
+  titulo?: string;
+  title?: string;
+  precio?: number;
+  price?: number;
+  imagen?: string;
+  image?: string;
   stock: number;
-  imagen: string;
+  categoria?: string;
+  categoryName?: string;
 }

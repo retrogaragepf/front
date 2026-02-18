@@ -5,10 +5,17 @@ import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
 import { useCart } from "@/src/context/CartContext";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
+
+function assertApiBaseUrl(): string {
+  if (!API_BASE_URL) {
+    throw new Error(
+      "NEXT_PUBLIC_API_BASE_URL no está definido. Configúralo en .env.local (dev) o en Vercel (prod).",
+    );
+  }
+  return API_BASE_URL;
+}
 
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -16,10 +23,8 @@ function getAuthToken(): string | null {
   const raw = localStorage.getItem(TOKEN_KEY);
   if (!raw) return null;
 
-  // JWT directo
   if (raw.startsWith("eyJ")) return raw;
 
-  // JSON { token }
   try {
     const parsed = JSON.parse(raw);
     return typeof parsed?.token === "string" ? parsed.token : null;
@@ -28,87 +33,83 @@ function getAuthToken(): string | null {
   }
 }
 
-async function getMyOrdersCount(): Promise<number> {
+async function fetchMyOrders() {
+  const baseUrl = assertApiBaseUrl();
   const token = getAuthToken();
 
-  const res = await fetch(`${API_BASE_URL}/orders/me`, {
+  const res = await fetch(`${baseUrl}/orders/me`, {
     method: "GET",
     headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     cache: "no-store",
   });
 
   const data = await res.json().catch(() => []);
-  if (!res.ok)
-    throw new Error(data?.message || "No se pudieron cargar órdenes.");
+  if (!res.ok) {
+    throw new Error(
+      (data as any)?.message || "No se pudieron cargar tus órdenes.",
+    );
+  }
 
-  return Array.isArray(data) ? data.length : 0;
+  return data as any[];
 }
 
 export default function SuccessPage() {
   const router = useRouter();
   const { clearCart } = useCart();
-
   const ran = useRef(false);
 
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
 
-    (async () => {
-      showToast.success("¡Pago aprobado! Estamos registrando tu orden.", {
-        duration: 1800,
-      });
+    showToast.success("¡Pago aprobado! Estamos registrando tu orden.", {
+      duration: 1800,
+    });
 
-      // Guardamos cuántas órdenes había ANTES (para detectar que apareció una nueva)
-      let before = 0;
-      try {
-        before = await getMyOrdersCount();
-      } catch {
-        // si falla igual seguimos intentando
-      }
+    let cancelled = false;
 
-      // Espera hasta ~10s a que el webhook cree la orden
+    const waitForOrderThenRedirect = async () => {
+      // Polling: hasta ~10s (10 intentos cada 1s)
       for (let i = 0; i < 10; i++) {
+        if (cancelled) return;
+
         try {
-          const now = await getMyOrdersCount();
-          if (now > before) {
-            // ✅ Orden creada => ahora sí limpiamos carrito
+          const orders = await fetchMyOrders();
+          if (Array.isArray(orders) && orders.length > 0) {
+            // ✅ ya hay órdenes, redirigimos
             clearCart();
-            showToast.success("Orden confirmada ✅. Carrito limpiado.", {
-              duration: 1400,
-            });
             router.push("/dashboard/orders");
             return;
           }
         } catch {
-          // seguimos intentando
+          // si falla, seguimos intentando (puede ser que el webhook aún no cree)
         }
 
         await new Promise((r) => setTimeout(r, 1000));
       }
 
-      // Si no detectamos cambio, igual redirigimos (pero NO limpies si no confirmaste)
-      showToast.info(
-        "Tu orden puede tardar unos segundos. Revisa en Órdenes.",
-        {
-          duration: 1800,
-        },
-      );
       router.push("/dashboard/orders");
-    })();
+    };
+
+    waitForOrderThenRedirect();
+
+    return () => {
+      cancelled = true;
+    };
   }, [clearCart, router]);
 
   return (
-    <div className="min-h-screen bg-[#f5f2ea] flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-white border-2 border-amber-900 p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
+    <div className="min-h-screen bg-amber-100 flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-amber-100 border-2 border-amber-900 p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
         <h1 className="font-display text-2xl text-amber-900 font-extrabold mb-2">
-          Pago exitoso
+          Pago Aprobado!!
         </h1>
         <p className="text-slate-800">
-          Listo. Si tu orden no aparece de inmediato, espera unos segundos: el
-          webhook la confirma.
+          Estamos cargando tus órdenes... espera unos segundos.
         </p>
       </div>
     </div>

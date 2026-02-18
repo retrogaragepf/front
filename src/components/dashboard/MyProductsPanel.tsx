@@ -309,7 +309,7 @@ export default function MyProductsPanel() {
             return (
               <article
                 key={p.id || `${title}-${image}`}
-                className="bg-white rounded-2xl border-2 border-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] p-4 flex items-center gap-4"
+                className="bg-amber-100 rounded-2xl border-2 border-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] p-4 flex items-center gap-4"
               >
                 <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-amber-900 bg-zinc-100 shrink-0">
                   {image ? (

@@ -4,18 +4,11 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/src/context/CartContext";
 import { showToast } from "nextjs-toast-notify";
-import { useRouter } from "next/navigation";
 import { createCheckoutSession } from "@/src/services/payments";
 
-const LAST_ORDER_KEY = "retrogarage_last_order";
-const CHECKOUT_MODE = (
-  process.env.NEXT_PUBLIC_CHECKOUT_MODE || "mock"
-).toLowerCase(); // "mock" | "stripe"
-
 export default function Receipt() {
-  const { itemsCount, totalPrice, clearCart, cartItems } = useCart();
+  const { itemsCount, totalPrice, cartItems, clearCart } = useCart();
   const [isPaying, setIsPaying] = useState(false);
-  const router = useRouter();
 
   const totalFormatted = totalPrice.toLocaleString("es-CO", {
     minimumFractionDigits: 0,
@@ -29,7 +22,7 @@ export default function Receipt() {
     clearCart();
 
     showToast.warning("Carrito vaciado", {
-      duration: 4000,
+      duration: 2500,
       progress: true,
       position: "top-center",
       transition: "popUp",
@@ -38,47 +31,21 @@ export default function Receipt() {
     });
   };
 
-  const runMockCheckout = async () => {
-    showToast.success("Procesando pago (MOCK)...", {
-      duration: 1500,
-      progress: true,
-      position: "top-center",
-      transition: "popUp",
-      icon: "",
-      sound: true,
-    });
-
-    await new Promise((r) => setTimeout(r, 1200));
-
-    const orderId = `RG-${Date.now()}`;
-    const order = {
-      id: orderId,
-      createdAt: new Date().toISOString(),
-      itemsCount,
-      totalPrice,
-      currency: "COP",
-      status: "paid",
-      provider: "stripe_mock",
-      items: cartItems,
-    };
-
-    localStorage.setItem(LAST_ORDER_KEY, JSON.stringify(order));
-    clearCart();
-    router.push("/checkout/success");
-  };
   const runStripeCheckout = async () => {
     const items = cartItems
       .map((it) => ({
-        productId: String(it.id ?? "").trim(), // ✅ tu UI id = productId real
+        productId: String(it.id ?? "").trim(), // ✅ UI id = productId real
         quantity: Number(it.quantity ?? 0),
       }))
       .filter((x) => x.productId && x.quantity > 0);
 
-    if (!items.length) {
-      throw new Error("Tu carrito está vacío.");
-    }
+    if (!items.length) throw new Error("Tu carrito está vacío.");
 
     const { url } = await createCheckoutSession(items);
+
+    if (!url || typeof url !== "string") {
+      throw new Error("Stripe no devolvió una URL de checkout válida.");
+    }
 
     showToast.success("Redirigiendo a Stripe (TEST)...", {
       duration: 2000,
@@ -92,18 +59,12 @@ export default function Receipt() {
     window.location.href = url;
   };
 
-
   const handleCheckout = async () => {
     if (isEmpty || isPaying) return;
 
     try {
       setIsPaying(true);
-
-      if (CHECKOUT_MODE === "stripe") {
-        await runStripeCheckout();
-      } else {
-        await runMockCheckout();
-      }
+      await runStripeCheckout();
     } catch (err: any) {
       showToast.error(err?.message || "No se pudo iniciar el pago", {
         duration: 4000,
@@ -138,24 +99,20 @@ export default function Receipt() {
           className={`w-full text-center px-4 py-3 rounded-lg border-2 border-slate-900 font-bold transition ${
             isEmpty || isPaying
               ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-              : "bg-amber-400 hover:bg-amber-300"
+              : "bg-amber-600 hover:bg-emerald-600"
           }`}
-          title={
-            CHECKOUT_MODE === "stripe"
-              ? "Checkout con Stripe (TEST)"
-              : "Checkout simulado (MOCK)"
-          }
+          title="Checkout con Stripe (TEST)"
         >
-          {isPaying ? "Procesando..." : "Ir a pagar"}
+          {isPaying ? "Redirigiendo..." : "Ir a pagar"}
         </button>
 
         <button
           onClick={handleClearCart}
-          disabled={isEmpty}
+          disabled={isEmpty || isPaying}
           className={`w-full px-4 py-3 rounded-lg border-2 border-slate-900 font-bold transition ${
-            isEmpty
+            isEmpty || isPaying
               ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-              : "bg-white hover:bg-amber-100"
+              : "bg-white hover:bg-red-600"
           }`}
         >
           Vaciar carrito
@@ -163,7 +120,7 @@ export default function Receipt() {
 
         <Link
           href="/product"
-          className="w-full text-center px-4 py-3 rounded-lg border-2 border-slate-900 font-bold bg-white hover:bg-amber-100 transition"
+          className="w-full text-center px-4 py-3 rounded-lg border-2 border-slate-900 font-bold bg-white hover:bg-emerald-600 transition"
         >
           Seguir comprando
         </Link>

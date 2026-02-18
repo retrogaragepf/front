@@ -6,7 +6,7 @@ export default function Sidebar() {
   const router = useRouter();
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r-4 border-slate-900 flex flex-col">
+    <aside className="w-64 min-h-screen bg-amber-100 border-r-4 border-slate-900 flex flex-col">
       <div className="p-6 border-b-2 border-dashed">
         <h1 className="text-amber-900 font-display text-2xl">Mi Cuenta</h1>
       </div>

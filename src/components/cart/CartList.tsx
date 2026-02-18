@@ -11,7 +11,7 @@ export default function CartList() {
       <h2 className="font-display text-2xl mb-6">Tus compras</h2>
 
       {cartItems.length === 0 ? (
-        <div className="p-6 bg-white rounded-xl border shadow-sm">
+        <div className="p-6 bg-amber-100 rounded-xl border shadow-sm">
           <p className="text-slate-600 italic">
             Tu carrito está vacío por ahora.
           </p>

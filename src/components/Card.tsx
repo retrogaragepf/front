@@ -134,7 +134,7 @@ function Card({ product }: CardProps) {
       </div>
 
       <div className="mt-4 space-y-1">
-        <h4 className="font-extrabold text-lg group-hover:text-emerald-900 transition-colors line-clamp-2">
+        <h4 className="font-extrabold text-lg group-hover:text-amber-800 transition-colors line-clamp-2">
           {(product as any).title}
         </h4>
 
@@ -155,7 +155,7 @@ function Card({ product }: CardProps) {
           className="w-full"
         >
           <button
-            className="border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm
+            className="w-full border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm
           font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
           hover:bg-amber-300 transition"
           >
@@ -166,16 +166,14 @@ function Card({ product }: CardProps) {
         {!isLoadingUser && isLogged && (
           <button
             onClick={handleAddToCart}
-            // className={`font-display w-full border-2 border-slate-900 py-2 uppercase tracking-tight transition-all text-sm
-
-            className={`border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm
+            className={`text-black border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm
           font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
           hover:bg-amber-300 transition"
               
               ${
                 alreadyInCart
-                  ? "bg-slate-200 text-emerald-900 cursor-not-allowed"
-                  : "bg-emerald-900 text-amber-100 hover:bg-amber-300"
+                  ? "bg-amber-800 text-black cursor-not-allowed"
+                  : "bg-emerald-800 text-white hover:bg-amber-900"
               }`}
             disabled={alreadyInCart}
           >

@@ -143,7 +143,7 @@ export default function UsersSection() {
       )}
 
       {/* Tabla */}
-      <div className="bg-white border-2 border-amber-900 rounded-2xl overflow-hidden shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
+      <div className="bg-amber-100 border-2 border-amber-900 rounded-2xl overflow-hidden shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
         <table className="w-full">
           <thead className="bg-amber-100 border-b-2 border-amber-900">
             <tr>

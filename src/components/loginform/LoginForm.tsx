@@ -203,9 +203,9 @@ const LoginForm = () => {
   });
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
+    <div className=" flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
+        <div className="bg-amber-100 rounded-3xl shadow-2xl p-8 space-y-6 relative overflow-hidden">
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-800 rounded-full transform -translate-x-12 translate-y-24 opacity-70"></div>
@@ -223,14 +223,14 @@ const LoginForm = () => {
             </div>
 
             {/* ----------------------BOTÓN DE GOOGLE ----------------------------*/}
-            <div className="p-1 rounded-xl bg-gray-200">
+            <div className="p-1 rounded-xl bg-amber-100">
               <button
                 type="button"
                 onClick={() => {
                   sessionStorage.setItem("google-login", "true");
                   signIn("google", { callbackUrl: "/login" });
                 }}
-                className="w-full rounded-xl bg-white border border-gray-300 hover:bg-gray-50 px-4 py-3 font-medium text-gray-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 pt-3"
+                className="w-full rounded-xl bg-amber-100 border border-gray-300 hover:bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 pt-3"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path
@@ -322,7 +322,7 @@ const LoginForm = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
+                className="w-full rounded-xl bg-emerald-800 hover:bg-amber-900 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
               >
                 {isSubmitting ? (
                   <>
@@ -363,19 +363,17 @@ const LoginForm = () => {
                         d="M14 5l7 7m0 0l-7 7m7-7H3"
                       />
                     </svg>
-                    <span className="font-handwritten text-md">
-                      Iniciar sesión
-                    </span>
+                    <span className="">Iniciar sesión</span>
                   </>
                 )}
               </button>
             </form>
 
-            <p className="text-center text-sm text-black pt-4 font-handwritten">
+            <p className="text-center text-sm text-black pt-4 ">
               ¿No tienes cuenta?{" "}
               <Link
                 href="/register"
-                className="font-semibold text-black hover:text-gray-900 transition-colors"
+                className="font-semibold text-shadow-emerald-900 hover:text-gray-900 transition-colors"
               >
                 Regístrate
               </Link>

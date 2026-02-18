@@ -63,7 +63,7 @@ export default function Product() {
   }, []);
 
   return (
-    <div className="w-full bg-amber-200 text-zinc-900">
+    <div className="w-full bg-amber-100 text-zinc-900">
       {/* HERO */}
       <section className="relative overflow-hidden border-b border-amber-300/60">
         <div

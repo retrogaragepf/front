@@ -44,7 +44,7 @@ export default function DashboardPage() {
     (dataUser as any)?.email ?? (dataUser as any)?.user?.email ?? "";
 
   return (
-    <div className="flex min-h-screen bg-amber-200">
+    <div className="flex min-h-screen bg-amber-100">
       <Sidebar />
 
       <main className="flex-1 p-10 space-y-10">

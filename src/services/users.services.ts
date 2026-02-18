@@ -12,7 +12,7 @@ export type AdminUser = {
 
 export type AdminUIUser = AdminUser & { isBanned: boolean };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+//const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL; SE MUEVE DENTOR DE. LA. FUNC. REQUEST PAAR EVITAER ERRORES DE IMPORTACION EN EL SERVIDOR
 
 // ✅ IMPORTANTE: misma key que usa authService (no rompemos nada)
 const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
@@ -69,16 +69,11 @@ function normalizeUser(u: AdminUser): AdminUIUser {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!API_BASE_URL) {
-    throw new Error("NEXT_PUBLIC_API_BASE_URL no está configurado.");
-  }
+   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL; // AUI VA 
+  if (!API_BASE_URL) throw new Error("NEXT_PUBLIC_API_BASE_URL no está configurado.");
 
   const token = getToken();
-  if (!token) {
-    throw new Error(
-      `Unauthorized: no hay token guardado. (Revisa localStorage["${TOKEN_KEY}"])`,
-    );
-  }
+  if (!token) throw new Error(`Unauthorized: no hay token guardado.`);
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,

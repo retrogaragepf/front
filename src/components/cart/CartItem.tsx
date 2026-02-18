@@ -44,7 +44,7 @@ export default function CartItem({ item }: { item: CartItemType }) {
           <span className="font-bold text-xl">${priceFormatted}</span>
 
           <div className="flex items-center border rounded-lg">
-            <button
+            {/* <button
               className="px-2"
               onClick={() => key && decreaseQty(key)}
               aria-label="Disminuir cantidad"
@@ -52,11 +52,11 @@ export default function CartItem({ item }: { item: CartItemType }) {
               title={!key ? "Item sin id válido" : ""}
             >
               -
-            </button>
+            </button> */}
 
             <span className="px-3">{item.quantity}</span>
 
-            <button
+            {/* <button
               className="px-2"
               onClick={() => key && increaseQty(key)}
               aria-label="Aumentar cantidad"
@@ -64,7 +64,7 @@ export default function CartItem({ item }: { item: CartItemType }) {
               title={!key ? "Item sin id válido" : ""}
             >
               +
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

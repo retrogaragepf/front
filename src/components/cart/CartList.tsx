@@ -13,7 +13,11 @@ export default function CartList() {
       </h2>
 
       {cartItems.length === 0 ? (
-        <p className="text-slate-600">Tu carrito esta vacio por ahora.</p>
+        <div className="p-6 bg-amber-100 rounded-xl border shadow-sm">
+          <p className="text-slate-600 italic">
+            Tu carrito está vacío por ahora.
+          </p>
+        </div>
       ) : (
         cartItems.map((item) => (
           <CartItem key={item.itemId ?? item.id} item={item} />

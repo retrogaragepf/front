@@ -54,8 +54,8 @@ const CartContext = createContext<CartContextValue | null>(null);
 // =====================
 // Config
 // =====================
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com";
+//const API_BASE_URL =process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com"; SE MUEVE DENTRO DE LA FUNCION 
+
 
 const TOKEN_KEYS = [
   process.env.NEXT_PUBLIC_JWT_TOKEN_KEY,
@@ -67,6 +67,15 @@ const TOKEN_KEYS = [
 
 const CART_KEY_BASE =
   process.env.NEXT_PUBLIC_CART_STORAGE_KEY || "retrogarage_cart";
+
+
+  // SE DENTRO DE L. CUNFION PARA EVITAR PROBLEMAS  D EIMPORTACION EN. EL SERVIDOR ,SE. LLAMA EN.TIEMPO. DEEJEUCIONNO. ALIMPORTAR
+function getApiBaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+    "https://back-0o27.onrender.com"
+  );
+}
 
 // =====================
 // Token helper (robusto)
@@ -94,7 +103,7 @@ function getTokenFromStorage(): string | null {
 // Axios client
 // =====================
 const cartApi = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   headers: { "Content-Type": "application/json" },
 });
 
@@ -163,15 +172,20 @@ function toCartItemFromUserProduct(
 }
 
 /**
- * ✅ Adaptado a tu BACK:
- * GET /cart => Cart { cartItems: [ { id, quantity, priceAtMoment, product: {...} } ] }
+ * ✅ Tu schema real:
+ * CartItem = { id, quantity, priceAtMoment, product: {...} }
  *
- * ✅ FIX 1.1 se mantiene:
- * - itemId es el id del cartItem
- * - id es el productId (para UI)
+ * ✅ FIX 1.1:
+ * - itemId = id del cartItem
+ * - id = product.id (productId UI)
  */
 function mapRemoteCartToUI(payload: any): CartItem[] {
-  const items = payload?.cartItems;
+  const items = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.cartItems)
+      ? payload.cartItems
+      : [];
+
   if (!Array.isArray(items)) return [];
 
   return items
@@ -189,12 +203,11 @@ function mapRemoteCartToUI(payload: any): CartItem[] {
       if (!productId) return null;
 
       return {
-        id: productId, // ✅ productId (UI)
-        itemId: itemId || undefined, // ✅ cartItemId (back)
+        id: productId,
+        itemId: itemId || undefined,
 
         quantity: normalizeQty(it?.quantity),
         title: prod?.title ?? "Producto",
-        // ✅ usa priceAtMoment si existe (ideal para carrito persistente)
         price: normalizePrice(it?.priceAtMoment ?? prod?.price),
         image:
           prod?.imgUrl ?? prod?.imageUrl ?? prod?.images?.[0] ?? prod?.image,
@@ -215,21 +228,25 @@ async function remoteGetCart(token?: string | null): Promise<CartItem[]> {
   return mapRemoteCartToUI(res.data);
 }
 
+/**
+ * ⚠️ BACK: POST /cart SUMA quantity
+ * => quantity es DELTA (puede ser + o - si el back lo permite)
+ */
 async function remoteUpsertItem(
   productId: string,
-  quantity: number,
+  quantityDelta: number,
   token?: string | null,
 ) {
   const res = await cartApi.post(
     "/cart",
-    { productId, quantity },
+    { productId, quantity: quantityDelta },
     { headers: authHeaders(token) },
   );
   return res.data;
 }
 
 async function remoteDeleteItem(itemId: string, token?: string | null) {
-  const res = await cartApi.delete(`/cart/${itemId}`, {
+  const res = await cartApi.delete(`/cart/item/${itemId}`, {
     headers: authHeaders(token),
   });
   return res.data;
@@ -251,6 +268,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     null;
 
   const hasToken = Boolean(tokenFromCtx || getTokenFromStorage());
+
+  // ✅ MANTENGO tu lógica original: remoto solo si hay userId + token
+  // (si más adelante quieres remoto solo por token, lo cambiamos)
   const isRemote = Boolean(userId && hasToken);
 
   const cartKey = useMemo(() => buildCartKey(userId), [userId]);
@@ -315,7 +335,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled) setCartItems([]);
       }
 
-      // 2) si remoto, pisar con DB (carrito por usuario)
+      // 2) si remoto, pisar con DB (precio/stock actualizados)
       if (!isRemote) return;
 
       setIsSyncing(true);
@@ -336,7 +356,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [isRemote, cartKey, tokenFromCtx]);
 
   // ---------
-  // Save local always
+  // Save local always (como lo tenías)
   // ---------
   useEffect(() => {
     try {
@@ -416,8 +436,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       });
   };
 
+  /**
+   * ✅ CAMBIO MÍNIMO por POST /cart SUMA:
+   * setQty manda DELTA = desired - current
+   */
   const setQty = (productId: string, qty: number) => {
     const cleanQty = normalizeQty(qty);
+
+    const current = cartItems.find((p) => String(p.id) === String(productId));
+    const currentQty = current?.quantity ?? 0;
 
     setCartItems((prev) =>
       prev.map((p) => {
@@ -432,11 +459,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     if (!isRemote) return;
 
+    const delta = cleanQty - currentQty;
+    if (delta === 0) return;
+
     setIsSyncing(true);
-    remoteUpsertItem(String(productId), cleanQty, tokenFromCtx)
+    remoteUpsertItem(String(productId), delta, tokenFromCtx)
       .then(() => refetchRemote())
       .catch((e) => {
-        console.warn("CartContext: POST /cart (setQty) falló", e);
+        console.warn(
+          "CartContext: POST /cart (delta) falló (se mantiene local)",
+          e,
+        );
         setIsSyncing(false);
       });
   };
@@ -474,39 +507,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const key = String(productIdOrItemId ?? "").trim();
     if (!key) return;
 
-    removeOneLocal(key);
-
-    if (!isRemote) return;
-
     const found =
       cartItems.find((p) => String(p.itemId ?? "") === key) ??
       cartItems.find((p) => String(p.id) === key);
 
     const itemId = found?.itemId;
+
+    removeOneLocal(key);
+
+    if (!isRemote) return;
     if (!itemId) return;
 
     setIsSyncing(true);
     remoteDeleteItem(String(itemId), tokenFromCtx)
       .then(() => refetchRemote())
       .catch((e) => {
-        console.warn("CartContext: DELETE /cart/{itemId} falló", e);
+        console.warn("CartContext: DELETE /cart/item/{id} falló", e);
         setIsSyncing(false);
       });
   };
 
   const clearCart = () => {
+    const ids = cartItems.map((p) => p.itemId).filter(Boolean) as string[];
+
     setCartItems([]);
 
     if (!isRemote) return;
-
-    const ids = cartItems.map((p) => p.itemId).filter(Boolean) as string[];
     if (ids.length === 0) return;
 
     setIsSyncing(true);
     Promise.allSettled(ids.map((id) => remoteDeleteItem(id, tokenFromCtx)))
       .then(() => refetchRemote())
       .catch((e) => {
-        console.warn("CartContext: clearCart falló (se mantiene local)", e);
+        console.warn("CartContext: clearCart falló", e);
         setIsSyncing(false);
       });
   };

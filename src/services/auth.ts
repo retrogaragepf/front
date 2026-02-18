@@ -16,14 +16,55 @@ async function apiPost(path: string, data: unknown) {
   });
 }
 
+function includesConfirmPasswordFieldError(message: unknown): boolean {
+  if (Array.isArray(message)) {
+    return message.some(
+      (item) =>
+        typeof item === "string" &&
+        item.toLowerCase().includes("confirmpassword") &&
+        item.toLowerCase().includes("should not exist"),
+    );
+  }
+
+  return (
+    typeof message === "string" &&
+    message.toLowerCase().includes("confirmpassword") &&
+    message.toLowerCase().includes("should not exist")
+  );
+}
+
 export const authService = {
   register: async (data: RegisterData): Promise<AuthResponse> => {
+    const payload = data as RegisterData & { confirmPassword?: string };
+
     try {
-      const response = await apiPost("/auth/signup", data);
+      const response = await apiPost("/auth/signup", payload);
       return response.data;
     } catch (error: any) {
+      // Compatibilidad: algunos backends rechazan campos extra (whitelist).
+      if (
+        payload.confirmPassword &&
+        includesConfirmPasswordFieldError(error?.response?.data?.message)
+      ) {
+        const { confirmPassword, ...fallbackPayload } = payload;
+        try {
+          const fallbackResponse = await apiPost("/auth/signup", fallbackPayload);
+          return fallbackResponse.data;
+        } catch (fallbackError: any) {
+          return (
+            fallbackError.response?.data || {
+              success: false,
+              error: fallbackError?.message || "Error en registro",
+            }
+          );
+        }
+      }
+
       return (
-        error.response?.data || { success: false, error: "Error en registro" }
+        error.response?.data || {
+          success: false,
+          error: error?.message || "Error en registro",
+        }
       );
     }
   },

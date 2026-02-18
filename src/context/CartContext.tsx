@@ -54,8 +54,8 @@ const CartContext = createContext<CartContextValue | null>(null);
 // =====================
 // Config
 // =====================
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com";
+//const API_BASE_URL =process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com"; SE MUEVE DENTRO DE LA FUNCION 
+
 
 const TOKEN_KEYS = [
   process.env.NEXT_PUBLIC_JWT_TOKEN_KEY,
@@ -67,6 +67,15 @@ const TOKEN_KEYS = [
 
 const CART_KEY_BASE =
   process.env.NEXT_PUBLIC_CART_STORAGE_KEY || "retrogarage_cart";
+
+
+  // SE DENTRO DE L. CUNFION PARA EVITAR PROBLEMAS  D EIMPORTACION EN. EL SERVIDOR ,SE. LLAMA EN.TIEMPO. DEEJEUCIONNO. ALIMPORTAR
+function getApiBaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+    "https://back-0o27.onrender.com"
+  );
+}
 
 // =====================
 // Token helper (robusto)

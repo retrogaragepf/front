@@ -1,8 +1,9 @@
 import type { CartItem } from "@/src/context/CartContext";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+//const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;  VA    DENTRO D. ELA FUNCION PAAR EVITAR PRONLEMAS O ERRORES DE IMPORTACION EN EL SERVIDOR, YA QUE ESTE ARCHIVO SE EJECUTA TANTO EN EL SERVIDOR COMO EN EL CLIENTE
 
 export async function createCheckoutSession(items: CartItem[]) {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL; // ACA SE MOVIO
   if (!API_BASE_URL) throw new Error("Missing NEXT_PUBLIC_API_BASE_URL");
 
   const payload = {

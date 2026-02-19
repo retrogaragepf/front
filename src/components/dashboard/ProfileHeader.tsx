@@ -47,7 +47,7 @@ export default function ProfileHeader() {
   return (
     <div
       className="
-        bg-amber-50
+        bg-amber-100
         border-2 border-amber-900
         rounded-2xl
         shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]

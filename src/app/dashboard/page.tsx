@@ -51,7 +51,7 @@ export default function DashboardPage() {
         <ProfileHeader />
 
         {!isLoadingUser && email ? (
-          <section className="bg-amber-50 border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
+          <section className="bg-amber-100 border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
             <p className="text-zinc-800">
               <span className="font-extrabold tracking-wide text-amber-900">
                 Email:

@@ -5,8 +5,8 @@ import Footer from "../components/Footer";
 import Providers from "./providers"; //
 
 export const metadata: Metadata = {
-  title: "Your Treasure Cart",
-  description: "Checkout",
+  title: "RetroGarage™",
+  description: "E-commerce de tecnología retro y coleccionables",
 };
 
 export default function RootLayout({

@@ -89,7 +89,7 @@ export default async function CategoriesPage() {
                 flex flex-col
               "
             >
-              <div className="p-5 flex flex-col h-full">
+              <div className="bg-amber-100 p-5 flex flex-col h-full">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-2xl shrink-0">{cat.emoji}</span>
@@ -127,7 +127,7 @@ export default async function CategoriesPage() {
                     className="
                       inline-flex items-center justify-center
                       w-9 h-9 rounded-full
-                      border border-amber-300 bg-amber-50
+                      border border-amber-300 bg-amber-100
                       text-amber-900 font-extrabold
                       group-hover:bg-amber-200
                       transition
@@ -151,9 +151,9 @@ export default async function CategoriesPage() {
             href="/product"
             className="
               w-full sm:w-auto text-center
-              font-handwritten px-4 py-3 rounded-xl
+              font-extrabold px-4 py-3 rounded-xl
               border-2 border-amber-900
-              bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm
+              bg-amber-100 text-amber-900 font-extrabold tracking-wide text-sm
               shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
               hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
               active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]

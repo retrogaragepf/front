@@ -1,4 +1,41 @@
 // src/services/orders.services.ts
+
+export type OrderStatus =
+  | "pending"
+  | "paid"
+  | "approved"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "refunded"
+  | string;
+
+export type OrderItemDTO = {
+  id: string;
+  title: string;
+  unitPrice: number;
+  quantity: number;
+  subtotal: number;
+  product?: {
+    id: string;
+    title: string;
+    imgUrl?: string;
+  };
+};
+
+export type OrderDTO = {
+  id: string;
+  total: number;
+  status: OrderStatus;
+  trackingCode?: string | null;
+  stripeSessionId?: string | null;
+  stripePaymentIntentId?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+  items?: OrderItemDTO[];
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
@@ -29,45 +66,60 @@ function getAuthToken(): string | null {
   return null;
 }
 
-// Ajusta esta interfaz a lo que te devuelva el back.
-// La dejo flexible para que no te rompa TypeScript.
-export type Order = {
-  id?: string;
-  status?: string; // paid / pending / cancelled ...
-  total?: number;
-  currency?: string;
-  createdAt?: string;
-  items?: Array<{
-    productId?: string;
-    title?: string;
-    quantity?: number;
-    price?: number;
-    image?: string;
-  }>;
-  [key: string]: any;
-};
-
-export async function getMyOrders(): Promise<Order[]> {
+export async function getMyOrders(): Promise<OrderDTO[]> {
   const base = assertApiBaseUrl();
   const token = getAuthToken();
 
+  if (!token) {
+    // En UI puedes redirigir a login si llega vacío
+    throw new Error("No hay token. Inicia sesión para ver tus órdenes.");
+  }
+
   const res = await fetch(`${base}/orders/me`, {
+    method: "GET",
     headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
     },
     cache: "no-store",
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json().catch(() => null);
 
   if (!res.ok) {
-    throw new Error(data?.message || "No se pudieron cargar tus órdenes.");
+    const msg =
+      (data as any)?.message ||
+      `No se pudieron cargar tus órdenes (HTTP ${res.status}).`;
+    throw new Error(msg);
   }
 
-  // algunos backs responden { orders: [...] }
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.orders)) return data.orders;
+  return Array.isArray(data) ? (data as OrderDTO[]) : [];
+}
 
-  return [];
+export async function getOrderById(id: string): Promise<OrderDTO> {
+  const base = assertApiBaseUrl();
+  const token = getAuthToken();
+
+  if (!id) throw new Error("Falta el id de la orden.");
+  if (!token) throw new Error("No hay token. Inicia sesión para ver tu orden.");
+
+  const res = await fetch(`${base}/orders/${encodeURIComponent(id)}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    const msg =
+      (data as any)?.message ||
+      `No se pudo cargar la orden (HTTP ${res.status}).`;
+    throw new Error(msg);
+  }
+
+  return data as OrderDTO;
 }

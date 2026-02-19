@@ -33,7 +33,9 @@ function getAuthToken(): string | null {
   }
 }
 
-async function fetchMyOrders() {
+type AnyOrder = { id?: string; createdAt?: string; [k: string]: any };
+
+async function fetchMyOrders(): Promise<AnyOrder[]> {
   const baseUrl = assertApiBaseUrl();
   const token = getAuthToken();
 
@@ -54,12 +56,18 @@ async function fetchMyOrders() {
     );
   }
 
-  return data as any[];
+  // si el back responde { orders: [...] }
+  if (Array.isArray((data as any)?.orders)) return (data as any).orders;
+  return Array.isArray(data) ? (data as AnyOrder[]) : [];
+}
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 export default function SuccessPage() {
   const router = useRouter();
-  const { clearCart } = useCart();
+  const { clearCart, cartItems } = useCart();
   const ran = useRef(false);
 
   useEffect(() => {
@@ -72,41 +80,73 @@ export default function SuccessPage() {
 
     let cancelled = false;
 
-    const waitForOrderThenRedirect = async () => {
-      // Polling: hasta ~10s (10 intentos cada 1s)
-      for (let i = 0; i < 10; i++) {
-        if (cancelled) return;
+    const waitForNewOrderThenRedirect = async () => {
+      try {
+        // 1) Snapshot inicial (para no confundir órdenes viejas con la nueva)
+        const initial = await fetchMyOrders();
+        const initialIds = new Set(
+          initial.map((o) => String(o?.id ?? "")).filter(Boolean),
+        );
 
-        try {
-          const orders = await fetchMyOrders();
-          if (Array.isArray(orders) && orders.length > 0) {
-            // ✅ ya hay órdenes, redirigimos
-            clearCart();
-            router.push("/dashboard/orders");
-            return;
+        // 2) Polling: hasta ~15s (15 intentos cada 1s)
+        for (let i = 0; i < 15; i++) {
+          if (cancelled) return;
+
+          try {
+            const current = await fetchMyOrders();
+
+            // busca una orden que NO estaba al inicio
+            const newOrder = current.find((o) => {
+              const id = String(o?.id ?? "");
+              return id && !initialIds.has(id);
+            });
+
+            if (newOrder) {
+              // ✅ Solo limpiamos carrito si realmente hubo compra (y el carrito tenía algo)
+              if (cartItems.length > 0) clearCart();
+              router.replace("/dashboard/orders");
+              return;
+            }
+          } catch {
+            // si falla, seguimos intentando (webhook aún puede estar procesando)
           }
-        } catch {
-          // si falla, seguimos intentando (puede ser que el webhook aún no cree)
-        }
 
-        await new Promise((r) => setTimeout(r, 1000));
+          await sleep(1000);
+        }
+      } catch {
+        // si falló el snapshot inicial, igual hacemos polling “simple”
+        for (let i = 0; i < 10; i++) {
+          if (cancelled) return;
+          try {
+            const orders = await fetchMyOrders();
+            if (Array.isArray(orders) && orders.length > 0) {
+              if (cartItems.length > 0) clearCart();
+              router.replace("/dashboard/orders");
+              return;
+            }
+          } catch {}
+          await sleep(1000);
+        }
       }
 
-      router.push("/dashboard/orders");
+      // fallback: redirige sin limpiar (por seguridad)
+      router.replace("/dashboard/orders");
     };
 
-    waitForOrderThenRedirect();
+    waitForNewOrderThenRedirect();
 
     return () => {
       cancelled = true;
     };
+    // Ojo: cartItems aquí es para validar si limpiar; no lo metas como dep fuerte si te re-ejecuta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearCart, router]);
 
   return (
     <div className="min-h-screen bg-amber-100 flex items-center justify-center p-6">
       <div className="max-w-md w-full bg-amber-100 border-2 border-amber-900 p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
         <h1 className="font-display text-2xl text-amber-900 font-extrabold mb-2">
-          Pago Aprobado!!
+          ¡Pago aprobado!
         </h1>
         <p className="text-slate-800">
           Estamos cargando tus órdenes... espera unos segundos.

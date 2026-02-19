@@ -7,6 +7,7 @@ export * from './user.interface';
 
 // Product, Category & Era interfaces
 export * from './product.interface';
+export * from './userProduct.interface';
 
 // Cart interfaces
 export * from './cart.interface';

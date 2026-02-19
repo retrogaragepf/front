@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 type User = {
   id?: string | number | null;
@@ -22,6 +22,7 @@ type User = {
 export type UserSession = {
   user: User;
   token: string | null;
+  email: string;
 };
 
 interface AuthContextProps {
@@ -65,7 +66,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [dataUser, setDataUser] = useState<UserSession | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
+
+  const persistSession = (session: UserSession | null) => {
+    try {
+      if (session) {
+        localStorage.setItem(AUTH_KEY, JSON.stringify(session));
+      } else {
+        localStorage.removeItem(AUTH_KEY);
+      }
+    } catch (e) {
+      console.error("Error guardando auth:", e);
+    }
+  };
 
   // ✅ Cargar sesión
   useEffect(() => {
@@ -76,10 +88,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      const parsed = JSON.parse(raw) as UserSession;
-      if (parsed?.user) {
-        setDataUser(parsed);
-        console.log("✅ Sesión cargada:", parsed.user);
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        parsed = raw;
+      }
+
+      // Forma esperada: { user, token, email }
+      if (parsed && typeof parsed === "object" && parsed?.token) {
+        const normalized: UserSession = {
+          user: parsed.user ?? {},
+          token: parsed.token,
+          email: parsed.email ?? parsed.user?.email ?? "",
+        };
+        setDataUser(normalized);
+        console.log("✅ Sesión cargada:", normalized.user);
+        return;
+      }
+
+      // Compatibilidad: JWT plano guardado por versiones anteriores
+      if (typeof parsed === "string" && parsed.includes(".")) {
+        const payload = decodeJwtPayload(parsed);
+        const normalized: UserSession = {
+          user: {
+            id: payload?.id ?? null,
+            name: payload?.name ?? "",
+            email: payload?.email ?? "",
+            isAdmin: Boolean(payload?.isAdmin),
+            iat: payload?.iat,
+            exp: payload?.exp,
+          },
+          token: parsed,
+          email: payload?.email ?? "",
+        };
+        setDataUser(normalized);
+        console.log("✅ Sesión cargada desde JWT:", normalized.user);
       }
     } catch (e) {
       console.error("Error leyendo auth:", e);
@@ -91,25 +135,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // ✅ Persistir sesión
   useEffect(() => {
-    try {
-      if (dataUser) {
-        localStorage.setItem(AUTH_KEY, JSON.stringify(dataUser));
-      } else {
-        localStorage.removeItem(AUTH_KEY);
-      }
-    } catch (e) {
-      console.error("Error guardando auth:", e);
-    }
+    persistSession(dataUser);
   }, [dataUser]);
 
   const login = (payload: UserSession) => {
     console.log("Login - Guardando:", payload.user);
+    // Guardado inmediato para evitar carrera entre router.push y useEffect
+    persistSession(payload);
     setDataUser(payload);
   };
 
   const logout = () => {
     setDataUser(null);
-    localStorage.removeItem(AUTH_KEY);
+    persistSession(null);
     router.push("/login");
   };
 

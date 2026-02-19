@@ -8,7 +8,9 @@ export default function CartList() {
 
   return (
     <section className="space-y-8">
-      <h2 className="font-display text-2xl mb-6">Tus compras</h2>
+      <h2 className="font-display text-2xl mb-6">
+        Tus compras
+      </h2>
 
       {cartItems.length === 0 ? (
         <div className="p-6 bg-amber-100 rounded-xl border shadow-sm">
@@ -17,11 +19,9 @@ export default function CartList() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {cartItems.map((item) => (
-            <CartItem key={item.id} item={item} />
-          ))}
-        </div>
+        cartItems.map((item) => (
+          <CartItem key={item.itemId ?? item.id} item={item} />
+        ))
       )}
     </section>
   );

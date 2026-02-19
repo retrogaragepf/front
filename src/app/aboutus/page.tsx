@@ -29,7 +29,7 @@ export default function AboutUsPage() {
 
         <section className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
-            <article className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur p-6 sm:p-8">
+            <article className="rounded-2xl border border-black/10 bg-amber-200 backdrop-blur p-6 sm:p-8">
               <h2 className="font-handwritten text-xl font-bold text-black">
                 Contexto
               </h2>
@@ -46,7 +46,7 @@ export default function AboutUsPage() {
               </p>
             </article>
 
-            <article className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur p-6 sm:p-8">
+            <article className="rounded-2xl border border-black/10 bg-amber-200 backdrop-blur p-6 sm:p-8">
               <h2 className="font-handwritten text-xl font-bold text-black">
                 Nuestra Solucion
               </h2>
@@ -63,7 +63,7 @@ export default function AboutUsPage() {
               </p>
             </article>
 
-            <article className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur p-6 sm:p-8">
+            <article className="rounded-2xl border border-black/10 bg-amber-200 backdrop-blur p-6 sm:p-8">
               <h2 className="text-xl font-bold text-black font-handwritten">
                 Diferenciación
               </h2>
@@ -108,7 +108,7 @@ export default function AboutUsPage() {
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur p-6">
+            <div className="rounded-2xl border border-black/10 bg-amber-200 backdrop-blur p-6">
               <h3 className="font-handwritten text-lg font-bold text-black">
                 ¿Qué puedes hacer aquí?
               </h3>
@@ -129,7 +129,7 @@ export default function AboutUsPage() {
           </aside>
         </section>
 
-        <footer className="font-handwritten mt-12 rounded-2xl border border-black/10 bg-white/60 p-6 text-sm text-black/70">
+        <footer className="font-handwritten mt-12 rounded-2xl border border-black/10 bg-amber-200 p-6 text-sm text-black/70">
           <p>RetroGarage — donde lo retro encuentra un nuevo hogar. </p>
         </footer>
       </main>

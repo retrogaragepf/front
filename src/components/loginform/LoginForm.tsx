@@ -98,23 +98,9 @@ const LoginForm = () => {
         console.log("------RESPUESTA--------", response);
         console.log("response?.token:", response?.token);
 
-        // ❌ si tu authService normaliza errores como { success:false, error,... }
-        if (!response.token) {
-          console.log("Login sin token");
-          showToast.error(response?.error || "Credenciales inválidas", {
-            duration: 3000,
-            progress: true,
-            position: "top-center",
-            transition: "popUp",
-            icon: "",
-            sound: true,
-          });
-          return;
-        }
-
         if (!response?.token) {
           console.error("Login sin token");
-          showToast.error(response?.error || "Credenciales inválidas", {
+          showToast.error(response?.message || response?.error || "Credenciales inválidas", {
             duration: 3000,
             progress: true,
             position: "top-center",
@@ -125,34 +111,15 @@ const LoginForm = () => {
           return;
         }
 
-        //---------DATOS DEL LOCALSTORAGE ANTES DE GUARDAR SESIÓN----------------
-        const TOKEN_KEY =
-          process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
-        const authData = localStorage.getItem(TOKEN_KEY);
-        if (!authData) {
-          console.error("No hay datos en localStorage");
-          showToast.error("Error al guardar sesión.Intenta de nuevo", {
-            duration: 3000,
-            progress: true,
-            position: "top-center",
-            transition: "popUp",
-            icon: "",
-            sound: true,
-          });
-          return;
-        }
-        const savedData = JSON.parse(authData);
-        console.log("DATOS DEL LOCALSTORAGE", savedData);
-
-        //-----------GUARDA EN CONTEXTO CON DATOS REALES/ QUE VIENEN EN EL TOKEN----------------
+        //-----------GUARDA EN CONTEXTO CON DATOS DE LA RESPUESTA----------------
         login({
           user: {
-            id: savedData.user.id,
-            name: savedData.user.name, // ← AQUÍ VIENE EL NOMBRE
-            email: savedData.user.email,
+            id: response.user?.id,
+            name: response.user?.name ?? "",
+            email: response.user?.email ?? data.email,
           },
-          token: savedData.token,
-          email: savedData.user.email,
+          token: response.token,
+          email: response.user?.email ?? data.email,
         });
 
         console.log("LOGIN EXITOSO - Datos guardados en contexto");
@@ -166,10 +133,10 @@ const LoginForm = () => {
           sound: true,
         });
 
-        // ✅ NUEVO: revisa isAdmin desde el token que YA guardaste (savedData.token)
+        // ✅ revisa isAdmin desde el token recibido
         let isAdmin = false;
         try {
-          const decoded = jwtDecode<JwtPayload>(savedData.token);
+          const decoded = jwtDecode<JwtPayload>(response.token);
           isAdmin = decoded?.isAdmin === true;
         } catch (e) {
           console.warn("No se pudo decodificar JWT para isAdmin:", e);

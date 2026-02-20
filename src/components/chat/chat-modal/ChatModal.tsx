@@ -20,6 +20,18 @@ const ChatModal = () => {
   } = useChat();
   const panelRef = useRef<HTMLElement | null>(null);
 
+  const formatShortDateTime = (value: string): string => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value || "Ahora";
+    return date.toLocaleString("es-CO", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  };
+
   useEffect(() => {
     if (!isChatOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -49,7 +61,7 @@ const ChatModal = () => {
             </h2>
             <p className="text-xs uppercase tracking-widest text-emerald-900/80">
               {activeConversation
-                ? `${activeConversation.product} · ${activeConversation.customer}`
+                ? `${activeConversation.sellerName || "Usuario"} · ${formatShortDateTime(activeConversation.timestamp)}`
                 : "Selecciona una conversación"}
             </p>
           </div>
@@ -76,11 +88,16 @@ const ChatModal = () => {
               {activeConversation ? (
                 <>
                   <p className="font-display text-xs uppercase tracking-[0.2em] text-emerald-900/80">
-                    Vendedor: {activeConversation.sellerName}
+                    Vendedor: {activeConversation.sellerName || "Usuario"}
                   </p>
                   <p className="text-sm text-zinc-800">
                     Producto:{" "}
-                    <span className="font-semibold">{activeConversation.product}</span>
+                    <span className="font-semibold">
+                      {activeConversation.product || "Sin referencia"}
+                    </span>
+                  </p>
+                  <p className="text-xs text-zinc-700">
+                    Último mensaje: {formatShortDateTime(activeConversation.timestamp)}
                   </p>
                 </>
               ) : (

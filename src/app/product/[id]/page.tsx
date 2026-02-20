@@ -66,6 +66,19 @@ const ProductDetailPage = () => {
     (dataUser as any)?.id ??
     null;
 
+  const productRecord = product as unknown as Record<string, unknown>;
+  const sellerRecord =
+    (productRecord.seller as Record<string, unknown> | undefined) ?? undefined;
+  const resolvedSellerId =
+    (sellerRecord?.id ? String(sellerRecord.id) : "") ||
+    (productRecord.sellerId ? String(productRecord.sellerId) : "") ||
+    (productRecord.userId ? String(productRecord.userId) : "") ||
+    (productRecord.ownerId ? String(productRecord.ownerId) : "");
+  const resolvedSellerName =
+    (sellerRecord?.fullName ? String(sellerRecord.fullName) : "") ||
+    (sellerRecord?.name ? String(sellerRecord.name) : "") ||
+    "Vendedor";
+
   return (
     <div className="w-full bg-amber-100 text-zinc-900">
       <main className="max-w-7xl mx-auto px-6 py-10">
@@ -157,10 +170,13 @@ const ProductDetailPage = () => {
                       return;
                     }
 
-                    const sellerId = product.seller?.id
-                      ? String(product.seller.id)
-                      : "";
-                    if (!sellerId) {
+                    console.log("[ProductDetailPage] chat seller resolution", {
+                      resolvedSellerId,
+                      sellerFromObject: sellerRecord,
+                      productId: product.id,
+                    });
+
+                    if (!resolvedSellerId) {
                       showToast.error(
                         "No se encontró el vendedor para iniciar el chat.",
                         {
@@ -178,8 +194,8 @@ const ProductDetailPage = () => {
                     openChat({
                       asParticipant: "customer",
                       product: product.title,
-                      sellerName: product.seller?.fullName ?? "Vendedor",
-                      sellerId,
+                      sellerName: resolvedSellerName,
+                      sellerId: resolvedSellerId,
                       customerName,
                       customerId: customerId ? String(customerId) : undefined,
                     });

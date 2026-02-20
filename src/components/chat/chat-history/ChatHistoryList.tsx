@@ -56,10 +56,13 @@ const ChatHistoryList = ({
                   </span>
                 </div>
                 <p className="mt-1 truncate text-xs text-amber-900/80 italic">
-                  Producto: {conversation.product || "Sin referencia"}
+                  Producto: {conversation.product || ""}
                 </p>
                 <p className="mt-2 line-clamp-2 text-sm text-zinc-800">
-                  {conversation.lastMessage || "Sin mensajes aún"}
+                  {conversation.lastMessage || ""}
+                </p>
+                <p className="mt-1 text-[10px] text-zinc-600">
+                  {conversation.lastMessage ? formatShortDateTime(conversation.timestamp) : ""}
                 </p>
 
                 {conversation.unreadCount > 0 && (

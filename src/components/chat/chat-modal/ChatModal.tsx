@@ -2,11 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import { useChat } from "@/src/context/ChatContext";
+import { useAuth } from "@/src/context/AuthContext";
 import ChatHistoryList from "@/src/components/chat/chat-history/ChatHistoryList";
 import ChatMessages from "@/src/components/chat/chat-window/ChatMessages";
 import ChatComposer from "@/src/components/chat/chat-window/ChatComposer";
 
 const ChatModal = () => {
+  const { dataUser } = useAuth();
   const {
     isChatOpen,
     activeConversation,
@@ -22,7 +24,7 @@ const ChatModal = () => {
 
   const formatShortDateTime = (value: string): string => {
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value || "Ahora";
+    if (Number.isNaN(date.getTime())) return value || "";
     return date.toLocaleString("es-CO", {
       day: "2-digit",
       month: "2-digit",
@@ -31,6 +33,13 @@ const ChatModal = () => {
       hour12: false,
     });
   };
+
+  const safeName =
+    (dataUser as { user?: { name?: string }; name?: string } | null)?.user?.name ??
+    (dataUser as { user?: { fullName?: string }; fullName?: string } | null)?.user?.fullName ??
+    (dataUser as { name?: string; fullName?: string } | null)?.name ??
+    (dataUser as { name?: string; fullName?: string } | null)?.fullName ??
+    "Mi cuenta";
 
   useEffect(() => {
     if (!isChatOpen) return;
@@ -60,9 +69,7 @@ const ChatModal = () => {
               Chat comprador-vendedor
             </h2>
             <p className="text-xs uppercase tracking-widest text-emerald-900/80">
-              {activeConversation
-                ? `${activeConversation.sellerName || "Usuario"} · ${formatShortDateTime(activeConversation.timestamp)}`
-                : "Selecciona una conversación"}
+              {safeName}
             </p>
           </div>
           <button
@@ -93,7 +100,7 @@ const ChatModal = () => {
                   <p className="text-sm text-zinc-800">
                     Producto:{" "}
                     <span className="font-semibold">
-                      {activeConversation.product || "Sin referencia"}
+                      {activeConversation.product || ""}
                     </span>
                   </p>
                   <p className="text-xs text-zinc-700">

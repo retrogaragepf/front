@@ -6,7 +6,7 @@ interface ChatComposerProps {
   onSendMessage: (content: string) => void;
 }
 
-export default function ChatComposer({ onSendMessage }: ChatComposerProps) {
+const ChatComposer = ({ onSendMessage }: ChatComposerProps) => {
   const [message, setMessage] = useState("");
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -39,4 +39,6 @@ export default function ChatComposer({ onSendMessage }: ChatComposerProps) {
       </div>
     </form>
   );
-}
+};
+
+export default ChatComposer;

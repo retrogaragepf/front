@@ -14,6 +14,7 @@ export interface LoginData {
 export interface AuthResponse {
   success: boolean;
   token?: string;
+  access_token?: string;
   user?: {
     id: string;
     email: string;

@@ -9,11 +9,11 @@ interface ChatMessagesProps {
   currentUserId?: string | null;
 }
 
-export default function ChatMessages({
+const ChatMessages = ({
   messages,
   currentParticipant,
   currentUserId,
-}: ChatMessagesProps) {
+}: ChatMessagesProps) => {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -38,13 +38,15 @@ export default function ChatMessages({
             className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
           >
             <article
-              className={`max-w-[80%] rounded-lg border px-4 py-3 text-sm shadow-sm ${
+              className={`max-w-[82%] rounded-lg border px-4 py-3 text-[13px] shadow-sm ${
                 isOwnMessage
                   ? "border-emerald-950 bg-emerald-900 text-amber-50"
                   : "border-amber-300 bg-amber-50 text-zinc-900"
               }`}
             >
-              <p className="leading-relaxed">{message.content}</p>
+              <p className="leading-relaxed whitespace-pre-wrap break-words">
+                {message.content}
+              </p>
               <span
                 className={`mt-2 block text-[10px] uppercase tracking-widest ${
                   isOwnMessage ? "text-amber-200/75" : "text-emerald-900/70"
@@ -59,4 +61,6 @@ export default function ChatMessages({
       <div ref={bottomRef} />
     </div>
   );
-}
+};
+
+export default ChatMessages;

@@ -1,9 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useChat } from "@/src/context/ChatContext";
 
-export default function Sidebar() {
+const Sidebar = () => {
   const router = useRouter();
+  const { openChat } = useChat();
+
+  const handleOpenChat = () => {
+    console.log("[Sidebar] open chat from dashboard");
+    openChat({ asParticipant: "customer" });
+  };
 
   return (
     <aside className="w-64 min-h-screen bg-amber-100 border-r-4 border-slate-900 flex flex-col">
@@ -54,6 +61,17 @@ export default function Sidebar() {
         >
           Reseñas como vendedor
         </button>
+
+        <button
+          onClick={handleOpenChat}
+          className="
+            w-full px-4 py-3 rounded-lg border-2 text-left font-bold transition
+            border-emerald-900 bg-amber-900 text-amber-50
+            hover:bg-amber-50 hover:text-emerald-900
+          "
+        >
+          Chat con usuarios
+        </button>
       </nav>
 
       <div className="p-4 border-t-2 border-dashed space-y-3">
@@ -70,4 +88,6 @@ export default function Sidebar() {
       </div>
     </aside>
   );
-}
+};
+
+export default Sidebar;

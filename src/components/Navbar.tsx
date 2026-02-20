@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
 import { signOut } from "next-auth/react";
 
-function Navbar() {
+const Navbar = () => {
   const { dataUser, logout } = useAuth();
   const router = useRouter();
 
@@ -139,7 +139,7 @@ function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
-          {isLogged && (
+          {isLogged && hasUnreadMessages && (
             <button
               type="button"
               onClick={() => openChat()}
@@ -148,12 +148,10 @@ function Navbar() {
               title="Mensajes"
             >
               <span className="text-lg">💬</span>
-              {hasUnreadMessages && (
-                <span
-                  className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
-                  aria-label={`${unreadTotal} mensajes nuevos`}
-                />
-              )}
+              <span
+                className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
+                aria-label={`${unreadTotal} mensajes nuevos`}
+              />
             </button>
           )}
 
@@ -266,7 +264,7 @@ function Navbar() {
               </li>
             )}
 
-            {isLogged && (
+            {isLogged && hasUnreadMessages && (
               <li>
                 <button
                   type="button"
@@ -274,9 +272,7 @@ function Navbar() {
                   className="relative hover:text-emerald-900 transition"
                 >
                   Chat
-                  {hasUnreadMessages && (
-                    <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
-                  )}
+                  <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
                 </button>
               </li>
             )}
@@ -291,6 +287,6 @@ function Navbar() {
       </div>
     </header>
   );
-}
+};
 
 export default Navbar;

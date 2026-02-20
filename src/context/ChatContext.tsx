@@ -18,6 +18,7 @@ import {
 } from "@/src/types/chat.types";
 import { chatService } from "@/src/services/chat.services";
 import { useAuth } from "@/src/context/AuthContext";
+import { showToast } from "nextjs-toast-notify";
 
 interface ChatContextValue {
   isChatOpen: boolean;
@@ -88,6 +89,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const conversationsRef = useRef<ChatConversation[]>([]);
   const activeConversationRef = useRef<string>("");
   const socketRef = useRef<SocketLike | null>(null);
+  const previousUnreadRef = useRef(0);
+  const unreadReadyRef = useRef(false);
 
   useEffect(() => {
     conversationsRef.current = conversations;
@@ -400,6 +403,31 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       ),
     [conversations],
   );
+
+  useEffect(() => {
+    if (!unreadReadyRef.current) {
+      unreadReadyRef.current = true;
+      previousUnreadRef.current = unreadTotal;
+      return;
+    }
+
+    if (canUseChat && unreadTotal > previousUnreadRef.current) {
+      console.log("[ChatContext] mensaje nuevo recibido", {
+        previousUnread: previousUnreadRef.current,
+        unreadTotal,
+      });
+      showToast.info("Mensaje nuevo recibido", {
+        duration: 2200,
+        progress: true,
+        position: "top-right",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+    }
+
+    previousUnreadRef.current = unreadTotal;
+  }, [canUseChat, unreadTotal]);
 
   return (
     <ChatContext.Provider

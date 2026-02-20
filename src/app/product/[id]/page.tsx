@@ -157,11 +157,29 @@ const ProductDetailPage = () => {
                       return;
                     }
 
+                    const sellerId = product.seller?.id
+                      ? String(product.seller.id)
+                      : "";
+                    if (!sellerId) {
+                      showToast.error(
+                        "No se encontró el vendedor para iniciar el chat.",
+                        {
+                          duration: 2500,
+                          progress: true,
+                          position: "top-center",
+                          transition: "popUp",
+                          icon: "",
+                          sound: true,
+                        },
+                      );
+                      return;
+                    }
+
                     openChat({
                       asParticipant: "customer",
                       product: product.title,
                       sellerName: product.seller?.fullName ?? "Vendedor",
-                      sellerId: product.seller?.id,
+                      sellerId,
                       customerName,
                       customerId: customerId ? String(customerId) : undefined,
                     });

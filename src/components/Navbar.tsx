@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
+import { useChat } from "@/src/context/ChatContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
@@ -12,6 +13,7 @@ function Navbar() {
   const router = useRouter();
 
   const { cartItems } = useCart();
+  const { openChat, hasUnreadMessages, unreadTotal } = useChat();
   const itemsCart = cartItems.length;
 
   const safeName =
@@ -137,6 +139,24 @@ function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
+          {isLogged && (
+            <button
+              type="button"
+              onClick={() => openChat()}
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-300 bg-amber-50 transition hover:bg-amber-200"
+              aria-label="Mensajes"
+              title="Mensajes"
+            >
+              <span className="text-lg">💬</span>
+              {hasUnreadMessages && (
+                <span
+                  className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
+                  aria-label={`${unreadTotal} mensajes nuevos`}
+                />
+              )}
+            </button>
+          )}
+
           <Link
             href="/cart"
             className="relative inline-flex items-center justify-center w-10 h-10 rounded-full border border-amber-300 bg-amber-50 hover:bg-amber-200 transition"
@@ -242,6 +262,21 @@ function Navbar() {
                   className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
                 >
                   Mi Perfil
+                </button>
+              </li>
+            )}
+
+            {isLogged && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => openChat()}
+                  className="relative hover:text-emerald-900 transition"
+                >
+                  Chat
+                  {hasUnreadMessages && (
+                    <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
+                  )}
                 </button>
               </li>
             )}

@@ -16,6 +16,22 @@ async function apiPost(path: string, data: unknown) {
   });
 }
 
+function normalizeAuthResponse(payload: any): AuthResponse {
+  if (!payload || typeof payload !== "object") {
+    return { success: false, error: "Respuesta inválida del servidor" };
+  }
+
+  const token = payload.token ?? payload.access_token ?? null;
+  return {
+    ...payload,
+    token: typeof token === "string" ? token : undefined,
+    success:
+      typeof payload.success === "boolean"
+        ? payload.success
+        : Boolean(token || payload.user || payload.message),
+  };
+}
+
 function includesConfirmPasswordFieldError(message: unknown): boolean {
   if (Array.isArray(message)) {
     return message.some(
@@ -39,7 +55,7 @@ export const authService = {
 
     try {
       const response = await apiPost("/auth/signup", payload);
-      return response.data;
+      return normalizeAuthResponse(response.data);
     } catch (error: any) {
       // Compatibilidad: algunos backends rechazan campos extra (whitelist).
       if (
@@ -49,7 +65,7 @@ export const authService = {
         const { confirmPassword, ...fallbackPayload } = payload;
         try {
           const fallbackResponse = await apiPost("/auth/signup", fallbackPayload);
-          return fallbackResponse.data;
+          return normalizeAuthResponse(fallbackResponse.data);
         } catch (fallbackError: any) {
           return (
             fallbackError.response?.data || {
@@ -72,7 +88,7 @@ export const authService = {
   login: async (data: LoginData): Promise<AuthResponse> => {
     try {
       const response = await apiPost("/auth/signin", data);
-      return response.data;
+      return normalizeAuthResponse(response.data);
     } catch (error: any) {
       return error.response?.data || { success: false, error: "Error en login" };
     }
@@ -81,7 +97,7 @@ export const authService = {
   googleLogin: async (data: { idToken: string }): Promise<AuthResponse> => {
     try {
       const response = await apiPost("/auth/google", data);
-      return response.data;
+      return normalizeAuthResponse(response.data);
     } catch (error: any) {
       return (
         error.response?.data || {

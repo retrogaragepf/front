@@ -75,6 +75,25 @@ function appendMessageSafe(messages: ChatMessage[], next: ChatMessage): ChatMess
   return [...messages, next].sort((a, b) => a.createdAt - b.createdAt);
 }
 
+function dedupeConversations(list: ChatConversation[]): ChatConversation[] {
+  const map = new Map<string, ChatConversation>();
+  list.forEach((conversation) => {
+    if (!conversation.id) return;
+    const previous = map.get(conversation.id);
+    map.set(conversation.id, previous ? { ...previous, ...conversation } : conversation);
+  });
+  return Array.from(map.values());
+}
+
+function replaceOptimisticMessage(
+  list: ChatMessage[],
+  optimisticId: string,
+  persisted: ChatMessage,
+): ChatMessage[] {
+  const filtered = list.filter((message) => message.id !== optimisticId);
+  return appendMessageSafe(filtered, persisted);
+}
+
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -108,12 +127,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (!canUseChat) return;
     try {
       const remoteConversations = await chatService.getConversations();
-      setConversations(remoteConversations);
+      const normalizedConversations = dedupeConversations(remoteConversations);
+      setConversations(normalizedConversations);
       setActiveConversationId((prev) => {
-        if (prev && remoteConversations.some((conversation) => conversation.id === prev)) {
+        if (prev && normalizedConversations.some((conversation) => conversation.id === prev)) {
           return prev;
         }
-        return remoteConversations[0]?.id ?? "";
+        return normalizedConversations[0]?.id ?? "";
       });
     } catch (error) {
       if ((error as Error).message === "NO_AUTH") return;
@@ -250,6 +270,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       script.src = "https://cdn.socket.io/4.7.5/socket.io.min.js";
       script.async = true;
       script.onload = mountSocket;
+      script.onerror = () => {
+        console.warn(
+          "[ChatContext] socket.io bloqueado por navegador/extensión. Chat seguirá por REST.",
+        );
+      };
       document.body.appendChild(script);
     } else {
       const existingScript = document.getElementById(scriptId);
@@ -296,7 +321,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       participantIds: [customerId, sellerId],
     };
 
-    setConversations((prev) => [hydratedConversation, ...prev]);
+    setConversations((prev) => dedupeConversations([hydratedConversation, ...prev]));
     setMessagesByConversation((prev) => ({
       ...prev,
       [hydratedConversation.id]: prev[hydratedConversation.id] ?? [],
@@ -437,8 +462,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
         setMessagesByConversation((prev) => ({
           ...prev,
-          [activeConversationId]: (prev[activeConversationId] ?? []).map((message) =>
-            message.id === optimisticMessage.id ? persistedMessage : message,
+          [activeConversationId]: replaceOptimisticMessage(
+            prev[activeConversationId] ?? [],
+            optimisticMessage.id,
+            persistedMessage,
           ),
         }));
       } catch (error) {

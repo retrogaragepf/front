@@ -95,7 +95,7 @@ const ChatModal = () => {
               {activeConversation ? (
                 <>
                   <p className="font-display text-xs uppercase tracking-[0.2em] text-emerald-900/80">
-                    Vendedor: {activeConversation.sellerName || "Usuario"}
+                    Usuario: {activeConversation.sellerName || "Usuario"}
                   </p>
                   <p className="text-sm text-zinc-800">
                     Producto:{" "}

@@ -69,6 +69,33 @@ function getString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
+function getParticipantId(record: ApiRecord): string {
+  return String(record.id ?? record.userId ?? record._id ?? "");
+}
+
+function getParticipantName(record: ApiRecord): string {
+  return (
+    getString(record.name) ||
+    getString(record.fullName) ||
+    getString(record.username) ||
+    getString(record.email)
+  );
+}
+
+function getProductLabel(record: ApiRecord): string {
+  const direct = getString(record.productTitle) || getString(record.productName);
+  if (direct) return direct;
+  if (typeof record.product === "string") return record.product;
+  if (isRecord(record.product)) {
+    return (
+      getString(record.product.title) ||
+      getString(record.product.name) ||
+      getString(record.product.description)
+    );
+  }
+  return "";
+}
+
 function formatTime(createdAt: number): string {
   return new Date(createdAt).toLocaleTimeString("es-CO", {
     hour: "2-digit",
@@ -80,42 +107,47 @@ function formatTime(createdAt: number): string {
 function normalizeConversation(raw: ApiRecord): ChatConversation {
   const row = asRecord(raw.conversation);
   const rowRecord = Object.keys(row).length > 0 ? row : raw;
-  const rootParticipants = Array.isArray(raw.participants) ? raw.participants : [];
-  const rowParticipants = Array.isArray(rowRecord.participants)
-    ? rowRecord.participants
-    : [];
-  const participants: ApiRecord[] = [...rootParticipants, ...rowParticipants]
-    .filter(isRecord);
+  const participantCandidates: unknown[] = [
+    ...(Array.isArray(raw.participants) ? raw.participants : []),
+    ...(Array.isArray(rowRecord.participants) ? rowRecord.participants : []),
+    ...(Array.isArray(raw.users) ? raw.users : []),
+    ...(Array.isArray(rowRecord.users) ? rowRecord.users : []),
+    raw.user,
+    rowRecord.user,
+    raw.otherUser,
+    rowRecord.otherUser,
+    raw.participant,
+    rowRecord.participant,
+  ];
+  const participants: ApiRecord[] = participantCandidates.filter(isRecord);
 
   const currentUserId = getCurrentUserIdFromToken();
   const otherParticipant =
-    participants.find((p) => String(p.id ?? p.userId ?? "") !== currentUserId) ??
+    participants.find((p) => getParticipantId(p) !== currentUserId) ??
     participants[0] ??
     null;
 
-  const otherName =
-    getString(otherParticipant?.name) ||
-    getString(otherParticipant?.fullName) ||
-    getString(otherParticipant?.email) ||
-    "Usuario";
+  const otherName = otherParticipant ? getParticipantName(otherParticipant) : "";
   const ownParticipant =
-    participants.find((p) => String(p.id ?? p.userId ?? "") === currentUserId) ?? null;
+    participants.find((p) => getParticipantId(p) === currentUserId) ?? null;
   const ownName =
     getString(ownParticipant?.name) || getString(ownParticipant?.fullName) || "Tú";
 
   const participantIds = participants
-    .map((p) => String(p?.id ?? p?.userId ?? ""))
+    .map((p) => getParticipantId(p))
     .filter(Boolean);
+
+  const productLabel = getProductLabel(rowRecord) || getProductLabel(raw);
 
   return {
     id: String(rowRecord.id ?? rowRecord._id ?? ""),
-    sellerName: String(otherName),
-    sellerId: otherParticipant?.id ? String(otherParticipant.id) : undefined,
-    seller: { name: String(otherName) },
+    sellerName: String(otherName || "Usuario"),
+    sellerId: otherParticipant ? getParticipantId(otherParticipant) || undefined : undefined,
+    seller: { name: String(otherName || "Usuario") },
     customer: String(ownName),
-    customerId: ownParticipant?.id ? String(ownParticipant.id) : currentUserId ?? undefined,
+    customerId: ownParticipant ? getParticipantId(ownParticipant) || undefined : currentUserId ?? undefined,
     participantIds,
-    product: String(rowRecord.product ?? rowRecord.productTitle ?? ""),
+    product: String(productLabel),
     lastMessage: String(
       (isRecord(rowRecord.lastMessage) ? rowRecord.lastMessage.content : null) ??
         rowRecord.lastMessage ??
@@ -123,7 +155,12 @@ function normalizeConversation(raw: ApiRecord): ChatConversation {
         raw.lastMessage ??
         "",
     ),
-    timestamp: String(rowRecord.updatedAt ?? rowRecord.createdAt ?? "Ahora"),
+    timestamp: String(
+      (isRecord(rowRecord.lastMessage) ? rowRecord.lastMessage.createdAt : null) ??
+        rowRecord.updatedAt ??
+        rowRecord.createdAt ??
+        "",
+    ),
     unreadCount: Number(raw.unreadCount ?? rowRecord.unreadCount ?? 0) || 0,
   };
 }

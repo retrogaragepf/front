@@ -1,7 +1,7 @@
 import { authService } from "@/src/services/auth";
 import { ChatConversation, ChatMessage } from "@/src/types/chat.types";
 
-type ApiRecord = Record<string, any>;
+type ApiRecord = Record<string, unknown>;
 
 function getApiBaseUrl(): string {
   return (
@@ -20,7 +20,7 @@ function assertToken(): string {
   return token;
 }
 
-function parseJwtPayload(token: string | null): Record<string, any> | null {
+function parseJwtPayload(token: string | null): Record<string, unknown> | null {
   if (!token) return null;
   try {
     const parts = token.split(".");
@@ -45,6 +45,30 @@ async function parseJsonSafe(response: Response) {
   return isJson && text ? JSON.parse(text) : text;
 }
 
+function isRecord(value: unknown): value is ApiRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function getErrorMessage(data: unknown, fallback: string): string {
+  if (typeof data === "string") return data;
+  if (isRecord(data) && typeof data.message === "string") return data.message;
+  return fallback;
+}
+
+function getDataArray(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  if (isRecord(data) && Array.isArray(data.data)) return data.data;
+  return [];
+}
+
+function asRecord(value: unknown): ApiRecord {
+  return isRecord(value) ? value : {};
+}
+
+function getString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
 function formatTime(createdAt: number): string {
   return new Date(createdAt).toLocaleTimeString("es-CO", {
     hour: "2-digit",
@@ -54,47 +78,53 @@ function formatTime(createdAt: number): string {
 }
 
 function normalizeConversation(raw: ApiRecord): ChatConversation {
-  const row = raw?.conversation ?? raw;
-  const participants: ApiRecord[] = Array.isArray(raw?.participants)
-    ? raw.participants
-    : Array.isArray(row?.participants)
-      ? row.participants
-      : [];
+  const row = asRecord(raw.conversation);
+  const rowRecord = Object.keys(row).length > 0 ? row : raw;
+  const rootParticipants = Array.isArray(raw.participants) ? raw.participants : [];
+  const rowParticipants = Array.isArray(rowRecord.participants)
+    ? rowRecord.participants
+    : [];
+  const participants: ApiRecord[] = [...rootParticipants, ...rowParticipants]
+    .filter(isRecord);
 
   const currentUserId = getCurrentUserIdFromToken();
   const otherParticipant =
-    participants.find((p) => String(p?.id ?? p?.userId ?? "") !== currentUserId) ??
+    participants.find((p) => String(p.id ?? p.userId ?? "") !== currentUserId) ??
     participants[0] ??
     null;
 
   const otherName =
-    otherParticipant?.name ?? otherParticipant?.fullName ?? otherParticipant?.email ?? "Usuario";
+    getString(otherParticipant?.name) ||
+    getString(otherParticipant?.fullName) ||
+    getString(otherParticipant?.email) ||
+    "Usuario";
   const ownParticipant =
-    participants.find((p) => String(p?.id ?? p?.userId ?? "") === currentUserId) ?? null;
-  const ownName = ownParticipant?.name ?? ownParticipant?.fullName ?? "Tú";
+    participants.find((p) => String(p.id ?? p.userId ?? "") === currentUserId) ?? null;
+  const ownName =
+    getString(ownParticipant?.name) || getString(ownParticipant?.fullName) || "Tú";
 
   const participantIds = participants
     .map((p) => String(p?.id ?? p?.userId ?? ""))
     .filter(Boolean);
 
   return {
-    id: String(row?.id ?? row?._id ?? ""),
+    id: String(rowRecord.id ?? rowRecord._id ?? ""),
     sellerName: String(otherName),
     sellerId: otherParticipant?.id ? String(otherParticipant.id) : undefined,
     seller: { name: String(otherName) },
     customer: String(ownName),
     customerId: ownParticipant?.id ? String(ownParticipant.id) : currentUserId ?? undefined,
     participantIds,
-    product: String(row?.product ?? row?.productTitle ?? "Chat privado"),
+    product: String(rowRecord.product ?? rowRecord.productTitle ?? "Chat privado"),
     lastMessage: String(
-      row?.lastMessage?.content ??
-        row?.lastMessage ??
-        raw?.lastMessage?.content ??
-        raw?.lastMessage ??
+      (isRecord(rowRecord.lastMessage) ? rowRecord.lastMessage.content : null) ??
+        rowRecord.lastMessage ??
+        (isRecord(raw.lastMessage) ? raw.lastMessage.content : null) ??
+        raw.lastMessage ??
         "",
     ),
-    timestamp: String(row?.updatedAt ?? row?.createdAt ?? "Ahora"),
-    unreadCount: Number(raw?.unreadCount ?? row?.unreadCount ?? 0) || 0,
+    timestamp: String(rowRecord.updatedAt ?? rowRecord.createdAt ?? "Ahora"),
+    unreadCount: Number(raw.unreadCount ?? rowRecord.unreadCount ?? 0) || 0,
   };
 }
 
@@ -103,20 +133,25 @@ function normalizeMessage(
   conversationId: string,
   currentUserId?: string | null,
 ): ChatMessage {
-  const sender = raw?.sender ?? {};
-  const senderId = String(sender?.id ?? raw?.senderId ?? "");
+  const sender = asRecord(raw.sender);
+  const senderId = String(sender.id ?? raw.senderId ?? "");
   const mine = Boolean(currentUserId && senderId && senderId === currentUserId);
-  const createdAt = new Date(raw?.createdAt ?? Date.now()).getTime();
+  const createdAtValue = raw.createdAt;
+  const createdAt =
+    typeof createdAtValue === "string" || typeof createdAtValue === "number"
+      ? new Date(createdAtValue).getTime()
+      : Date.now();
   const safeCreatedAt = Number.isFinite(createdAt) ? createdAt : Date.now();
 
   return {
-    id: String(raw?.id ?? raw?._id ?? `${conversationId}-${safeCreatedAt}`),
-    conversationId: String(raw?.conversationId ?? conversationId),
+    id: String(raw.id ?? raw._id ?? `${conversationId}-${safeCreatedAt}`),
+    conversationId: String(raw.conversationId ?? conversationId),
     senderId: senderId || undefined,
-    senderName: sender?.name ?? sender?.fullName ?? sender?.email ?? undefined,
-    isRead: Boolean(raw?.isRead),
+    senderName:
+      getString(sender.name) || getString(sender.fullName) || getString(sender.email) || undefined,
+    isRead: Boolean(raw.isRead),
     from: mine ? "customer" : "seller",
-    content: String(raw?.content ?? ""),
+    content: String(raw.content ?? ""),
     time: formatTime(safeCreatedAt),
     createdAt: safeCreatedAt,
   };
@@ -135,16 +170,13 @@ async function requestGet(path: string) {
   });
   const data = await parseJsonSafe(response);
   if (!response.ok) {
-    const message =
-      typeof data === "string"
-        ? data
-        : (data as any)?.message || "Error consultando chat.";
+    const message = getErrorMessage(data, "Error consultando chat.");
     throw new Error(message);
   }
   return data;
 }
 
-async function requestPost(path: string, body: Record<string, any>) {
+async function requestPost(path: string, body: Record<string, unknown>) {
   const token = assertToken();
   const base = getApiBaseUrl();
   const response = await fetch(`${base}${path}`, {
@@ -157,10 +189,7 @@ async function requestPost(path: string, body: Record<string, any>) {
   });
   const data = await parseJsonSafe(response);
   if (!response.ok) {
-    const message =
-      typeof data === "string"
-        ? data
-        : (data as any)?.message || "Error enviando datos de chat.";
+    const message = getErrorMessage(data, "Error enviando datos de chat.");
     throw new Error(message);
   }
   return data;
@@ -191,14 +220,11 @@ export const chatService = {
 
   async getConversations(): Promise<ChatConversation[]> {
     const data = await requestGet("/chat/my-conversations");
-    const list = Array.isArray(data)
-      ? data
-      : Array.isArray((data as any)?.data)
-        ? (data as any).data
-        : [];
+    const list = getDataArray(data);
 
     return list
-      .map((row: ApiRecord) => normalizeConversation(row))
+      .filter(isRecord)
+      .map((row) => normalizeConversation(row))
       .filter((conversation: ChatConversation) => Boolean(conversation.id));
   },
 
@@ -206,15 +232,11 @@ export const chatService = {
     const encodedId = encodeURIComponent(conversationId);
     const data = await requestGet(`/chat/conversation/${encodedId}/messages`);
     const currentUserId = getCurrentUserIdFromToken();
-    const list = Array.isArray(data)
-      ? data
-      : Array.isArray((data as any)?.data)
-        ? (data as any).data
-        : [];
+    const list = getDataArray(data);
 
-    return list.map((row: ApiRecord) =>
-      normalizeMessage(row, conversationId, currentUserId),
-    );
+    return list
+      .filter(isRecord)
+      .map((row) => normalizeMessage(row, conversationId, currentUserId));
   },
 
   async createConversation(payload: {

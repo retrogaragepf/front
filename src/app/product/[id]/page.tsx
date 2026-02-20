@@ -69,9 +69,13 @@ const ProductDetailPage = () => {
   const productRecord = product as unknown as Record<string, unknown>;
   const sellerRecord =
     (productRecord.seller as Record<string, unknown> | undefined) ?? undefined;
+  const productUserRecord =
+    (productRecord.user as Record<string, unknown> | undefined) ?? undefined;
   const fallbackOwnerRecord =
     (productRecord.owner as Record<string, unknown> | undefined) ?? undefined;
   const resolvedSellerId =
+    (productUserRecord?.id ? String(productUserRecord.id) : "") ||
+    (productUserRecord?.userId ? String(productUserRecord.userId) : "") ||
     (sellerRecord?.id ? String(sellerRecord.id) : "") ||
     (sellerRecord?.userId ? String(sellerRecord.userId) : "") ||
     (sellerRecord?.sellerId ? String(sellerRecord.sellerId) : "") ||
@@ -83,6 +87,8 @@ const ProductDetailPage = () => {
     (fallbackOwnerRecord?.id ? String(fallbackOwnerRecord.id) : "") ||
     (fallbackOwnerRecord?.userId ? String(fallbackOwnerRecord.userId) : "");
   const resolvedSellerName =
+    (productUserRecord?.name ? String(productUserRecord.name) : "") ||
+    (productUserRecord?.fullName ? String(productUserRecord.fullName) : "") ||
     (sellerRecord?.fullName ? String(sellerRecord.fullName) : "") ||
     (sellerRecord?.name ? String(sellerRecord.name) : "") ||
     (fallbackOwnerRecord?.fullName ? String(fallbackOwnerRecord.fullName) : "") ||
@@ -182,6 +188,7 @@ const ProductDetailPage = () => {
 
                     console.log("[ProductDetailPage] chat seller resolution", {
                       resolvedSellerId,
+                      userFromObject: productUserRecord,
                       sellerFromObject: sellerRecord,
                       ownerFromObject: fallbackOwnerRecord,
                       productKeys: Object.keys(productRecord),

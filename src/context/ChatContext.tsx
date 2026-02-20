@@ -37,14 +37,14 @@ interface ChatContextValue {
 
 interface SocketLike {
   connected: boolean;
-  on: (event: string, cb: (...args: any[]) => void) => void;
-  emit: (event: string, ...args: any[]) => void;
+  on: (event: string, cb: (...args: unknown[]) => void) => void;
+  emit: (event: string, ...args: unknown[]) => void;
   disconnect: () => void;
 }
 
 declare global {
   interface Window {
-    io?: (url: string, options?: Record<string, any>) => SocketLike;
+    io?: (url: string, options?: Record<string, unknown>) => SocketLike;
   }
 }
 
@@ -73,6 +73,10 @@ const formatTime = (date = new Date()): string =>
 function appendMessageSafe(messages: ChatMessage[], next: ChatMessage): ChatMessage[] {
   if (messages.some((message) => message.id === next.id)) return messages;
   return [...messages, next].sort((a, b) => a.createdAt - b.createdAt);
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
@@ -130,6 +134,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("No se pudieron sincronizar mensajes:", error);
     }
   }, [canUseChat]);
+
+  const clearUnreadLocal = useCallback((conversationId: string) => {
+    setConversations((prev) =>
+      prev.map((conversation) =>
+        conversation.id === conversationId
+          ? { ...conversation, unreadCount: 0 }
+          : conversation,
+      ),
+    );
+  }, []);
 
   const joinConversationRoom = useCallback((conversationId: string) => {
     if (!conversationId || !socketRef.current?.connected) return;
@@ -190,13 +204,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         console.error("Error conectando socket chat:", error);
       });
 
-      socket.on("newMessage", (payload: Record<string, any>) => {
+      socket.on("newMessage", (...args: unknown[]) => {
+        const payload = args[0];
+        if (!isObjectRecord(payload)) return;
         const fallbackConversationId = activeConversationRef.current;
         const incoming = chatService.normalizeSocketMessage(
           payload,
           fallbackConversationId,
         );
         if (!incoming) return;
+        const liveUserId = chatService.getCurrentUserId();
+        if (liveUserId && incoming.senderId === liveUserId) return;
 
         setMessagesByConversation((prev) => ({
           ...prev,
@@ -215,9 +233,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               ...conversation,
               lastMessage: incoming.content,
               timestamp: `Hoy, ${incoming.time}`,
-              unreadCount: isOpenConversation
-                ? conversation.unreadCount
-                : conversation.unreadCount + 1,
+              unreadCount: isOpenConversation ? 0 : conversation.unreadCount + 1,
             };
           }),
         );
@@ -315,9 +331,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const selectConversation = useCallback(
     (conversationId: string) => {
       setActiveConversationId(conversationId);
+      clearUnreadLocal(conversationId);
       joinConversationRoom(conversationId);
     },
-    [joinConversationRoom],
+    [clearUnreadLocal, joinConversationRoom],
   );
 
   const sendMessage = useCallback(
@@ -403,6 +420,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       ),
     [conversations],
   );
+
+  useEffect(() => {
+    if (!isChatOpen || !activeConversationId) return;
+    clearUnreadLocal(activeConversationId);
+  }, [activeConversationId, clearUnreadLocal, isChatOpen]);
 
   useEffect(() => {
     if (!unreadReadyRef.current) {

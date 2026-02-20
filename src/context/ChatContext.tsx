@@ -85,6 +85,33 @@ function dedupeConversations(list: ChatConversation[]): ChatConversation[] {
   return Array.from(map.values());
 }
 
+function mergeConversationData(
+  remote: ChatConversation,
+  previous?: ChatConversation,
+): ChatConversation {
+  if (!previous) return remote;
+
+  const remoteName = remote.sellerName?.trim() || "";
+  const prevName = previous.sellerName?.trim() || "";
+  const remoteProduct = remote.product?.trim() || "";
+  const prevProduct = previous.product?.trim() || "";
+
+  const sellerName =
+    remoteName && remoteName !== "Usuario" ? remoteName : prevName || remoteName;
+  const product =
+    remoteProduct && remoteProduct !== "Chat privado"
+      ? remoteProduct
+      : prevProduct || remoteProduct;
+
+  return {
+    ...remote,
+    sellerName,
+    seller: { name: sellerName || remote.seller?.name || previous.seller?.name || "Usuario" },
+    product: product || "Chat privado",
+    unreadCount: Math.max(remote.unreadCount, previous.unreadCount),
+  };
+}
+
 function replaceOptimisticMessage(
   list: ChatMessage[],
   optimisticId: string,
@@ -128,7 +155,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const remoteConversations = await chatService.getConversations();
       const normalizedConversations = dedupeConversations(remoteConversations);
-      setConversations(normalizedConversations);
+      setConversations((prev) => {
+        const prevById = new Map(prev.map((conversation) => [conversation.id, conversation]));
+        return normalizedConversations.map((conversation) =>
+          mergeConversationData(conversation, prevById.get(conversation.id)),
+        );
+      });
       setActiveConversationId((prev) => {
         if (prev && normalizedConversations.some((conversation) => conversation.id === prev)) {
           return prev;
@@ -321,7 +353,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       participantIds: [customerId, sellerId],
     };
 
-    setConversations((prev) => dedupeConversations([hydratedConversation, ...prev]));
+    setConversations((prev) => {
+      const merged = dedupeConversations([hydratedConversation, ...prev]);
+      return merged.map((conversation) =>
+        conversation.id === hydratedConversation.id
+          ? mergeConversationData(hydratedConversation, conversation)
+          : conversation,
+      );
+    });
     setMessagesByConversation((prev) => ({
       ...prev,
       [hydratedConversation.id]: prev[hydratedConversation.id] ?? [],

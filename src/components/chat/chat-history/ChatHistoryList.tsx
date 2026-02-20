@@ -8,11 +8,23 @@ interface ChatHistoryListProps {
   onSelectConversation: (conversationId: string) => void;
 }
 
-export default function ChatHistoryList({
+const formatShortDateTime = (value: string): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value || "Ahora";
+  return date.toLocaleString("es-CO", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+};
+
+const ChatHistoryList = ({
   conversations,
   activeConversationId,
   onSelectConversation,
-}: ChatHistoryListProps) {
+}: ChatHistoryListProps) => {
   return (
     <aside className="h-full overflow-hidden rounded-xl border border-amber-300 bg-amber-50/90 shadow-sm">
       <div className="border-b border-amber-300 px-4 py-3">
@@ -37,17 +49,17 @@ export default function ChatHistoryList({
               >
                 <div className="flex items-center justify-between gap-3">
                   <p className="truncate font-display text-xs uppercase tracking-[0.15em] text-emerald-900">
-                    {conversation.customer}
+                    {conversation.sellerName || "Usuario"}
                   </p>
                   <span className="text-[10px] text-amber-900/70">
-                    {conversation.timestamp}
+                    {formatShortDateTime(conversation.timestamp)}
                   </span>
                 </div>
                 <p className="mt-1 truncate text-xs text-amber-900/80 italic">
-                  {conversation.product}
+                  Producto: {conversation.product || "Sin referencia"}
                 </p>
                 <p className="mt-2 line-clamp-2 text-sm text-zinc-800">
-                  {conversation.lastMessage}
+                  {conversation.lastMessage || "Sin mensajes aún"}
                 </p>
 
                 {conversation.unreadCount > 0 && (
@@ -62,4 +74,6 @@ export default function ChatHistoryList({
       </ul>
     </aside>
   );
-}
+};
+
+export default ChatHistoryList;

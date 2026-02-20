@@ -99,15 +99,13 @@ function mergeConversationData(
   const sellerName =
     remoteName && remoteName !== "Usuario" ? remoteName : prevName || remoteName;
   const product =
-    remoteProduct && remoteProduct !== "Chat privado"
-      ? remoteProduct
-      : prevProduct || remoteProduct;
+    remoteProduct ? remoteProduct : prevProduct || "";
 
   return {
     ...remote,
     sellerName,
     seller: { name: sellerName || remote.seller?.name || previous.seller?.name || "Usuario" },
-    product: product || "Chat privado",
+    product: product || "",
     unreadCount: Math.max(remote.unreadCount, previous.unreadCount),
   };
 }

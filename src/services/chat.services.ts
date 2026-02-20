@@ -115,7 +115,7 @@ function normalizeConversation(raw: ApiRecord): ChatConversation {
     customer: String(ownName),
     customerId: ownParticipant?.id ? String(ownParticipant.id) : currentUserId ?? undefined,
     participantIds,
-    product: String(rowRecord.product ?? rowRecord.productTitle ?? "Chat privado"),
+    product: String(rowRecord.product ?? rowRecord.productTitle ?? ""),
     lastMessage: String(
       (isRecord(rowRecord.lastMessage) ? rowRecord.lastMessage.content : null) ??
         rowRecord.lastMessage ??

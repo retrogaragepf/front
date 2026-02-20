@@ -69,14 +69,24 @@ const ProductDetailPage = () => {
   const productRecord = product as unknown as Record<string, unknown>;
   const sellerRecord =
     (productRecord.seller as Record<string, unknown> | undefined) ?? undefined;
+  const fallbackOwnerRecord =
+    (productRecord.owner as Record<string, unknown> | undefined) ?? undefined;
   const resolvedSellerId =
     (sellerRecord?.id ? String(sellerRecord.id) : "") ||
+    (sellerRecord?.userId ? String(sellerRecord.userId) : "") ||
+    (sellerRecord?.sellerId ? String(sellerRecord.sellerId) : "") ||
     (productRecord.sellerId ? String(productRecord.sellerId) : "") ||
+    (productRecord.sellerID ? String(productRecord.sellerID) : "") ||
+    (productRecord.seller_id ? String(productRecord.seller_id) : "") ||
     (productRecord.userId ? String(productRecord.userId) : "") ||
-    (productRecord.ownerId ? String(productRecord.ownerId) : "");
+    (productRecord.ownerId ? String(productRecord.ownerId) : "") ||
+    (fallbackOwnerRecord?.id ? String(fallbackOwnerRecord.id) : "") ||
+    (fallbackOwnerRecord?.userId ? String(fallbackOwnerRecord.userId) : "");
   const resolvedSellerName =
     (sellerRecord?.fullName ? String(sellerRecord.fullName) : "") ||
     (sellerRecord?.name ? String(sellerRecord.name) : "") ||
+    (fallbackOwnerRecord?.fullName ? String(fallbackOwnerRecord.fullName) : "") ||
+    (fallbackOwnerRecord?.name ? String(fallbackOwnerRecord.name) : "") ||
     "Vendedor";
 
   return (
@@ -173,12 +183,14 @@ const ProductDetailPage = () => {
                     console.log("[ProductDetailPage] chat seller resolution", {
                       resolvedSellerId,
                       sellerFromObject: sellerRecord,
+                      ownerFromObject: fallbackOwnerRecord,
+                      productKeys: Object.keys(productRecord),
                       productId: product.id,
                     });
 
                     if (!resolvedSellerId) {
-                      showToast.error(
-                        "No se encontró el vendedor para iniciar el chat.",
+                      showToast.warning(
+                        "No se encontró el vendedor en este producto. Se abrió tu bandeja de chats.",
                         {
                           duration: 2500,
                           progress: true,
@@ -188,6 +200,7 @@ const ProductDetailPage = () => {
                           sound: true,
                         },
                       );
+                      openChat({ asParticipant: "customer" });
                       return;
                     }
 

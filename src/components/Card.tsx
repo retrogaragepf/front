@@ -69,6 +69,10 @@ function Card({ product }: CardProps) {
     (it) => String((it as any).id) === safeId,
   );
 
+  // ✅ STOCK (solo UI + guard)
+  const stockNumber = Number((product as any)?.stock ?? 0);
+  const isOutOfStock = !Number.isFinite(stockNumber) || stockNumber <= 0;
+
   const toastOpts = {
     duration: 2500,
     progress: true,
@@ -80,6 +84,12 @@ function Card({ product }: CardProps) {
 
   const handleAddToCart = () => {
     if (!isLogged) return;
+
+    // ✅ Guard: no permitir agregar si está agotado
+    if (isOutOfStock) {
+      notify("warning", "Producto agotado por ahora.", toastOpts);
+      return;
+    }
 
     if (!safeId) {
       notify("error", "Este producto no tiene ID válido (id/_id).", {
@@ -108,6 +118,8 @@ function Card({ product }: CardProps) {
     notify("success", "Agregado al carrito", toastOpts);
   };
 
+  const addDisabled = alreadyInCart || isOutOfStock;
+
   return (
     <div className="group w-full flex flex-col">
       <div className="relative aspect-square overflow-hidden bg-amber-100 border border-amber-300 shadow-sm">
@@ -123,6 +135,15 @@ function Card({ product }: CardProps) {
         ) : (
           <div className="w-full h-full flex items-center justify-center text-zinc-700 text-sm">
             Sin imagen
+          </div>
+        )}
+
+        ✅ SOLD OUT badge opcional dentro del card
+        {isOutOfStock && (
+          <div className="absolute top-3 left-3 z-10">
+            <div className="px-3 py-1.5 text-xs shadow-md bg-rose-100 text-rose-900 font-extrabold border-2 border-zinc-900 rounded-lg">
+              AGOTADO
+            </div>
           </div>
         )}
 
@@ -166,18 +187,27 @@ function Card({ product }: CardProps) {
         {!isLoadingUser && isLogged && (
           <button
             onClick={handleAddToCart}
-            className={`text-black border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm
-          font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
-          hover:bg-amber-300 transition"
-              
+            disabled={addDisabled}
+            className={`text-black border-2 border-slate-900 px-4 py-2 text-sm font-semibold
+              shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] transition
               ${
-                alreadyInCart
-                  ? "bg-amber-800 text-black cursor-not-allowed"
+                addDisabled
+                  ? "bg-zinc-200 text-zinc-700 cursor-not-allowed opacity-80"
                   : "bg-emerald-800 text-white hover:bg-amber-900"
               }`}
-            disabled={alreadyInCart}
+            title={
+              isOutOfStock
+                ? "Producto agotado"
+                : alreadyInCart
+                  ? "Ya está en tu carrito"
+                  : "Agregar al carrito"
+            }
           >
-            {alreadyInCart ? "Ya en el 🛒" : "Agregar al 🛒"}
+            {alreadyInCart
+              ? "Ya en el 🛒"
+              : isOutOfStock
+                ? "Agotado"
+                : "Agregar al 🛒"}
           </button>
         )}
       </div>

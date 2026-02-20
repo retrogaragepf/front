@@ -31,7 +31,11 @@ function getAuthToken(): string | null {
   return null;
 }
 
-export async function createCheckoutSession(items: CheckoutItem[]) {
+// ✅ CAMBIO: agrega couponCode opcional
+export async function createCheckoutSession(
+  items: CheckoutItem[],
+  couponCode?: string,
+) {
   const token = getAuthToken();
   const baseUrl = assertApiBaseUrl();
 
@@ -41,7 +45,8 @@ export async function createCheckoutSession(items: CheckoutItem[]) {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ items }),
+    // ✅ CAMBIO: manda couponCode
+    body: JSON.stringify({ items, couponCode }),
   });
 
   const data = await res.json().catch(() => ({}));
@@ -54,3 +59,4 @@ export async function createCheckoutSession(items: CheckoutItem[]) {
 
   return data as { url: string; sessionId?: string };
 }
+

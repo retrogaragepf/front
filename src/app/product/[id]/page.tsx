@@ -7,10 +7,15 @@ import { useParams, useRouter } from "next/navigation";
 import { getProductById } from "@/src/services/products.services";
 import AddToCartButton from "@/src/components/products/AddToCartButton";
 import type { IProductWithDetails } from "@/src/interfaces/product.interface";
+import { useChat } from "@/src/context/ChatContext";
+import { useAuth } from "@/src/context/AuthContext";
+import { showToast } from "nextjs-toast-notify";
 
-export default function ProductDetailPage() {
+const ProductDetailPage = () => {
   const params = useParams();
   const router = useRouter();
+  const { openChat } = useChat();
+  const { dataUser, isAuth } = useAuth();
   const id = (params as any)?.id as string | undefined;
 
   console.log("ID:", id);
@@ -49,6 +54,17 @@ export default function ProductDetailPage() {
   const priceFormatted = Number.isFinite(priceNumber)
     ? priceNumber.toLocaleString("es-CO", { minimumFractionDigits: 0 })
     : String(product.price);
+
+  const customerName =
+    (dataUser as any)?.user?.name ??
+    (dataUser as any)?.name ??
+    (dataUser as any)?.user?.fullName ??
+    (dataUser as any)?.fullName ??
+    "Cliente";
+  const customerId =
+    (dataUser as any)?.user?.id ??
+    (dataUser as any)?.id ??
+    null;
 
   return (
     <div className="w-full bg-amber-100 text-zinc-900">
@@ -123,21 +139,51 @@ export default function ProductDetailPage() {
                   Ver carrito
                 </Link>
 
-                <Link
-                  href="/chat"
-                  className="
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isAuth) {
+                      showToast.warning(
+                        "Debes iniciar sesión para chatear con el vendedor",
+                        {
+                          duration: 2500,
+                          progress: true,
+                          position: "top-center",
+                          transition: "popUp",
+                          icon: "",
+                          sound: true,
+                        },
+                      );
+                      return;
+                    }
+
+                    openChat({
+                      asParticipant: "customer",
+                      product: product.title,
+                      sellerName: product.seller?.fullName ?? "Vendedor",
+                      sellerId: product.seller?.id,
+                      customerName,
+                      customerId: customerId ? String(customerId) : undefined,
+                    });
+                  }}
+                  className={`
                     w-full sm:w-auto text-center
                     font-handwritten px-4 py-3 rounded-xl
-                    border-2 border-amber-900
-                    bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm
+                    border-2 font-extrabold tracking-wide text-sm
                     shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
                     hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
                     active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
                     transition
-                  "
+                    ${
+                      !isAuth
+                        ? "cursor-not-allowed border-zinc-400 bg-zinc-200 text-zinc-500 shadow-none hover:translate-y-0 hover:shadow-none active:translate-y-0 active:shadow-none"
+                        : "border-amber-900 bg-amber-50 text-amber-900"
+                    }
+                  `}
+                  aria-disabled={!isAuth}
                 >
                   Chatea con el vendedor
-                </Link>
+                </button>
               </div>
             </div>
           </div>
@@ -146,3 +192,4 @@ export default function ProductDetailPage() {
     </div>
   );
 }
+export default ProductDetailPage;

@@ -1,11 +1,12 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useChat } from "@/src/context/ChatContext";
 import ChatHistoryList from "@/src/components/chat/chat-history/ChatHistoryList";
 import ChatMessages from "@/src/components/chat/chat-window/ChatMessages";
 import ChatComposer from "@/src/components/chat/chat-window/ChatComposer";
 
-export default function ChatModal() {
+const ChatModal = () => {
   const {
     isChatOpen,
     activeConversation,
@@ -17,12 +18,30 @@ export default function ChatModal() {
     selectConversation,
     sendMessage,
   } = useChat();
+  const panelRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!isChatOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeChat();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeChat, isChatOpen]);
 
   if (!isChatOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-zinc-900/50 p-3 sm:items-center">
-      <section className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border-2 border-amber-900 bg-amber-100 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.8)]">
+    <div
+      className="fixed inset-0 z-[90] flex items-end justify-center bg-zinc-900/55 p-2 sm:items-center sm:p-4"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) closeChat();
+      }}
+    >
+      <section
+        ref={panelRef}
+        className="flex h-[min(86vh,780px)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border-2 border-amber-900 bg-amber-100 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.8)]"
+      >
         <header className="flex items-center justify-between border-b-2 border-amber-900 bg-amber-50 px-4 py-3">
           <div>
             <h2 className="font-handwritten text-2xl text-amber-900">
@@ -43,12 +62,14 @@ export default function ChatModal() {
           </button>
         </header>
 
-        <div className="grid flex-1 gap-3 p-3 lg:grid-cols-[320px_1fr]">
-          <ChatHistoryList
-            conversations={conversations}
-            activeConversationId={activeConversation?.id}
-            onSelectConversation={selectConversation}
-          />
+        <div className="grid min-h-0 flex-1 gap-3 p-2 sm:p-3 lg:grid-cols-[320px_1fr]">
+          <div className="min-h-0">
+            <ChatHistoryList
+              conversations={conversations}
+              activeConversationId={activeConversation?.id}
+              onSelectConversation={selectConversation}
+            />
+          </div>
 
           <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-amber-300 bg-amber-50/80">
             <div className="border-b border-amber-300 bg-amber-100/70 px-4 py-3">
@@ -78,4 +99,6 @@ export default function ChatModal() {
       </section>
     </div>
   );
-}
+};
+
+export default ChatModal;

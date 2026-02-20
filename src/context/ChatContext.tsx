@@ -306,18 +306,48 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const openChat = useCallback(
     (payload?: OpenChatPayload) => {
-      if (!canUseChat) return;
+      setIsChatOpen(true);
       const nextParticipant = payload?.asParticipant;
       if (nextParticipant) setCurrentParticipant(nextParticipant);
-      setIsChatOpen(true);
+
+      if (!canUseChat) {
+        showToast.warning("Debes iniciar sesión para usar el chat.", {
+          duration: 2200,
+          progress: true,
+          position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
+        });
+        return;
+      }
 
       if (!payload) return;
       void (async () => {
         try {
           const conversationId = await ensureConversation(payload);
-          if (conversationId) setActiveConversationId(conversationId);
+          if (!conversationId) {
+            showToast.warning("No se pudo abrir la conversación.", {
+              duration: 2200,
+              progress: true,
+              position: "top-center",
+              transition: "popUp",
+              icon: "",
+              sound: true,
+            });
+            return;
+          }
+          setActiveConversationId(conversationId);
         } catch (error) {
           console.error("No se pudo abrir conversación:", error);
+          showToast.error("No se pudo abrir el chat. Intenta de nuevo.", {
+            duration: 2200,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          });
         }
       })();
     },
@@ -340,7 +370,31 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const sendMessage = useCallback(
     async (content: string) => {
       const normalizedContent = content.trim();
-      if (!normalizedContent || !activeConversationId || !canUseChat) {
+      if (!normalizedContent) {
+        return;
+      }
+
+      if (!canUseChat) {
+        showToast.warning("Debes iniciar sesión para enviar mensajes.", {
+          duration: 2200,
+          progress: true,
+          position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
+        });
+        return;
+      }
+
+      if (!activeConversationId) {
+        showToast.info("Selecciona o crea una conversación antes de enviar.", {
+          duration: 2200,
+          progress: true,
+          position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
+        });
         return;
       }
 

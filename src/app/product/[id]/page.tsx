@@ -157,11 +157,29 @@ const ProductDetailPage = () => {
                       return;
                     }
 
+                    const sellerId = product.seller?.id
+                      ? String(product.seller.id)
+                      : "";
+                    if (!sellerId) {
+                      showToast.error(
+                        "No se encontró el vendedor para iniciar el chat.",
+                        {
+                          duration: 2500,
+                          progress: true,
+                          position: "top-center",
+                          transition: "popUp",
+                          icon: "",
+                          sound: true,
+                        },
+                      );
+                      return;
+                    }
+
                     openChat({
                       asParticipant: "customer",
                       product: product.title,
                       sellerName: product.seller?.fullName ?? "Vendedor",
-                      sellerId: product.seller?.id,
+                      sellerId,
                       customerName,
                       customerId: customerId ? String(customerId) : undefined,
                     });
@@ -171,7 +189,7 @@ const ProductDetailPage = () => {
                     font-handwritten px-4 py-3 rounded-xl
                     border-2 font-extrabold tracking-wide text-sm
                     shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
-                    hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+                    hover:-translate-y-px hover:shadow-[4px_3px_0px_0px_rgba(0,0,0,0.85)]
                     active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
                     transition
                     ${

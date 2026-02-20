@@ -103,8 +103,10 @@ function mergeConversationData(
 
   return {
     ...remote,
-    sellerName,
-    seller: { name: sellerName || remote.seller?.name || previous.seller?.name || "Usuario" },
+    sellerName: sellerName || "Usuario",
+    seller: {
+      name: sellerName || remote.seller?.name || previous.seller?.name || "Usuario",
+    },
     product: product || "",
     unreadCount: Math.max(remote.unreadCount, previous.unreadCount),
   };
@@ -179,6 +181,36 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         ...prev,
         [conversationId]: remoteMessages,
       }));
+
+      const latestMessage =
+        remoteMessages.length > 0 ? remoteMessages[remoteMessages.length - 1] : null;
+      const otherMessage =
+        remoteMessages.find((message) => message.senderId && message.senderId !== currentUserId) ??
+        latestMessage;
+
+      if (latestMessage || otherMessage?.senderName) {
+        setConversations((prev) =>
+          prev.map((conversation) => {
+            if (conversation.id !== conversationId) return conversation;
+            return {
+              ...conversation,
+              sellerName:
+                conversation.sellerName && conversation.sellerName !== "Usuario"
+                  ? conversation.sellerName
+                  : otherMessage?.senderName || conversation.sellerName || "Usuario",
+              seller: {
+                name:
+                  conversation.seller?.name && conversation.seller.name !== "Usuario"
+                    ? conversation.seller.name
+                    : otherMessage?.senderName || conversation.seller?.name || "Usuario",
+              },
+              timestamp: latestMessage
+                ? new Date(latestMessage.createdAt).toISOString()
+                : conversation.timestamp,
+            };
+          }),
+        );
+      }
     } catch (error) {
       if ((error as Error).message === "NO_AUTH") return;
       console.error("No se pudieron sincronizar mensajes:", error);

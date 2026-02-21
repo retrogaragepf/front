@@ -432,6 +432,34 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             return;
           }
           setActiveConversationId(conversationId);
+
+          const initialMessage = payload.initialMessage?.trim();
+          if (initialMessage) {
+            const persistedMessage = await chatService.sendMessage({
+              conversationId,
+              content: initialMessage,
+            });
+
+            setMessagesByConversation((prev) => ({
+              ...prev,
+              [conversationId]: appendMessageSafe(
+                prev[conversationId] ?? [],
+                persistedMessage,
+              ),
+            }));
+
+            setConversations((prev) =>
+              prev.map((conversation) =>
+                conversation.id === conversationId
+                  ? {
+                      ...conversation,
+                      lastMessage: persistedMessage.content,
+                      timestamp: new Date(persistedMessage.createdAt).toISOString(),
+                    }
+                  : conversation,
+              ),
+            );
+          }
         } catch (error) {
           console.error("No se pudo abrir conversación:", error);
           showToast.error("No se pudo abrir el chat. Intenta de nuevo.", {

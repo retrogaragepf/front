@@ -41,6 +41,11 @@ const ChatModal = () => {
     (dataUser as { name?: string; fullName?: string } | null)?.fullName ??
     "Mi cuenta";
 
+  const isAdminSupportConversation = Boolean(
+    activeConversation &&
+      (activeConversation.sellerName || "").toLowerCase().includes("admin"),
+  );
+
   useEffect(() => {
     if (!isChatOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -66,7 +71,9 @@ const ChatModal = () => {
         <header className="flex items-center justify-between border-b-2 border-amber-900 bg-amber-50 px-4 py-3">
           <div>
             <h2 className="font-handwritten text-2xl text-amber-900">
-              Chat comprador-vendedor
+              {isAdminSupportConversation
+                ? "Chat Administrador"
+                : "Chat comprador-vendedor"}
             </h2>
             <p className="text-xs uppercase tracking-widest text-emerald-900/80">
               {safeName}

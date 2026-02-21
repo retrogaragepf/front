@@ -5,6 +5,7 @@ export type AdminChatConversation = {
   userId: string;
   userName: string;
   userEmail: string;
+  subject: string;
   status: "active" | "blocked";
   unreadCount: number;
   lastMessage: string;
@@ -31,7 +32,12 @@ function getApiBaseUrl(): string {
 }
 
 function getConfiguredPaths(envKey: string): string[] {
-  const raw = process.env[envKey];
+  const raw =
+    envKey === "NEXT_PUBLIC_ADMIN_CHAT_ENDPOINTS"
+      ? process.env.NEXT_PUBLIC_ADMIN_CHAT_ENDPOINTS
+      : envKey === "NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS"
+        ? process.env.NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS
+        : undefined;
   if (!raw) return [];
 
   return raw
@@ -62,6 +68,37 @@ function getString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
+function getNameFromRecord(record: ApiRecord): string {
+  const directName =
+    getString(record.name) ||
+    getString(record.fullName) ||
+    getString(record.username);
+
+  if (directName) return directName;
+
+  const firstName = getString(record.firstName);
+  const lastName = getString(record.lastName);
+  const joined = `${firstName} ${lastName}`.trim();
+  if (joined) return joined;
+
+  const nestedUser = asRecord(record.user);
+  const nestedName =
+    getString(nestedUser.name) ||
+    getString(nestedUser.fullName) ||
+    getString(nestedUser.username);
+  if (nestedName) return nestedName;
+
+  return getString(record.email);
+}
+
+function getEmailFromRecord(record: ApiRecord): string {
+  const directEmail = getString(record.email) || getString(record.mail);
+  if (directEmail) return directEmail;
+
+  const nestedUser = asRecord(record.user);
+  return getString(nestedUser.email) || getString(nestedUser.mail);
+}
+
 function getBoolean(value: unknown, fallback = false): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
@@ -84,7 +121,14 @@ function parseJwtPayload(token: string | null): ApiRecord | null {
 
 function getCurrentUserId(token: string): string {
   const payload = parseJwtPayload(token);
-  const id = payload?.id ?? payload?.sub ?? payload?.userId ?? "";
+  const nestedUser = asRecord(payload?.user);
+  const id =
+    payload?.id ??
+    payload?.sub ??
+    payload?.userId ??
+    nestedUser.id ??
+    nestedUser.userId ??
+    "";
   return id ? String(id) : "";
 }
 
@@ -139,16 +183,11 @@ function getParticipantId(record: ApiRecord): string {
 }
 
 function getParticipantName(record: ApiRecord): string {
-  return (
-    getString(record.name) ||
-    getString(record.fullName) ||
-    getString(record.username) ||
-    getString(record.email)
-  );
+  return getNameFromRecord(record);
 }
 
 function getParticipantEmail(record: ApiRecord): string {
-  return getString(record.email) || getString(record.mail);
+  return getEmailFromRecord(record);
 }
 
 function getParticipantStatus(record: ApiRecord): "active" | "blocked" {
@@ -189,6 +228,33 @@ function collectParticipants(raw: ApiRecord, base: ApiRecord): ApiRecord[] {
   });
 
   return Array.from(byId.values());
+}
+
+function collectParticipantIds(raw: ApiRecord, base: ApiRecord): string[] {
+  const list: unknown[] = [
+    ...(Array.isArray(raw.participantIds) ? raw.participantIds : []),
+    ...(Array.isArray(base.participantIds) ? base.participantIds : []),
+    ...(Array.isArray(raw.userIds) ? raw.userIds : []),
+    ...(Array.isArray(base.userIds) ? base.userIds : []),
+    ...(Array.isArray(raw.users) ? raw.users : []),
+    ...(Array.isArray(base.users) ? base.users : []),
+    raw.userId,
+    base.userId,
+    raw.customerId,
+    base.customerId,
+    raw.sellerId,
+    base.sellerId,
+  ];
+
+  const ids = list
+    .map((entry) => {
+      if (typeof entry === "string" || typeof entry === "number") return String(entry);
+      if (isRecord(entry)) return getParticipantId(entry);
+      return "";
+    })
+    .filter(Boolean);
+
+  return Array.from(new Set(ids));
 }
 
 function pickChatUser(participants: ApiRecord[], currentUserId: string): ApiRecord | null {
@@ -243,13 +309,46 @@ function parseTimestamp(raw: ApiRecord, base: ApiRecord): string {
   return String(value || "");
 }
 
+function parseSubject(raw: ApiRecord, base: ApiRecord): string {
+  const value =
+    raw.subject ??
+    base.subject ??
+    raw.asunto ??
+    base.asunto ??
+    raw.topic ??
+    base.topic ??
+    raw.title ??
+    base.title ??
+    raw.reason ??
+    base.reason ??
+    raw.productTitle ??
+    base.productTitle ??
+    raw.productName ??
+    base.productName;
+
+  if (typeof value === "string" && value.trim()) return value.trim();
+
+  const productRecord = asRecord(base.product);
+  const productSubject =
+    getString(productRecord.title) ||
+    getString(productRecord.name) ||
+    getString(productRecord.description);
+  if (productSubject) return productSubject;
+
+  const firstMessage = parseLastMessage(raw, base);
+  return firstMessage ? `Consulta: ${firstMessage.slice(0, 50)}` : "Sin asunto";
+}
+
 function normalizeConversation(raw: ApiRecord, currentUserId: string): AdminChatConversation | null {
   const base = getConversationRecord(raw);
   const id = String(base.id ?? base._id ?? raw.id ?? raw._id ?? "");
   if (!id) return null;
 
   const participants = collectParticipants(raw, base);
+  const participantIds = collectParticipantIds(raw, base);
   const userRecord = pickChatUser(participants, currentUserId);
+  const fallbackUserId =
+    participantIds.find((participantId) => participantId !== currentUserId) || "";
 
   const fallbackName = getString(raw.userName) || getString(base.userName) || "Usuario";
   const fallbackEmail =
@@ -257,12 +356,14 @@ function normalizeConversation(raw: ApiRecord, currentUserId: string): AdminChat
 
   const userName = userRecord ? getParticipantName(userRecord) || fallbackName : fallbackName;
   const userEmail = userRecord ? getParticipantEmail(userRecord) || fallbackEmail : fallbackEmail;
+  const subject = parseSubject(raw, base);
 
   return {
     id,
-    userId: userRecord ? getParticipantId(userRecord) : "",
+    userId: userRecord ? getParticipantId(userRecord) : fallbackUserId,
     userName,
     userEmail,
+    subject,
     status: userRecord ? getParticipantStatus(userRecord) : "active",
     unreadCount: parseUnreadCount(raw, base),
     lastMessage: parseLastMessage(raw, base),

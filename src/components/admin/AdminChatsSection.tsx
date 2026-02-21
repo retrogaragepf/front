@@ -32,22 +32,40 @@ function formatTimestamp(value: string): string {
   });
 }
 
-function buildUsersMap(users: AdminUIUser[]): Map<string, AdminUIUser> {
-  return new Map(users.map((user) => [String(user.id), user]));
+type UsersIndex = {
+  byId: Map<string, AdminUIUser>;
+  byEmail: Map<string, AdminUIUser>;
+};
+
+function buildUsersIndex(users: AdminUIUser[]): UsersIndex {
+  const byId = new Map<string, AdminUIUser>();
+  const byEmail = new Map<string, AdminUIUser>();
+
+  users.forEach((user) => {
+    byId.set(String(user.id), user);
+    if (user.email) byEmail.set(user.email.toLowerCase(), user);
+  });
+
+  return { byId, byEmail };
 }
 
 function mergeChatsWithUsers(
   chats: AdminChatConversation[],
-  usersMap: Map<string, AdminUIUser>,
+  usersIndex: UsersIndex,
 ): ChatRow[] {
   return chats.map((chat) => {
-    const user = usersMap.get(chat.userId);
+    const userById = usersIndex.byId.get(chat.userId);
+    const userByEmail = chat.userEmail
+      ? usersIndex.byEmail.get(chat.userEmail.toLowerCase())
+      : undefined;
+    const user = userById || userByEmail;
     const fallbackBlocked = chat.status === "blocked";
 
     return {
       ...chat,
       userName: user?.name || chat.userName || "Usuario",
       userEmail: user?.email || chat.userEmail || "Email no disponible",
+      userId: user?.id ? String(user.id) : chat.userId,
       isBanned: Boolean(user?.isBanned ?? fallbackBlocked),
     };
   });
@@ -72,8 +90,8 @@ export default function AdminChatsSection() {
         getAllUsers(),
       ]);
 
-      const nextUsersMap = buildUsersMap(users);
-      setChats(mergeChatsWithUsers(rawChats, nextUsersMap));
+      const nextUsersIndex = buildUsersIndex(users);
+      setChats(mergeChatsWithUsers(rawChats, nextUsersIndex));
     } catch (e: unknown) {
       console.error("Admin chats load error:", e);
       const message =
@@ -238,6 +256,7 @@ export default function AdminChatsSection() {
             <tr>
               <th className="p-4 text-left font-extrabold text-amber-900">Nombre</th>
               <th className="text-left font-extrabold text-amber-900">Correo</th>
+              <th className="text-left font-extrabold text-amber-900">Asunto</th>
               <th className="text-left font-extrabold text-amber-900">Estado</th>
               <th className="text-left font-extrabold text-amber-900">Acción</th>
             </tr>
@@ -266,6 +285,8 @@ export default function AdminChatsSection() {
                   </td>
 
                   <td className="text-zinc-700 pt-4">{chat.userEmail || "-"}</td>
+
+                  <td className="text-zinc-700 pt-4">{chat.subject || "Sin asunto"}</td>
 
                   <td className="pt-4">
                     {chat.isBanned ? (
@@ -312,7 +333,7 @@ export default function AdminChatsSection() {
 
             {!loadingList && filteredChats.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center p-6 text-zinc-500">
+                <td colSpan={5} className="text-center p-6 text-zinc-500">
                   No hay conversaciones en esta categoría.
                 </td>
               </tr>

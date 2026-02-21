@@ -247,7 +247,7 @@ const Navbar = () => {
                   onClick={() => setIsAdminSupportOpen(true)}
                   className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
                 >
-                  Chat Admin
+                  Ayuda
                 </button>
               </li>
             )}
@@ -406,7 +406,7 @@ const Navbar = () => {
                   onClick={() => setIsAdminSupportOpen(true)}
                   className="hover:text-emerald-900 transition"
                 >
-                  Chat Admin
+                  Ayuda
                 </button>
               </li>
             )}

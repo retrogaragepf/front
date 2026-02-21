@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useChat } from "@/src/context/ChatContext";
 import {
   adminChatService,
   type AdminChatConversation,
@@ -72,6 +73,7 @@ function mergeChatsWithUsers(
 }
 
 export default function AdminChatsSection() {
+  const { openChat } = useChat();
   const [chats, setChats] = useState<ChatRow[]>([]);
 
   const [filter, setFilter] = useState<ChatFilter>("all");
@@ -258,6 +260,7 @@ export default function AdminChatsSection() {
               <th className="text-left font-extrabold text-amber-900">Correo</th>
               <th className="text-left font-extrabold text-amber-900">Asunto</th>
               <th className="text-left font-extrabold text-amber-900">Estado</th>
+              <th className="text-left font-extrabold text-amber-900">Chat</th>
               <th className="text-left font-extrabold text-amber-900">Acción</th>
             </tr>
           </thead>
@@ -301,6 +304,21 @@ export default function AdminChatsSection() {
                   </td>
 
                   <td className="pt-4 pr-4">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openChat({
+                          conversationId: chat.id,
+                          asParticipant: "seller",
+                        })
+                      }
+                      className="px-3 py-1 rounded-lg font-extrabold border-2 bg-amber-200 text-amber-900 border-amber-900"
+                    >
+                      Ir al chat
+                    </button>
+                  </td>
+
+                  <td className="pt-4 pr-4">
                     <div className="flex gap-2">
                       <button
                         disabled={loadingList || busyBanToggle}
@@ -333,7 +351,7 @@ export default function AdminChatsSection() {
 
             {!loadingList && filteredChats.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center p-6 text-zinc-500">
+                <td colSpan={6} className="text-center p-6 text-zinc-500">
                   No hay conversaciones en esta categoría.
                 </td>
               </tr>

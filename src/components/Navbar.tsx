@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
 import { useChat } from "@/src/context/ChatContext";
+import { getAllUsers } from "@/src/services/users.services";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
@@ -13,8 +15,12 @@ const Navbar = () => {
   const router = useRouter();
 
   const { cartItems } = useCart();
-  const { openChat, hasUnreadMessages, unreadTotal } = useChat();
+  const { openChat, hasUnreadMessages, unreadTotal, conversations } = useChat();
   const itemsCart = cartItems.length;
+  const [isAdminSupportOpen, setIsAdminSupportOpen] = useState(false);
+  const [adminSubject, setAdminSubject] = useState("");
+  const [adminDetail, setAdminDetail] = useState("");
+  const [isLaunchingAdminChat, setIsLaunchingAdminChat] = useState(false);
 
   const safeName =
     (dataUser as any)?.user?.name ??
@@ -51,6 +57,104 @@ const Navbar = () => {
       return Boolean(payload?.isAdmin);
     } catch {
       return false;
+    }
+  };
+
+  const ADMIN_SUPPORT_USER_ID =
+    process.env.NEXT_PUBLIC_ADMIN_SUPPORT_USER_ID?.trim() || "";
+
+  const resolveAdminSupportTarget = async (): Promise<{
+    id: string;
+    name: string;
+  } | null> => {
+    if (ADMIN_SUPPORT_USER_ID) {
+      return { id: ADMIN_SUPPORT_USER_ID, name: "Administrador" };
+    }
+
+    const fromChat = conversations.find((conversation) => {
+      const name = (conversation.sellerName || "").toLowerCase();
+      return name.includes("admin");
+    });
+
+    if (fromChat?.sellerId) {
+      return {
+        id: String(fromChat.sellerId),
+        name: fromChat.sellerName || "Administrador",
+      };
+    }
+
+    try {
+      const users = await getAllUsers();
+      const adminUser = users.find((user) =>
+        String(user.role || "").toLowerCase().includes("admin"),
+      );
+      if (adminUser?.id) {
+        return {
+          id: String(adminUser.id),
+          name: adminUser.name || "Administrador",
+        };
+      }
+    } catch {
+      // Silencioso: si falla, usamos mensaje final de configuración.
+    }
+
+    return null;
+  };
+
+  const launchAdminSupportChat = async () => {
+    const normalizedSubject = adminSubject.trim();
+    if (!normalizedSubject) {
+      showToast.warning("Debes indicar el asunto para iniciar el chat admin.", {
+        duration: 2200,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+      return;
+    }
+
+    setIsLaunchingAdminChat(true);
+    try {
+      const target = await resolveAdminSupportTarget();
+      if (!target?.id) {
+        showToast.error(
+          "No se pudo encontrar el usuario administrador. Configura NEXT_PUBLIC_ADMIN_SUPPORT_USER_ID.",
+          {
+            duration: 3000,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          },
+        );
+        return;
+      }
+
+      const normalizedDetail = adminDetail.trim();
+      const initialMessage = [
+        "Hola, este es el chat auto respuesta de administrador.",
+        `Asunto: ${normalizedSubject}`,
+        normalizedDetail
+          ? `Detalle: ${normalizedDetail}`
+          : "Detalle: Sin detalle adicional.",
+      ].join("\n");
+
+      openChat({
+        asParticipant: "customer",
+        sellerId: target.id,
+        sellerName: target.name || "Administrador",
+        product: normalizedSubject,
+        initialMessage,
+      });
+
+      setIsAdminSupportOpen(false);
+      setAdminSubject("");
+      setAdminDetail("");
+    } finally {
+      setIsLaunchingAdminChat(false);
     }
   };
 
@@ -135,6 +239,18 @@ const Navbar = () => {
                 Categorias
               </Link>
             </li>
+
+            {isLogged && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setIsAdminSupportOpen(true)}
+                  className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+                >
+                  Ayuda
+                </button>
+              </li>
+            )}
           </ul>
         </nav>
 
@@ -282,9 +398,92 @@ const Navbar = () => {
                 Carrito
               </Link>
             </li>
+
+            {isLogged && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setIsAdminSupportOpen(true)}
+                  className="hover:text-emerald-900 transition"
+                >
+                  Ayuda
+                </button>
+              </li>
+            )}
           </ul>
         </nav>
       </div>
+
+      {isAdminSupportOpen && (
+        <div
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-zinc-900/60 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setIsAdminSupportOpen(false);
+          }}
+        >
+          <section className="w-full max-w-lg rounded-2xl border-2 border-amber-900 bg-amber-100 p-5 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.8)]">
+            <h3 className="font-display text-xl text-amber-900">Chat Administrador</h3>
+            <p className="mt-2 text-sm text-zinc-700">
+              Hola, este es el chat auto respuesta de administrador. Por favor,
+              indica el asunto por el cual escribes.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <label
+                  htmlFor="admin-chat-subject"
+                  className="block text-xs font-extrabold uppercase tracking-widest text-amber-900 mb-1"
+                >
+                  Asunto
+                </label>
+                <input
+                  id="admin-chat-subject"
+                  type="text"
+                  value={adminSubject}
+                  onChange={(event) => setAdminSubject(event.target.value)}
+                  className="w-full rounded-lg border-2 border-amber-900 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none"
+                  placeholder="Ej: Problema con una compra"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="admin-chat-detail"
+                  className="block text-xs font-extrabold uppercase tracking-widest text-amber-900 mb-1"
+                >
+                  Detalle (opcional)
+                </label>
+                <textarea
+                  id="admin-chat-detail"
+                  rows={4}
+                  value={adminDetail}
+                  onChange={(event) => setAdminDetail(event.target.value)}
+                  className="w-full resize-y rounded-lg border-2 border-amber-900 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none"
+                  placeholder="Describe brevemente el motivo."
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsAdminSupportOpen(false)}
+                className="px-3 py-2 rounded-lg border-2 border-amber-900 bg-white text-amber-900 text-xs font-extrabold uppercase tracking-widest"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isLaunchingAdminChat}
+                onClick={() => void launchAdminSupportChat()}
+                className="px-3 py-2 rounded-lg border-2 border-emerald-900 bg-emerald-900 text-amber-50 text-xs font-extrabold uppercase tracking-widest disabled:opacity-60"
+              >
+                {isLaunchingAdminChat ? "Abriendo..." : "Iniciar chat"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </header>
   );
 };

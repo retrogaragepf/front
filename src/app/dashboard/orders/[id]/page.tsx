@@ -10,8 +10,12 @@ import {
   type OrderItemDTO,
 } from "@/src/services/orders.services";
 
-function formatCOP(value: number) {
-  return (value || 0).toLocaleString("es-CO", { minimumFractionDigits: 0 });
+function formatCOP(value: any) {
+  const n = Number(value);
+  return (Number.isFinite(n) ? n : 0).toLocaleString("es-CO", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
 }
 
 function formatDate(iso: string) {

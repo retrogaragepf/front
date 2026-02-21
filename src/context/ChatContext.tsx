@@ -22,6 +22,8 @@ import { showToast } from "nextjs-toast-notify";
 
 interface ChatContextValue {
   isChatOpen: boolean;
+  isAdminDirectChat: boolean;
+  adminChatWithName: string;
   currentParticipant: ChatParticipant;
   currentUserId: string | null;
   conversations: ChatConversation[];
@@ -50,6 +52,8 @@ declare global {
 
 const ChatContext = createContext<ChatContextValue>({
   isChatOpen: false,
+  isAdminDirectChat: false,
+  adminChatWithName: "",
   currentParticipant: "customer",
   currentUserId: null,
   conversations: [],
@@ -128,6 +132,8 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const { isAuth } = useAuth();
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isAdminDirectChat, setIsAdminDirectChat] = useState(false);
+  const [adminChatWithName, setAdminChatWithName] = useState("");
   const [currentParticipant, setCurrentParticipant] =
     useState<ChatParticipant>("customer");
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
@@ -401,6 +407,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const openChat = useCallback(
     (payload?: OpenChatPayload) => {
       setIsChatOpen(true);
+      setIsAdminDirectChat(Boolean(payload?.adminDirect));
+      setAdminChatWithName(payload?.chatWithName?.trim() || "");
       const nextParticipant = payload?.asParticipant;
       if (nextParticipant) setCurrentParticipant(nextParticipant);
 
@@ -478,6 +486,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const closeChat = useCallback(() => {
     setIsChatOpen(false);
+    setIsAdminDirectChat(false);
+    setAdminChatWithName("");
   }, []);
 
   const selectConversation = useCallback(
@@ -633,6 +643,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     <ChatContext.Provider
       value={{
         isChatOpen,
+        isAdminDirectChat,
+        adminChatWithName,
         currentParticipant,
         currentUserId,
         conversations,

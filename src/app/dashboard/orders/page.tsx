@@ -5,8 +5,12 @@ import Link from "next/link";
 import { showToast } from "nextjs-toast-notify";
 import { getMyOrders, type OrderDTO } from "@/src/services/orders.services";
 
-function formatCOP(value: number) {
-  return (value || 0).toLocaleString("es-CO", { minimumFractionDigits: 0 });
+function formatCOP(value: any) {
+  const n = Number(value);
+  return (Number.isFinite(n) ? n : 0).toLocaleString("es-CO", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
 }
 
 function formatDate(iso: string) {
@@ -82,9 +86,9 @@ export default function OrdersPage() {
 
           <button
             onClick={load}
-            className="shrink-0 px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-200 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-[1px] active:translate-y-[1px]"
+            className="shrink-0 px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-[1px] active:translate-y-[1px]"
           >
-            Refrescar
+            Actualizar
           </button>
         </div>
 
@@ -104,7 +108,7 @@ export default function OrdersPage() {
             <div className="mt-4">
               <Link
                 href="/login"
-                className="inline-block px-4 py-2 rounded-xl border-2 border-zinc-900 bg-white hover:bg-zinc-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
+                className="inline-block px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-zinc-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
               >
                 Ir a iniciar sesión
               </Link>
@@ -134,7 +138,7 @@ export default function OrdersPage() {
             {sorted.map((o) => (
               <div
                 key={o.id}
-                className="rounded-2xl border-2 border-zinc-900 bg-amber-50 p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]"
+                className="rounded-2xl border-2 border-zinc-900 bg-amber-200 p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]"
               >
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                   <div>
@@ -196,7 +200,7 @@ export default function OrdersPage() {
                     <div className="mt-3">
                       <Link
                         href={`/dashboard/orders/${o.id}`}
-                        className="inline-block px-4 py-2 rounded-xl border-2 border-zinc-900 bg-white hover:bg-zinc-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-[1px] active:translate-y-[1px]"
+                        className="inline-block px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-zinc-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-[1px] active:translate-y-[1px]"
                       >
                         Ver detalle
                       </Link>
@@ -212,7 +216,7 @@ export default function OrdersPage() {
                       {o.items.map((it) => (
                         <li
                           key={it.id}
-                          className="flex items-center justify-between gap-4 rounded-xl border border-zinc-900/20 bg-white/60 p-3"
+                          className="flex items-center justify-between gap-4 rounded-xl border border-zinc-900/20 bg-amber-100 p-3"
                         >
                           <div className="min-w-0">
                             <p className="font-semibold text-zinc-900 truncate">

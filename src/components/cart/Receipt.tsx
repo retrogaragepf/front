@@ -16,7 +16,6 @@ function getToken(): string | null {
   const raw = localStorage.getItem(TOKEN_KEY);
   if (!raw) return null;
 
-  // soporte token directo o { token }
   if (raw.startsWith("eyJ")) return raw;
 
   try {
@@ -27,11 +26,22 @@ function getToken(): string | null {
   }
 }
 
-type CouponResponse = {
+type DiscountValidateResponse = {
+  valid?: boolean;
+  code?: string;
+  percentage?: number; // 10 => 10%
+  discountAmount?: number;
+  finalTotal?: number;
+  message?: string;
+};
+
+type CouponApplied = {
   valid: boolean;
   code: string;
   type: "PERCENT";
-  value: number; // 10 => 10%
+  value: number; // percentage
+  discountAmount: number;
+  finalTotal: number;
   message?: string;
 };
 
@@ -43,7 +53,7 @@ export default function Receipt() {
   // Coupon state
   // -----------------------
   const [couponInput, setCouponInput] = useState("");
-  const [couponApplied, setCouponApplied] = useState<CouponResponse | null>(
+  const [couponApplied, setCouponApplied] = useState<CouponApplied | null>(
     null,
   );
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
@@ -55,19 +65,16 @@ export default function Receipt() {
   // -----------------------
   const discountAmount = useMemo(() => {
     if (!couponApplied?.valid) return 0;
-
-    // Por ahora: solo porcentaje (10%)
-    const pct = Number(couponApplied.value ?? 0);
-    if (pct <= 0) return 0;
-
-    // COP sin decimales
-    return Math.round((totalPrice * pct) / 100);
-  }, [couponApplied, totalPrice]);
+    const n = Number(couponApplied.discountAmount ?? 0);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }, [couponApplied]);
 
   const totalFinal = useMemo(() => {
-    const v = totalPrice - discountAmount;
-    return v > 0 ? v : 0;
-  }, [totalPrice, discountAmount]);
+    if (!couponApplied?.valid) return totalPrice;
+
+    const n = Number(couponApplied.finalTotal ?? 0);
+    return Number.isFinite(n) && n >= 0 ? n : totalPrice;
+  }, [couponApplied, totalPrice]);
 
   const subtotalFormatted = totalPrice.toLocaleString("es-CO", {
     minimumFractionDigits: 0,
@@ -88,7 +95,6 @@ export default function Receipt() {
     if (isEmpty) return;
 
     clearCart();
-    // Si vacía el carrito, también limpiamos el cupón aplicado (opcional pero recomendado)
     setCouponApplied(null);
     setCouponInput("");
 
@@ -104,8 +110,21 @@ export default function Receipt() {
 
   const applyCoupon = async () => {
     const code = couponInput.trim().toUpperCase();
+
     if (!code) {
       showToast.warning("Pega o escribe un código de descuento.", {
+        duration: 2500,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+      return;
+    }
+
+    if (isEmpty) {
+      showToast.warning("Tu carrito está vacío.", {
         duration: 2500,
         progress: true,
         position: "top-center",
@@ -121,8 +140,7 @@ export default function Receipt() {
     try {
       const token = getToken();
 
-      // ✅ Ajusta esta ruta si tu backend la llama diferente
-      const res = await fetch(`${API_BASE_URL}/coupons/validate`, {
+      const res = await fetch(`${API_BASE_URL}/discounts/validate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -131,7 +149,12 @@ export default function Receipt() {
         body: JSON.stringify({ code }),
       });
 
-      const data = (await res.json().catch(() => ({}))) as CouponResponse;
+      const data = (await res
+        .json()
+        .catch(() => ({}))) as DiscountValidateResponse;
+
+      // debug temporal
+      console.log("DISCOUNTS/VALIDATE =>", data);
 
       if (!res.ok || !data?.valid) {
         setCouponApplied(null);
@@ -146,9 +169,58 @@ export default function Receipt() {
         return;
       }
 
-      setCouponApplied(data);
+      const pct = Number(data?.percentage ?? 0);
+      if (!Number.isFinite(pct) || pct <= 0) {
+        throw new Error("El back no devolvió percentage válido.");
+      }
 
-      showToast.success(`Cupón aplicado: -${data.value}% ✅`, {
+      // ✅ fallback: si el back NO devuelve totals, calculamos para UI
+      const subtotal = Number(totalPrice ?? 0);
+      if (!Number.isFinite(subtotal) || subtotal <= 0) {
+        throw new Error("Subtotal inválido.");
+      }
+
+      let disc = Number(data?.discountAmount);
+      if (!Number.isFinite(disc) || disc < 0) {
+        disc = Math.round((subtotal * pct) / 100);
+      }
+
+      // ✅ cap para que nunca deje total en 0 (evita Stripe/DTO)
+      const maxDiscount = Math.max(0, subtotal - 1);
+      disc = Math.min(disc, maxDiscount);
+
+      let final = Number(data?.finalTotal);
+      if (!Number.isFinite(final)) {
+        final = subtotal - disc;
+      }
+
+      if (final < 1) {
+        setCouponApplied(null);
+        showToast.error(
+          `Cupón válido, pero el total quedaría en $0. Agrega más productos o usa menor %.`,
+          {
+            duration: 4000,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          },
+        );
+        return;
+      }
+
+      setCouponApplied({
+        valid: true,
+        code, // ✅ usamos el input como fuente si el back no manda code
+        type: "PERCENT",
+        value: pct,
+        discountAmount: disc,
+        finalTotal: final,
+        message: data?.message,
+      });
+
+      showToast.success(`Cupón aplicado: -${pct}% ✅`, {
         duration: 2500,
         progress: true,
         position: "top-center",
@@ -188,14 +260,13 @@ export default function Receipt() {
   const runStripeCheckout = async () => {
     const items = cartItems
       .map((it) => ({
-        productId: String(it.id ?? "").trim(), // ✅ UI id = productId real
+        productId: String(it.id ?? "").trim(),
         quantity: Number(it.quantity ?? 0),
       }))
       .filter((x) => x.productId && x.quantity > 0);
 
     if (!items.length) throw new Error("Tu carrito está vacío.");
 
-    // ✅ Mandamos el cupón al back para que lo aplique server-side (Stripe)
     const couponCode = couponApplied?.valid ? couponApplied.code : undefined;
 
     const { url } = await createCheckoutSession(items, couponCode);
@@ -218,6 +289,19 @@ export default function Receipt() {
 
   const handleCheckout = async () => {
     if (isEmpty || isPaying) return;
+
+    // ✅ bloqueo final
+    if (couponApplied?.valid && totalFinal < 1) {
+      showToast.error("El total final debe ser mínimo $1 para poder pagar.", {
+        duration: 3500,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+      return;
+    }
 
     try {
       setIsPaying(true);
@@ -254,7 +338,7 @@ export default function Receipt() {
           <input
             value={couponInput}
             onChange={(e) => setCouponInput(e.target.value)}
-            placeholder="Pega aquí tu código (ej: RETRO10)"
+            placeholder="Pega aquí tu código (ej: CFB59C9E)"
             className="flex-1 px-3 py-2 rounded-lg border-2 border-slate-900 text-sm outline-none"
             disabled={isPaying}
             autoComplete="off"
@@ -267,7 +351,7 @@ export default function Receipt() {
               className={`px-4 py-2 rounded-lg border-2 border-slate-900 font-bold transition ${
                 isPaying || isValidatingCoupon || isEmpty
                   ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                  : "bg-amber-600 hover:bg-emerald-600"
+                  : "bg-emerald-900 hover:bg-amber-900 text-amber-50"
               }`}
               title="Validar y aplicar cupón"
             >
@@ -323,9 +407,9 @@ export default function Receipt() {
           className={`w-full text-center px-4 py-3 rounded-lg border-2 border-slate-900 font-bold transition ${
             isEmpty || isPaying
               ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-              : "bg-amber-600 hover:bg-emerald-600"
+              : "bg-emerald-900 hover:bg-amber-900 text-amber-50"
           }`}
-          title="Checkout con Stripe (TEST)"
+          title="Checkout con Stripe"
         >
           {isPaying ? "Redirigiendo..." : "Ir a pagar"}
         </button>
@@ -344,7 +428,7 @@ export default function Receipt() {
 
         <Link
           href="/product"
-          className="w-full text-center px-4 py-3 rounded-lg border-2 border-slate-900 font-bold bg-white hover:bg-emerald-600 transition"
+          className="w-full text-center px-4 py-3 rounded-lg border-2 border-slate-900 font-bold bg-white transition-colors hover:bg-emerald-900"
         >
           Seguir comprando
         </Link>

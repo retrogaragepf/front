@@ -11,6 +11,8 @@ const ChatModal = () => {
   const { dataUser } = useAuth();
   const {
     isChatOpen,
+    isAdminDirectChat,
+    adminChatWithName,
     activeConversation,
     activeMessages,
     conversations,
@@ -46,6 +48,14 @@ const ChatModal = () => {
       (activeConversation.sellerName || "").toLowerCase().includes("admin"),
   );
 
+  const isAdminDirectView = isAdminDirectChat || currentParticipant === "seller";
+
+  const resolvedChatTitle = isAdminDirectView
+    ? `Chat con ${adminChatWithName || activeConversation?.sellerName || "Usuario"}`
+    : isAdminSupportConversation
+      ? "Chat Administrador"
+      : "Chat comprador-vendedor";
+
   useEffect(() => {
     if (!isChatOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -71,9 +81,7 @@ const ChatModal = () => {
         <header className="flex items-center justify-between border-b-2 border-amber-900 bg-amber-50 px-4 py-3">
           <div>
             <h2 className="font-handwritten text-2xl text-amber-900">
-              {isAdminSupportConversation
-                ? "Chat Administrador"
-                : "Chat comprador-vendedor"}
+              {resolvedChatTitle}
             </h2>
             <p className="text-xs uppercase tracking-widest text-emerald-900/80">
               {safeName}
@@ -88,14 +96,20 @@ const ChatModal = () => {
           </button>
         </header>
 
-        <div className="grid min-h-0 flex-1 gap-3 p-2 sm:p-3 lg:grid-cols-[320px_1fr]">
-          <div className="min-h-0">
-            <ChatHistoryList
-              conversations={conversations}
-              activeConversationId={activeConversation?.id}
-              onSelectConversation={selectConversation}
-            />
-          </div>
+        <div
+          className={`grid min-h-0 flex-1 gap-3 p-2 sm:p-3 ${
+            isAdminDirectView ? "lg:grid-cols-1" : "lg:grid-cols-[320px_1fr]"
+          }`}
+        >
+          {!isAdminDirectView && (
+            <div className="min-h-0">
+              <ChatHistoryList
+                conversations={conversations}
+                activeConversationId={activeConversation?.id}
+                onSelectConversation={selectConversation}
+              />
+            </div>
+          )}
 
           <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-amber-300 bg-amber-50/80">
             <div className="border-b border-amber-300 bg-amber-100/70 px-4 py-3">

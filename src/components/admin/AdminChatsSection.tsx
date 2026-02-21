@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useChat } from "@/src/context/ChatContext";
 import {
   adminChatService,
   type AdminChatConversation,
@@ -12,6 +11,7 @@ import {
   unblockUser,
   type AdminUIUser,
 } from "@/src/services/users.services";
+import AdminDirectChatModal from "@/src/components/admin/AdminDirectChatModal";
 
 type ChatFilter = "all" | "active" | "banned";
 
@@ -73,8 +73,9 @@ function mergeChatsWithUsers(
 }
 
 export default function AdminChatsSection() {
-  const { openChat } = useChat();
   const [chats, setChats] = useState<ChatRow[]>([]);
+  const [directChatConversationId, setDirectChatConversationId] = useState<string | null>(null);
+  const [directChatUserName, setDirectChatUserName] = useState("Usuario");
 
   const [filter, setFilter] = useState<ChatFilter>("all");
   const [loadingList, setLoadingList] = useState(false);
@@ -306,12 +307,10 @@ export default function AdminChatsSection() {
                   <td className="pt-4 pr-4">
                     <button
                       type="button"
-                      onClick={() =>
-                        openChat({
-                          conversationId: chat.id,
-                          asParticipant: "seller",
-                        })
-                      }
+                      onClick={() => {
+                        setDirectChatConversationId(chat.id);
+                        setDirectChatUserName(chat.userName || "Usuario");
+                      }}
                       className="px-3 py-1 rounded-lg font-extrabold border-2 bg-amber-200 text-amber-900 border-amber-900"
                     >
                       Ir al chat
@@ -359,6 +358,16 @@ export default function AdminChatsSection() {
           </tbody>
         </table>
       </div>
+
+      <AdminDirectChatModal
+        isOpen={Boolean(directChatConversationId)}
+        conversationId={directChatConversationId}
+        userName={directChatUserName}
+        onClose={() => {
+          setDirectChatConversationId(null);
+          setDirectChatUserName("Usuario");
+        }}
+      />
     </div>
   );
 }

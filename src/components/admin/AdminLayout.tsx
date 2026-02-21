@@ -128,10 +128,10 @@ export default function AdminLayout({ children, section, setSection }: Props) {
             <button
               onClick={onCreateDiscount}
               disabled={isCreatingDiscount}
-              className={`mt-3 w-full px-4 py-3 rounded-xl border-2 border-amber-900 font-extrabold text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] transition ${
+              className={`mt-3 w-full px-4 py-3 rounded-xl border-2 border-amber-900 font-bold text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] transition ${
                 isCreatingDiscount
                   ? "bg-zinc-200 text-zinc-700 opacity-70 cursor-not-allowed"
-                  : "bg-emerald-200 text-emerald-950 hover:bg-emerald-300"
+                  : "bg-emerald-900 text-amber-50 hover:bg-amber-900"
               }`}
             >
               {isCreatingDiscount ? "Generando..." : "Generar cupón"}

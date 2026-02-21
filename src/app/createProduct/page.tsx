@@ -25,7 +25,7 @@ async function urlToFile(url: string, filename = "product.jpg") {
 
 export default function CreateProductPage() {
   const router = useRouter();
-  const { isAuth } = useAuth();
+  const { isAuth, isLoadingUser } = useAuth();
 
   const [form, setForm] = useState<IProductCreate>({
     title: "",
@@ -40,9 +40,11 @@ export default function CreateProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    if (isLoadingUser) return; // ✅ espera a que cargue la sesión
     if (!isAuth) router.push("/login");
-  }, [isAuth, router]);
+  }, [isLoadingUser, isAuth, router]);
 
+  if (isLoadingUser) return null; // ✅ o un loader
   if (!isAuth) return null;
 
   const handleChange = (field: keyof IProductCreate, value: any) => {
@@ -215,15 +217,36 @@ export default function CreateProductPage() {
               }
               options={{
                 cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+                resourceType: "image",
+                maxFiles: 1,
+                maxFileSize: 500 * 1024 * 1024,
+                clientAllowedFormats: [
+                  "png",
+                  "jpg",
+                  "jpeg",
+                  "webp",
+                  "gif",
+                  "avif",
+                ],
               }}
               onSuccess={(result: any) => {
                 const secureUrl = result?.info?.secure_url;
                 if (!secureUrl) return;
 
-                setForm((prev) => ({
-                  ...prev,
-                  images: [secureUrl],
-                }));
+                setForm((prev) => ({ ...prev, images: [secureUrl] }));
+              }}
+              onUpload={(result: any) => {
+                // Cloudinary manda eventos distintos; este cubre fallos comunes
+                const evt = result?.event;
+                const info = result?.info;
+
+                if (evt === "error") {
+                  const msg =
+                    info?.message ||
+                    info?.error?.message ||
+                    "No se pudo subir el archivo. Verifica que sea una imagen y pese menos de 500MB.";
+                  showToast.error(msg);
+                }
               }}
             >
               {({ open }) => (

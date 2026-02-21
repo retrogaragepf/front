@@ -339,6 +339,35 @@ function parseSubject(raw: ApiRecord, base: ApiRecord): string {
   return firstMessage ? `Consulta: ${firstMessage.slice(0, 50)}` : "Sin asunto";
 }
 
+function parseSubjectFromMessage(content: string): string {
+  if (!content) return "";
+  const match = content.match(/asunto\s*:\s*([^\n\r]+)/i);
+  return match?.[1]?.trim() || "";
+}
+
+function isMissingName(name: string): boolean {
+  const normalized = name.trim().toLowerCase();
+  return !normalized || normalized === "usuario";
+}
+
+function isMissingEmail(email: string): boolean {
+  const normalized = email.trim().toLowerCase();
+  return !normalized || normalized === "email no disponible";
+}
+
+function isMissingSubject(subject: string): boolean {
+  const normalized = subject.trim().toLowerCase();
+  return !normalized || normalized === "sin asunto";
+}
+
+function shouldHydrateConversation(conversation: AdminChatConversation): boolean {
+  return (
+    isMissingName(conversation.userName) ||
+    isMissingEmail(conversation.userEmail) ||
+    isMissingSubject(conversation.subject)
+  );
+}
+
 function normalizeConversation(raw: ApiRecord, currentUserId: string): AdminChatConversation | null {
   const base = getConversationRecord(raw);
   const id = String(base.id ?? base._id ?? raw.id ?? raw._id ?? "");
@@ -393,6 +422,82 @@ async function tryMany(paths: string[], init?: RequestInit): Promise<unknown> {
   throw new Error("No se pudo completar la operación de chats.");
 }
 
+async function getConversationMessages(conversationId: string): Promise<ApiRecord[]> {
+  const encodedId = encodeURIComponent(conversationId);
+  const data = await tryMany([
+    `/chat/admin/conversation/${encodedId}/messages`,
+    `/chat/conversation/${encodedId}/messages`,
+    `/chat/conversations/${encodedId}/messages`,
+  ]);
+
+  return getArrayPayload(data).filter(isRecord);
+}
+
+async function hydrateConversationFromMessages(
+  conversation: AdminChatConversation,
+  currentUserId: string,
+): Promise<AdminChatConversation> {
+  if (!shouldHydrateConversation(conversation)) return conversation;
+
+  try {
+    const messages = await getConversationMessages(conversation.id);
+    if (messages.length === 0) return conversation;
+
+    let nextName = conversation.userName;
+    let nextEmail = conversation.userEmail;
+    let nextSubject = conversation.subject;
+    let nextUserId = conversation.userId;
+
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const message = asRecord(messages[i]);
+      const sender = asRecord(message.sender);
+      const senderId = String(
+        sender.id ?? sender.userId ?? message.senderId ?? message.userId ?? "",
+      );
+
+      if (senderId && senderId === currentUserId) continue;
+
+      if (isMissingName(nextName)) {
+        const parsedName = getNameFromRecord(sender);
+        if (parsedName) nextName = parsedName;
+      }
+
+      if (isMissingEmail(nextEmail)) {
+        const parsedEmail = getEmailFromRecord(sender);
+        if (parsedEmail) nextEmail = parsedEmail;
+      }
+
+      if (!nextUserId && senderId && senderId !== currentUserId) {
+        nextUserId = senderId;
+      }
+
+      if (isMissingSubject(nextSubject)) {
+        const content = getString(message.content);
+        const parsedSubject = parseSubjectFromMessage(content);
+        if (parsedSubject) nextSubject = parsedSubject;
+      }
+
+      if (
+        !isMissingName(nextName) &&
+        !isMissingEmail(nextEmail) &&
+        !isMissingSubject(nextSubject)
+      ) {
+        break;
+      }
+    }
+
+    return {
+      ...conversation,
+      userName: nextName,
+      userEmail: nextEmail,
+      subject: nextSubject,
+      userId: nextUserId,
+    };
+  } catch {
+    return conversation;
+  }
+}
+
 export const adminChatService = {
   async getConversations(): Promise<AdminChatConversation[]> {
     const token = assertToken();
@@ -419,10 +524,18 @@ export const adminChatService = {
       throw error;
     }
 
-    return getArrayPayload(data)
+    const normalized = getArrayPayload(data)
       .filter(isRecord)
       .map((raw) => normalizeConversation(raw, currentUserId))
       .filter((row): row is AdminChatConversation => Boolean(row));
+
+    const hydrated = await Promise.all(
+      normalized.map((conversation) =>
+        hydrateConversationFromMessages(conversation, currentUserId),
+      ),
+    );
+
+    return hydrated;
   },
 
   async deleteConversation(conversationId: string): Promise<void> {

@@ -27,7 +27,7 @@ export default function CartItem({ item }: { item: CartItemType }) {
   const isUnavailable = !Number.isFinite(stockNum) || stockNum <= 0;
 
   return (
-    <div className="flex items-center gap-6 p-6 bg-white rounded-xl border shadow-sm relative">
+    <div className="flex items-center gap-6 p-6 bg-amber-100 rounded-xl border shadow-sm relative">
       {/* ✅ NUEVO: aviso */}
       {isUnavailable && (
         <div className="absolute top-4 left-4 z-10 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">

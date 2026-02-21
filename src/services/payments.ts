@@ -1,3 +1,5 @@
+// src/services/payments.ts
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export type CheckoutItem = { productId: string; quantity: number };
@@ -31,7 +33,11 @@ function getAuthToken(): string | null {
   return null;
 }
 
-// ✅ CAMBIO: agrega couponCode opcional
+/**
+ * Crea la sesión de Stripe. Envía items + código opcional.
+ * ✅ Enviamos varios aliases del código (couponCode/code/discountCode)
+ * para evitar mismatch con el back mientras se alinea el DTO.
+ */
 export async function createCheckoutSession(
   items: CheckoutItem[],
   couponCode?: string,
@@ -39,14 +45,22 @@ export async function createCheckoutSession(
   const token = getAuthToken();
   const baseUrl = assertApiBaseUrl();
 
+  const payload: any = { items };
+
+  const code = couponCode?.trim();
+  if (code) {
+    payload.couponCode = code; // tu nombre original
+    payload.code = code; // alias común
+    payload.discountCode = code; // alias común
+  }
+
   const res = await fetch(`${baseUrl}/api/stripe/checkout`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    // ✅ CAMBIO: manda couponCode
-    body: JSON.stringify({ items, couponCode }),
+    body: JSON.stringify(payload),
   });
 
   const data = await res.json().catch(() => ({}));
@@ -59,4 +73,3 @@ export async function createCheckoutSession(
 
   return data as { url: string; sessionId?: string };
 }
-

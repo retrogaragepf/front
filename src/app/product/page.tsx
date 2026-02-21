@@ -88,7 +88,7 @@ export default function ProductPage() {
 
             <button
               onClick={load}
-              className="border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:bg-amber-300 transition"
+              className="shrink-0 px-4 py-2 rounded-xl border-2 border-zinc-900 bg-emerald-900 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-[1px] active:translate-y-[1px]"
             >
               Actualizar
             </button>
@@ -121,7 +121,7 @@ export default function ProductPage() {
                       className={`inline-flex items-center px-3 py-1 rounded-full border-2 border-zinc-900 text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
                         ${
                           isOut
-                            ? "bg-rose-100 text-rose-900"
+                            ? "bg-rose-900 text-rose-100"
                             : "bg-emerald-100 text-emerald-900"
                         }`}
                     >
@@ -133,17 +133,17 @@ export default function ProductPage() {
                       <span className="text-xs text-zinc-600">Disponibles</span>
                     ) : (
                       <span className="text-xs text-rose-900 font-semibold">
-                        Vuelve pronto 👀
+                        Agotado por ahora. 👀
                       </span>
                     )}
                   </div>
 
                   {/* ✅ Mensaje debajo (solo si está agotado) */}
-                  {isOut && (
+                  {/* {isOut && (
                     <p className="mt-2 text-xs font-semibold text-rose-900">
                       Agotado por ahora. Vuelve pronto 👀
                     </p>
-                  )}
+                  )} */}
                 </div>
               );
             })}

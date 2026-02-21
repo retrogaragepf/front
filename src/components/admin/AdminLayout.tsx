@@ -4,8 +4,8 @@ import { ReactNode } from "react";
 
 type Props = {
   children: ReactNode;
-  section: "users" | "products";
-  setSection: (s: "users" | "products") => void;
+  section: "users" | "products" | "chats";
+  setSection: (s: "users" | "products" | "chats") => void;
 };
 
 export default function AdminLayout({ children, section, setSection }: Props) {
@@ -38,6 +38,17 @@ export default function AdminLayout({ children, section, setSection }: Props) {
             }`}
           >
             Validacion Productos
+          </button>
+
+          <button
+            onClick={() => setSection("chats")}
+            className={`px-4 py-3 rounded-xl border-2 border-amber-900 font-extrabold text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] transition ${
+              section === "chats"
+                ? "bg-amber-200 text-amber-900"
+                : "bg-white text-amber-900 hover:bg-amber-100"
+            }`}
+          >
+            Gestión de Chats
           </button>
         </nav>
 

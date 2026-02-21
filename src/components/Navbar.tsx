@@ -86,7 +86,9 @@ const Navbar = () => {
     try {
       const users = await getAllUsers();
       const adminUser = users.find((user) =>
-        String(user.role || "").toLowerCase().includes("admin"),
+        String(user.role || "")
+          .toLowerCase()
+          .includes("admin"),
       );
       if (adminUser?.id) {
         return {
@@ -247,7 +249,7 @@ const Navbar = () => {
                   onClick={() => setIsAdminSupportOpen(true)}
                   className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
                 >
-                  Ayuda
+                  AYUDA
                 </button>
               </li>
             )}
@@ -406,7 +408,7 @@ const Navbar = () => {
                   onClick={() => setIsAdminSupportOpen(true)}
                   className="hover:text-emerald-900 transition"
                 >
-                  Ayuda
+                  AYUDA
                 </button>
               </li>
             )}
@@ -418,11 +420,14 @@ const Navbar = () => {
         <div
           className="fixed inset-0 z-[95] flex items-center justify-center bg-zinc-900/60 p-4"
           onClick={(event) => {
-            if (event.target === event.currentTarget) setIsAdminSupportOpen(false);
+            if (event.target === event.currentTarget)
+              setIsAdminSupportOpen(false);
           }}
         >
           <section className="w-full max-w-lg rounded-2xl border-2 border-amber-900 bg-amber-100 p-5 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.8)]">
-            <h3 className="font-display text-xl text-amber-900">Chat Administrador</h3>
+            <h3 className="font-display text-xl text-amber-900">
+              Chat Administrador
+            </h3>
             <p className="mt-2 text-sm text-zinc-700">
               Hola, este es el chat auto respuesta de administrador. Por favor,
               indica el asunto por el cual escribes.

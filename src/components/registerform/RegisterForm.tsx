@@ -84,9 +84,9 @@ const RegisterForm = () => {
 
       if (
         response?.success === false ||
-        typeof response === "object" &&
-        (response?.error ||
-          response?.message?.toLowerCase?.().includes("error"))
+        (typeof response === "object" &&
+          (response?.error ||
+            response?.message?.toLowerCase?.().includes("error")))
       ) {
         throw new Error(response?.message || "Error registrando usuario.");
       }
@@ -104,7 +104,8 @@ const RegisterForm = () => {
     },
 
     onError: (error: any) => {
-      const msg = error?.message || "No se pudo registrar. Correo ya registrado.";
+      const msg =
+        error?.message || "No se pudo registrar. Correo ya registrado.";
       showToast.error(String(msg), {
         duration: 2500,
         progress: true,
@@ -124,7 +125,7 @@ const RegisterForm = () => {
   return (
     <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
+        <div className="bg-amber-100 rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
           {/* decor */}
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
@@ -149,7 +150,7 @@ const RegisterForm = () => {
                 sessionStorage.setItem("google-login", "true");
                 signIn("google", { callbackUrl: "/login" });
               }}
-              className="w-full flex items-center justify-center gap-3 border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl transition-colors"
+              className="w-full flex items-center justify-center gap-3 border border-gray-300 bg-amber-100 hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl transition-colors"
             >
               <svg className="w-5 h-5" viewBox="0 0 48 48">
                 <path
@@ -177,7 +178,7 @@ const RegisterForm = () => {
                 <div className="w-full border-t border-gray-200"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-400">
+                <span className="px-4 bg-amber-100 text-gray-400">
                   o usa tu email
                 </span>
               </div>
@@ -342,7 +343,7 @@ const RegisterForm = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
+                className="w-full rounded-xl bg-emerald-900 hover:bg-amber-900 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
               >
                 {isSubmitting ? (
                   <>
@@ -383,19 +384,17 @@ const RegisterForm = () => {
                         d="M14 5l7 7m0 0l-7 7m7-7H3"
                       />
                     </svg>
-                    <span className=" text-md">
-                      Registrarse
-                    </span>
+                    <span className=" text-md">Registrarse</span>
                   </>
                 )}
               </button>
             </form>
 
-            <p className="text-center text-sm text-emerald-800 pt-4">
+            <p className="text-center text-sm text-black pt-4">
               ¿Ya tienes cuenta?{" "}
               <Link
                 href="/login"
-                className="font-semibold text-amber-800 hover:text-gray-900 transition-colors"
+                className="font-semibold text-black hover:text-gray-900 transition-colors"
               >
                 Inicia sesión
               </Link>

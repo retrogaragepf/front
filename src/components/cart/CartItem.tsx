@@ -22,8 +22,19 @@ export default function CartItem({ item }: { item: CartItemType }) {
   const fallbackImg =
     "https://res.cloudinary.com/dyylxjijf/image/upload/v1770321127/Camara_ypblyh.png";
 
+  // ✅ NUEVO: detectar no disponible
+  const stockNum = Number(item.stock ?? 0);
+  const isUnavailable = !Number.isFinite(stockNum) || stockNum <= 0;
+
   return (
-    <div className="flex items-center gap-6 p-6 bg-white rounded-xl border shadow-sm relative">
+    <div className="flex items-center gap-6 p-6 bg-amber-100 rounded-xl border shadow-sm relative">
+      {/* ✅ NUEVO: aviso */}
+      {isUnavailable && (
+        <div className="absolute top-4 left-4 z-10 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">
+          No disponible (sin stock)
+        </div>
+      )}
+
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={item.image || fallbackImg}
@@ -44,27 +55,7 @@ export default function CartItem({ item }: { item: CartItemType }) {
           <span className="font-bold text-xl">${priceFormatted}</span>
 
           <div className="flex items-center border rounded-lg">
-            {/* <button
-              className="px-2"
-              onClick={() => key && decreaseQty(key)}
-              aria-label="Disminuir cantidad"
-              disabled={!key}
-              title={!key ? "Item sin id válido" : ""}
-            >
-              -
-            </button> */}
-
             <span className="px-3">{item.quantity}</span>
-
-            {/* <button
-              className="px-2"
-              onClick={() => key && increaseQty(key)}
-              aria-label="Aumentar cantidad"
-              disabled={!key}
-              title={!key ? "Item sin id válido" : ""}
-            >
-              +
-            </button> */}
           </div>
         </div>
       </div>

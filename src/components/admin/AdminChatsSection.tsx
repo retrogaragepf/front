@@ -173,6 +173,7 @@ export default function AdminChatsSection() {
     () => chats.reduce((acc, chat) => acc + chat.unreadCount, 0),
     [chats],
   );
+  const hasUnread = totalUnread > 0;
 
   return (
     <div>
@@ -201,7 +202,13 @@ export default function AdminChatsSection() {
         ))}
 
         <div className="ml-auto flex items-center gap-3">
-          <span className="px-3 py-1 rounded-full text-xs font-extrabold border-2 border-emerald-600 text-emerald-700 bg-emerald-100">
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-extrabold border-2 ${
+              hasUnread
+                ? "border-emerald-600 text-emerald-700 bg-emerald-100"
+                : "border-zinc-500 text-zinc-800 bg-zinc-100"
+            }`}
+          >
             Mensajes sin responder: {totalUnread}
           </span>
 

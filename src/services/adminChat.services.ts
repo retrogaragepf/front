@@ -30,6 +30,20 @@ function getApiBaseUrl(): string {
   );
 }
 
+function getConfiguredPaths(envKey: string): string[] {
+  const raw = process.env[envKey];
+  if (!raw) return [];
+
+  return raw
+    .split(",")
+    .map((path) => path.trim())
+    .filter(Boolean);
+}
+
+function uniquePaths(paths: string[]): string[] {
+  return Array.from(new Set(paths));
+}
+
 function assertToken(): string {
   const token = authService.getToken?.() || null;
   if (!token) throw new Error("NO_AUTH");
@@ -283,12 +297,26 @@ export const adminChatService = {
     const token = assertToken();
     const currentUserId = getCurrentUserId(token);
 
-    const data = await tryMany([
+    const configured = getConfiguredPaths("NEXT_PUBLIC_ADMIN_CHAT_ENDPOINTS");
+    const defaults = [
       "/chat/admin/conversations",
       "/chat/conversations/admin",
       "/chat/conversations",
       "/chat/all-conversations",
-    ]);
+      "/chat/my-conversations",
+    ];
+
+    let data: unknown;
+    try {
+      data = await tryMany(uniquePaths([...configured, ...defaults]));
+    } catch (error) {
+      if (error instanceof HttpError && (error.status === 404 || error.status === 405)) {
+        throw new Error(
+          "El backend no expone un endpoint de listado de chats admin. Configura NEXT_PUBLIC_ADMIN_CHAT_ENDPOINTS con la ruta correcta.",
+        );
+      }
+      throw error;
+    }
 
     return getArrayPayload(data)
       .filter(isRecord)
@@ -298,14 +326,23 @@ export const adminChatService = {
 
   async deleteConversation(conversationId: string): Promise<void> {
     const encodedId = encodeURIComponent(conversationId);
+    const configured = getConfiguredPaths("NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS")
+      .map((path) => path.replace(":id", encodedId));
+    const defaults = [
+      `/chat/admin/conversation/${encodedId}`,
+      `/chat/conversation/${encodedId}`,
+      `/chat/conversations/${encodedId}`,
+    ];
 
-    await tryMany(
-      [
-        `/chat/admin/conversation/${encodedId}`,
-        `/chat/conversation/${encodedId}`,
-        `/chat/conversations/${encodedId}`,
-      ],
-      { method: "DELETE" },
-    );
+    try {
+      await tryMany(uniquePaths([...configured, ...defaults]), { method: "DELETE" });
+    } catch (error) {
+      if (error instanceof HttpError && (error.status === 404 || error.status === 405)) {
+        throw new Error(
+          "El backend no expone un endpoint para borrar conversaciones admin. Configura NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS con la ruta correcta.",
+        );
+      }
+      throw error;
+    }
   },
 };

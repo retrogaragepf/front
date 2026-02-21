@@ -37,5 +37,6 @@ export interface OpenChatPayload {
   sellerId?: string;
   customerName?: string;
   customerId?: string;
+  initialMessage?: string;
   asParticipant?: ChatParticipant;
 }

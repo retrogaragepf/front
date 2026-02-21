@@ -39,4 +39,6 @@ export interface OpenChatPayload {
   customerId?: string;
   initialMessage?: string;
   asParticipant?: ChatParticipant;
+  adminDirect?: boolean;
+  chatWithName?: string;
 }

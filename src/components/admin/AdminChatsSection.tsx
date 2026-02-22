@@ -51,8 +51,15 @@ function buildUsersIndex(users: AdminUIUser[]): UsersIndex {
 function mergeChatsWithUsers(
   chats: AdminChatConversation[],
   usersIndex: UsersIndex,
+  hiddenConversationIds: Set<string>,
 ): ChatRow[] {
-  return chats.map((chat) => {
+  return chats
+    .filter((chat) => {
+      if (hiddenConversationIds.has(chat.id)) return false;
+      const candidates = chat.deleteCandidates ?? [];
+      return !candidates.some((id) => hiddenConversationIds.has(id));
+    })
+    .map((chat) => {
     const userById = usersIndex.byId.get(chat.userId);
     const userByEmail = chat.userEmail
       ? usersIndex.byEmail.get(chat.userEmail.toLowerCase())
@@ -67,11 +74,14 @@ function mergeChatsWithUsers(
       userId: user?.id ? String(user.id) : chat.userId,
       isBanned: Boolean(user?.isBanned ?? fallbackBlocked),
     };
-  });
+    });
 }
 
 export default function AdminChatsSection() {
   const [chats, setChats] = useState<ChatRow[]>([]);
+  const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [directChatConversationId, setDirectChatConversationId] = useState<string | null>(null);
   const [directChatUserName, setDirectChatUserName] = useState("Usuario");
 
@@ -93,7 +103,7 @@ export default function AdminChatsSection() {
       ]);
 
       const nextUsersIndex = buildUsersIndex(users);
-      setChats(mergeChatsWithUsers(rawChats, nextUsersIndex));
+      setChats(mergeChatsWithUsers(rawChats, nextUsersIndex, hiddenConversationIds));
     } catch (e: unknown) {
       console.error("Admin chats load error:", e);
       const message =
@@ -105,10 +115,27 @@ export default function AdminChatsSection() {
     } finally {
       setLoadingList(false);
     }
-  }, []);
+  }, [hiddenConversationIds]);
 
   useEffect(() => {
     void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    // Auto-refresh para que el admin reciba nuevos mensajes sin recargar manualmente.
+    const intervalId = window.setInterval(() => {
+      void loadData();
+    }, 10000);
+    return () => window.clearInterval(intervalId);
+  }, [loadData]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      console.log("[AdminChatsSection] window focus -> reload chats");
+      void loadData();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [loadData]);
 
   const handleDeleteConversation = async (
@@ -128,6 +155,13 @@ export default function AdminChatsSection() {
       // Debug: ayuda a validar qué ids exactos se envían al endpoint de borrado.
       console.log("[AdminChatsSection] delete ids:", [conversationId, ...deleteCandidates]);
       await adminChatService.deleteConversation(conversationId, deleteCandidates);
+      // Si backend hace borrado parcial, ocultamos la conversación en la vista admin.
+      setHiddenConversationIds((prev) => {
+        const next = new Set(prev);
+        next.add(conversationId);
+        deleteCandidates.forEach((id) => next.add(id));
+        return next;
+      });
       await loadData();
     } catch (e: unknown) {
       console.error("Delete conversation error:", e);
@@ -198,6 +232,14 @@ export default function AdminChatsSection() {
     [chats],
   );
   const hasUnread = totalUnread > 0;
+
+  useEffect(() => {
+    // Debug: valida cálculo de no respondidos en dashboard admin.
+    console.log("[AdminChatsSection] unread summary:", {
+      totalUnread,
+      conversations: chats.length,
+    });
+  }, [chats.length, totalUnread]);
 
   return (
     <div>

@@ -17,6 +17,12 @@ type ChatRow = AdminChatConversation & {
   isBanned: boolean;
 };
 
+const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
+const ADMIN_READ_CHATS_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const ADMIN_READ_CHATS_MAX_ENTRIES = 500;
+
+type ReadMarkers = Record<string, number>;
+
 function formatTimestamp(value: string): string {
   if (!value) return "-";
   const parsed = new Date(value);
@@ -46,6 +52,45 @@ function buildUsersIndex(users: AdminUIUser[]): UsersIndex {
   });
 
   return { byId, byEmail };
+}
+
+function loadReadMarkers(): ReadMarkers {
+  try {
+    const now = Date.now();
+    const raw = localStorage.getItem(ADMIN_READ_CHATS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.entries(parsed).reduce<ReadMarkers>((acc, [id, value]) => {
+      const at = typeof value === "number" ? value : Number(value);
+      if (
+        id &&
+        Number.isFinite(at) &&
+        at > 0 &&
+        now - at <= ADMIN_READ_CHATS_TTL_MS
+      ) {
+        acc[id] = at;
+      }
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function persistReadMarkers(markers: ReadMarkers) {
+  try {
+    const entries = Object.entries(markers)
+      .filter(([, at]) => Number.isFinite(at) && at > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, ADMIN_READ_CHATS_MAX_ENTRIES);
+    localStorage.setItem(
+      ADMIN_READ_CHATS_STORAGE_KEY,
+      JSON.stringify(Object.fromEntries(entries)),
+    );
+  } catch {
+    // Ignore storage errors.
+  }
 }
 
 function mergeChatsWithUsers(
@@ -83,6 +128,7 @@ export default function AdminChatsSection() {
   const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<string>>(
     new Set(),
   );
+  const [readMarkers, setReadMarkers] = useState<ReadMarkers>({});
   const [directChatConversationId, setDirectChatConversationId] = useState<string | null>(null);
   const [directChatUserName, setDirectChatUserName] = useState("Usuario");
 
@@ -104,7 +150,17 @@ export default function AdminChatsSection() {
       ]);
 
       const nextUsersIndex = buildUsersIndex(users);
-      setChats(mergeChatsWithUsers(rawChats, nextUsersIndex, hiddenConversationIds));
+      const merged = mergeChatsWithUsers(rawChats, nextUsersIndex, hiddenConversationIds);
+      const normalized = merged.map((chat) => {
+        const readAt = readMarkers[chat.id];
+        if (!readAt) return chat;
+        const timestamp = Date.parse(chat.timestamp || "");
+        if (chat.unreadCount === 0 || (Number.isFinite(timestamp) && timestamp > readAt)) {
+          return chat;
+        }
+        return { ...chat, unreadCount: 0 };
+      });
+      setChats(normalized);
     } catch (e: unknown) {
       console.error("Admin chats load error:", e);
       const message =
@@ -116,7 +172,7 @@ export default function AdminChatsSection() {
     } finally {
       setLoadingList(false);
     }
-  }, [hiddenConversationIds]);
+  }, [hiddenConversationIds, readMarkers]);
 
   useEffect(() => {
     // En Next, la carga inicial puede no tener window. Cargamos ocultos al montar.
@@ -129,6 +185,10 @@ export default function AdminChatsSection() {
     } catch {
       // Silencioso: si hay dato inválido, seguimos con estado vacío.
     }
+  }, []);
+
+  useEffect(() => {
+    setReadMarkers(loadReadMarkers());
   }, []);
 
   useEffect(() => {
@@ -382,6 +442,12 @@ export default function AdminChatsSection() {
                     <button
                       type="button"
                       onClick={() => {
+                        const nextReadAt = Date.now();
+                        setReadMarkers((prev) => {
+                          const next = { ...prev, [chat.id]: nextReadAt };
+                          persistReadMarkers(next);
+                          return next;
+                        });
                         // Al abrir desde admin, quitamos alerta local de no respondido.
                         setChats((curr) =>
                           curr.map((row) =>

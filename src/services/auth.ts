@@ -28,8 +28,35 @@ function normalizeAuthResponse(payload: any): AuthResponse {
     success:
       typeof payload.success === "boolean"
         ? payload.success
-        : Boolean(token || payload.user || payload.message),
+        : Boolean(token || payload.user),
   };
+}
+
+function extractApiErrorMessage(error: any): string {
+  const status = Number(error?.response?.status ?? 0);
+  if (status === 404) {
+    return "Registro no disponible en este momento.";
+  }
+
+  const data = error?.response?.data;
+  const message = data?.message ?? data?.error ?? error?.message;
+
+  if (Array.isArray(message)) {
+    const normalized = message
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean);
+    if (normalized.length > 0) return normalized.join(". ");
+  }
+
+  if (typeof message === "string" && message.trim()) return message;
+
+  if (status === 400) return "Datos inválidos para registro.";
+  if (status === 409) return "El usuario ya existe.";
+  if (status === 422) return "Datos incompletos o inválidos para registro.";
+  if (status >= 500) return "Error interno del servidor al registrar usuario.";
+  if (status > 0) return `Error de registro (HTTP ${status}).`;
+
+  return "Error en registro";
 }
 
 function includesConfirmPasswordFieldError(message: unknown): boolean {
@@ -67,21 +94,17 @@ export const authService = {
           const fallbackResponse = await apiPost("/auth/signup", fallbackPayload);
           return normalizeAuthResponse(fallbackResponse.data);
         } catch (fallbackError: any) {
-          return (
-            fallbackError.response?.data || {
-              success: false,
-              error: fallbackError?.message || "Error en registro",
-            }
-          );
+          return {
+            success: false,
+            error: extractApiErrorMessage(fallbackError),
+          };
         }
       }
 
-      return (
-        error.response?.data || {
-          success: false,
-          error: error?.message || "Error en registro",
-        }
-      );
+      return {
+        success: false,
+        error: extractApiErrorMessage(error),
+      };
     }
   },
 

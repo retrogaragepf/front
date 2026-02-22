@@ -3,13 +3,20 @@
 const validations = {
   // ----------Nombre y apellido (permite espacios y acentos)-------------
   name: (value: string) => {
+    const normalized = value.trim().replace(/\s+/g, " ");
+    const hasOnlyLettersAndSpaces =
+      /^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+$/.test(normalized);
+    const nameParts = normalized.split(" ").filter(Boolean);
+    const hasAtLeastTwoWords = nameParts.length >= 2;
+    const hasMinLettersPerWord = nameParts.every((part) => part.length >= 2);
     const isValid =
-      /^(?=(?:.*[A-Za-zÁÉÍÓÚÜáéíóúüÑñ]){5,})[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+$/.test(
-        value,
-      );
+      hasOnlyLettersAndSpaces && hasAtLeastTwoWords && hasMinLettersPerWord;
+
     return {
       isValid,
-      errorMessage: isValid ? "" : "Solo Puede llevar letras , y espacios",
+      errorMessage: isValid
+        ? ""
+        : "Debes ingresar nombre y apellido (solo letras y espacios).",
     };
   },
 

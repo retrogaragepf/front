@@ -25,30 +25,73 @@ export function useChatSync({
   setMessagesByConversation,
   setActiveConversationId,
 }: Params) {
+  const deriveUnreadFromMessages = useCallback(
+    async (conversations: ChatConversation[]): Promise<ChatConversation[]> => {
+      if (!currentUserId || conversations.length === 0) return conversations;
+
+      const totalUnread = conversations.reduce(
+        (acc, conversation) => acc + (conversation.unreadCount || 0),
+        0,
+      );
+      if (totalUnread > 0) return conversations;
+
+      // Fallback cuando backend no devuelve unreadCount correcto.
+      const withDerived = await Promise.all(
+        conversations.map(async (conversation) => {
+          try {
+            const messages = await chatService.getMessages(conversation.id);
+            let pending = 0;
+            for (let i = messages.length - 1; i >= 0; i -= 1) {
+              const message = messages[i];
+              if (message.senderId && message.senderId === currentUserId) break;
+              pending += 1;
+            }
+            return pending > 0 ? { ...conversation, unreadCount: pending } : conversation;
+          } catch {
+            return conversation;
+          }
+        }),
+      );
+
+      return withDerived;
+    },
+    [currentUserId],
+  );
+
   const syncConversations = useCallback(async () => {
     if (!canUseChat) return;
     try {
       const remoteConversations = await chatService.getConversations();
       const normalizedConversations = dedupeConversations(remoteConversations);
+      const hydratedUnreadConversations =
+        await deriveUnreadFromMessages(normalizedConversations);
 
       setConversations((prev) => {
         const prevById = new Map(prev.map((conversation) => [conversation.id, conversation]));
-        return normalizedConversations.map((conversation) =>
+        return hydratedUnreadConversations.map((conversation) =>
           mergeConversationData(conversation, prevById.get(conversation.id)),
         );
       });
 
       setActiveConversationId((prev) => {
-        if (prev && normalizedConversations.some((conversation) => conversation.id === prev)) {
+        if (
+          prev &&
+          hydratedUnreadConversations.some((conversation) => conversation.id === prev)
+        ) {
           return prev;
         }
-        return normalizedConversations[0]?.id ?? "";
+        return hydratedUnreadConversations[0]?.id ?? "";
       });
     } catch (error) {
       if ((error as Error).message === "NO_AUTH") return;
       console.error("No se pudieron sincronizar conversaciones:", error);
     }
-  }, [canUseChat, setActiveConversationId, setConversations]);
+  }, [
+    canUseChat,
+    deriveUnreadFromMessages,
+    setActiveConversationId,
+    setConversations,
+  ]);
 
   const syncMessages = useCallback(
     async (conversationId: string) => {

@@ -54,34 +54,51 @@ function Footer() {
           <ul className="font-handwritten space-y-3 text-sm text-zinc-700">
             <li>
               <Link
-                href="/categories/decoracion"
+                href="/categories/ropa-accesorios"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
-                Decoración
+                Ropa y Accesorios
               </Link>
             </li>
             <li>
               <Link
-                href="/categories/electronica-retro"
+                href="/categories/tecnologia-retro"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
-                Electrónica Retro
+                Tecnología Retro
               </Link>
             </li>
             <li>
               <Link
-                href="/categories/mobiliario-industrial"
+                href="/categories/decoracion-hogar"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
-                Mobiliario Industrial
+                Decoración y Hogar
               </Link>
             </li>
             <li>
               <Link
-                href="/categories/libros-y-papel"
+                href="/categories/coleccionables"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
-                Libros y Papel
+                  Coleccionables
+              </Link>
+            </li>
+            
+            <li>
+              <Link
+                href="/categories/autos-garaje"
+                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
+              >
+               Autos y Garaje
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/categories/muebles-antiguos"
+                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
+              >
+                Muebles Antiguos
               </Link>
             </li>
           </ul>

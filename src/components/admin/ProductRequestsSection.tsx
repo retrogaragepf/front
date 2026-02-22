@@ -146,7 +146,11 @@ export default function ProductRequestsSection() {
               </p>
 
               <p className="font-extrabold text-zinc-800 mb-2">
-                ${product.price}
+                $
+                {Number(product.price ?? 0).toLocaleString("es-CO", {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}
               </p>
 
               <p className="text-xs text-zinc-500 mb-4">

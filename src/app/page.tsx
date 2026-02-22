@@ -22,7 +22,7 @@ export default function Product() {
   useEffect(() => {
     const run = async () => {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;// SE DEBE LEER. DENTRO PAAR EVITAR ERRORES EN BUILD
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL; // SE DEBE LEER. DENTRO PAAR EVITAR ERRORES EN BUILD
         if (!API_BASE_URL)
           throw new Error("NEXT_PUBLIC_API_BASE_URL no está definido");
 
@@ -78,11 +78,11 @@ export default function Product() {
 
         <div className="relative max-w-6xl mx-auto px-4 py-14 sm:py-20 flex flex-col md:flex-row items-center gap-12">
           <div className="flex-1 space-y-6">
-            <span className="font-display inline-block px-3 py-1 bg-amber-800 text-amber-50 uppercase tracking-widest text-xs sm:text-sm -rotate-2">
+            <span className="font-typewriter inline-block px-3 py-1 bg-amber-800 text-amber-50 uppercase tracking-widest text-xs sm:text-sm -rotate-2">
               Liquidación de temporada
             </span>
 
-            <h1 className=" font-handwritten  text-4xl sm:text-6xl md:text-7xl  leading-tight">
+            <h1 className="font-typewriter text-4xl sm:text-6xl md:text-7xl  leading-tight">
               Objetos con{" "}
               <span className="text-emerald-900  decoration-amber-600 underline-offset-8">
                 historia
@@ -91,7 +91,7 @@ export default function Product() {
               precios de RetroGarage.
             </h1>
 
-            <p className="font-handwritten text-base sm:text-lg max-w-xl text-zinc-800">
+            <p className="font-typewriter text-base sm:text-lg max-w-xl text-zinc-800">
               Tesoros olvidados: desde maletas vintage hasta cámaras analógicas
               que aún sueñan con revelar rollos.
             </p>
@@ -124,10 +124,10 @@ export default function Product() {
       <section id="featured" className="max-w-6xl mx-auto px-4 py-14 sm:py-20">
         <div className="flex items-end justify-between gap-6 mb-10 sm:mb-14">
           <div>
-            <h2 className="font-handwritten text-2xl sm:text-4xl font-extrabold mb-2">
+            <h2 className="font-typewriter text-2xl sm:text-4xl font-extrabold mb-2">
               Destacados de la semana
             </h2>
-            <p className="font-handwritten text-amber-900 font-semibold">
+            <p className="font-typewriter text-amber-900 font-semibold">
               Recién llegados del ático
             </p>
           </div>

@@ -154,7 +154,7 @@ function Card({ product, hideDescription = true }: CardProps) {
       </div>
 
       <div className="mt-4 space-y-1">
-        <h4 className="font-extrabold text-lg group-hover:text-amber-800 transition-colors line-clamp-2">
+        <h4 className="font-extrabold text-lg group-hover:text-amber-800 transition-colors line-clamp-2 min-h-[3rem] leading-snug">
           {(product as any).title}
         </h4>
 

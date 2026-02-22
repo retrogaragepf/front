@@ -22,13 +22,17 @@ function normalizeAuthResponse(payload: any): AuthResponse {
   }
 
   const token = payload.token ?? payload.access_token ?? null;
+  const hasError =
+    Boolean(payload.error) ||
+    (Array.isArray(payload.errors) && payload.errors.length > 0);
+
   return {
     ...payload,
     token: typeof token === "string" ? token : undefined,
     success:
       typeof payload.success === "boolean"
         ? payload.success
-        : Boolean(token || payload.user),
+        : !hasError,
   };
 }
 

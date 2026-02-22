@@ -60,7 +60,38 @@ export default function ProductRequestsSection() {
       (p.title || "").toLowerCase().includes(search.toLowerCase()),
     );
 
-    return filtered;
+    return [...filtered]
+      .map((product, index) => ({ product, index }))
+      .sort((a: any, b: any) => {
+        const aTs = Date.parse(
+          String(
+            a.product?.createdAt ??
+              a.product?.created_at ??
+              a.product?.publishedAt ??
+              a.product?.updatedAt ??
+              "",
+          ),
+        );
+        const bTs = Date.parse(
+          String(
+            b.product?.createdAt ??
+              b.product?.created_at ??
+              b.product?.publishedAt ??
+              b.product?.updatedAt ??
+              "",
+          ),
+        );
+
+        const hasATs = Number.isFinite(aTs);
+        const hasBTs = Number.isFinite(bTs);
+        if (hasATs && hasBTs && aTs !== bTs) return bTs - aTs;
+        if (hasATs && !hasBTs) return -1;
+        if (!hasATs && hasBTs) return 1;
+
+        // Fallback: último recibido primero (útil cuando el backend no expone fechas)
+        return b.index - a.index;
+      })
+      .map((entry) => entry.product);
   }, [products, filter, search]);
 
   return (

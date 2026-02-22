@@ -42,7 +42,7 @@ const Sidebar = () => {
 
         <button
           onClick={() => router.push("/dashboard/orders")}
-          className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
+          className="w-full px-4 py-3 rounded-lg border-2 bg-amber-100 border-amber-900 font-bold text-left text-amber-900"
         >
           ¬ Mis Ordenes
         </button>

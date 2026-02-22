@@ -14,7 +14,7 @@ const Navbar = () => {
   const router = useRouter();
 
   const { cartItems } = useCart();
-  const { openChat, hasUnreadMessages, unreadTotal } = useChat();
+  const { openChat, hasUnreadMessages, unreadTotal, conversations } = useChat();
   const itemsCart = cartItems.length;
   const [isAdminSupportOpen, setIsAdminSupportOpen] = useState(false);
   const [adminSubject, setAdminSubject] = useState("");
@@ -145,6 +145,18 @@ const Navbar = () => {
     router.push("/");
   };
 
+  const handleOpenUnreadChat = () => {
+    // Abrimos primero una conversación con no leídos para limpiar la alerta al entrar.
+    const firstUnreadConversation = conversations.find(
+      (conversation) => conversation.unreadCount > 0,
+    );
+    if (firstUnreadConversation?.id) {
+      openChat({ conversationId: firstUnreadConversation.id });
+      return;
+    }
+    openChat();
+  };
+
   return (
     <header className="w-full bg-amber-100 text-zinc-900 border-b-2 border-amber-300 sticky top-0 z-50">
       <div className="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -202,7 +214,7 @@ const Navbar = () => {
           {isLogged && hasUnreadMessages && (
             <button
               type="button"
-              onClick={() => openChat()}
+              onClick={handleOpenUnreadChat}
               className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-300 bg-amber-50 transition hover:bg-amber-200"
               aria-label="Mensajes"
               title="Mensajes"
@@ -328,7 +340,7 @@ const Navbar = () => {
               <li>
                 <button
                   type="button"
-                  onClick={() => openChat()}
+                  onClick={handleOpenUnreadChat}
                   className="relative hover:text-emerald-900 transition"
                 >
                   Chat

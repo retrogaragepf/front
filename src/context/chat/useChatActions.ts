@@ -33,6 +33,18 @@ type Params = {
   activeConversationId: string;
 };
 
+function isSupportConversation(conversation: ChatConversation): boolean {
+  const sellerName = (conversation.sellerName || "").toLowerCase();
+  const sellerNested = (conversation.seller?.name || "").toLowerCase();
+  const product = (conversation.product || "").toLowerCase();
+  return (
+    sellerName.includes("admin") ||
+    sellerNested.includes("admin") ||
+    product.includes("soporte") ||
+    product.includes("ayuda")
+  );
+}
+
 export function useChatActions({
   canUseChat,
   messagesByConversation,
@@ -50,11 +62,31 @@ export function useChatActions({
   activeConversationId,
 }: Params) {
   const ensureConversation = useCallback(
-    async (payload: OpenChatPayload): Promise<string> => {
-      if (!canUseChat) return "";
-      if (payload.conversationId) return payload.conversationId;
+    async (
+      payload: OpenChatPayload,
+    ): Promise<{ conversationId: string; shouldSendInitialMessage: boolean }> => {
+      if (!canUseChat) {
+        return { conversationId: "", shouldSendInitialMessage: false };
+      }
+      if (payload.conversationId) {
+        return {
+          conversationId: payload.conversationId,
+          shouldSendInitialMessage: Boolean(payload.initialMessage?.trim()),
+        };
+      }
 
       if (payload.isSupportRequest) {
+        const existingSupport = conversationsRef.current.find((conversation) =>
+          isSupportConversation(conversation),
+        );
+        if (existingSupport?.id) {
+          // Si ya existe chat soporte para el usuario, reutilizamos la misma conversación.
+          return {
+            conversationId: existingSupport.id,
+            shouldSendInitialMessage: Boolean(payload.initialMessage?.trim()),
+          };
+        }
+
         const supportSubject =
           payload.supportSubject?.trim() || payload.product?.trim() || "Soporte";
         const supportDetail = payload.supportDetail?.trim() || "";
@@ -83,21 +115,32 @@ export function useChatActions({
           [supportConversation.id]: prev[supportConversation.id] ?? [],
         }));
 
-        return supportConversation.id;
+        return {
+          conversationId: supportConversation.id,
+          shouldSendInitialMessage: false,
+        };
       }
 
       const sellerId = payload.sellerId?.trim();
       const customerId = payload.customerId?.trim() || chatService.getCurrentUserId();
 
       if (!sellerId || !customerId) {
-        return conversationsRef.current[0]?.id ?? "";
+        return {
+          conversationId: conversationsRef.current[0]?.id ?? "",
+          shouldSendInitialMessage: Boolean(payload.initialMessage?.trim()),
+        };
       }
 
       const existing = conversationsRef.current.find((conversation) => {
         const ids = conversation.participantIds ?? [];
         return ids.includes(sellerId) && ids.includes(customerId);
       });
-      if (existing) return existing.id;
+      if (existing) {
+        return {
+          conversationId: existing.id,
+          shouldSendInitialMessage: Boolean(payload.initialMessage?.trim()),
+        };
+      }
 
       const createdConversation = await chatService.createConversation({
         type: "PRIVATE",
@@ -129,7 +172,10 @@ export function useChatActions({
         [hydratedConversation.id]: prev[hydratedConversation.id] ?? [],
       }));
 
-      return hydratedConversation.id;
+      return {
+        conversationId: hydratedConversation.id,
+        shouldSendInitialMessage: Boolean(payload.initialMessage?.trim()),
+      };
     },
     [canUseChat, conversationsRef, setConversations, setMessagesByConversation],
   );
@@ -158,7 +204,8 @@ export function useChatActions({
 
       void (async () => {
         try {
-          const conversationId = await ensureConversation(payload);
+          const ensured = await ensureConversation(payload);
+          const conversationId = ensured.conversationId;
           if (!conversationId) {
             showToast.warning("No se pudo abrir la conversación.", {
               duration: 2200,
@@ -174,7 +221,7 @@ export function useChatActions({
           setActiveConversationId(conversationId);
 
           const initialMessage = payload.initialMessage?.trim();
-          if (initialMessage && !payload.isSupportRequest) {
+          if (initialMessage && ensured.shouldSendInitialMessage) {
             const persistedMessage = await chatService.sendMessage({
               conversationId,
               content: initialMessage,

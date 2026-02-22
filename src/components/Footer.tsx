@@ -54,7 +54,7 @@ function Footer() {
           <ul className="font-handwritten space-y-3 text-sm text-zinc-700">
             <li>
               <Link
-                href="#"
+                href="/categorias/decoracion"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Decoración
@@ -62,7 +62,7 @@ function Footer() {
             </li>
             <li>
               <Link
-                href="#"
+                href="/categorias/electronica-retro"
                 className="font-handwrittenhover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Electrónica Retro
@@ -70,7 +70,7 @@ function Footer() {
             </li>
             <li>
               <Link
-                href="#"
+                href="/categorias/mobiliario-industrial"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Mobiliario Industrial
@@ -78,7 +78,7 @@ function Footer() {
             </li>
             <li>
               <Link
-                href="#"
+                href="/categorias/libros-y-papel"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Libros y Papel
@@ -89,13 +89,13 @@ function Footer() {
 
         {/* Ayuda */}
         <div>
-          <h3 className="font-handwritten text-sm font-extrabold tracking-widest uppercase text-amber-900 mb-5">
+          <h3 className="text-sm font-extrabold tracking-widest uppercase text-amber-900 mb-5">
             Ayuda
           </h3>
           <ul className="space-y-3 text-sm text-zinc-700">
             <li>
               <Link
-                href="#"
+                href="/envios"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Envíos
@@ -103,7 +103,7 @@ function Footer() {
             </li>
             <li>
               <Link
-                href="#"
+                href="/devoluciones"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Devoluciones
@@ -111,7 +111,7 @@ function Footer() {
             </li>
             <li>
               <Link
-                href="#"
+                href="/guia-de-estado"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Guía de Estado
@@ -119,7 +119,7 @@ function Footer() {
             </li>
             <li>
               <Link
-                href="#"
+                href="/preguntas-frecuentes"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Preguntas Frecuentes

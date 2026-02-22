@@ -60,24 +60,25 @@ function mergeChatsWithUsers(
       return !candidates.some((id) => hiddenConversationIds.has(id));
     })
     .map((chat) => {
-    const userById = usersIndex.byId.get(chat.userId);
-    const userByEmail = chat.userEmail
-      ? usersIndex.byEmail.get(chat.userEmail.toLowerCase())
-      : undefined;
-    const user = userById || userByEmail;
-    const fallbackBlocked = chat.status === "blocked";
+      const userById = usersIndex.byId.get(chat.userId);
+      const userByEmail = chat.userEmail
+        ? usersIndex.byEmail.get(chat.userEmail.toLowerCase())
+        : undefined;
+      const user = userById || userByEmail;
+      const fallbackBlocked = chat.status === "blocked";
 
-    return {
-      ...chat,
-      userName: user?.name || chat.userName || "Usuario",
-      userEmail: user?.email || chat.userEmail || "Email no disponible",
-      userId: user?.id ? String(user.id) : chat.userId,
-      isBanned: Boolean(user?.isBanned ?? fallbackBlocked),
-    };
+      return {
+        ...chat,
+        userName: user?.name || chat.userName || "Usuario",
+        userEmail: user?.email || chat.userEmail || "Email no disponible",
+        userId: user?.id ? String(user.id) : chat.userId,
+        isBanned: Boolean(user?.isBanned ?? fallbackBlocked),
+      };
     });
 }
 
 export default function AdminChatsSection() {
+  const HIDDEN_CHATS_STORAGE_KEY = "admin_hidden_chats";
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<string>>(
     new Set(),
@@ -118,6 +119,27 @@ export default function AdminChatsSection() {
   }, [hiddenConversationIds]);
 
   useEffect(() => {
+    // En Next, la carga inicial puede no tener window. Cargamos ocultos al montar.
+    try {
+      const raw = localStorage.getItem(HIDDEN_CHATS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      setHiddenConversationIds(new Set(parsed.map(String)));
+    } catch {
+      // Silencioso: si hay dato inválido, seguimos con estado vacío.
+    }
+  }, []);
+
+  useEffect(() => {
+    // Persistimos ocultos para evitar que reaparezcan al refrescar.
+    localStorage.setItem(
+      HIDDEN_CHATS_STORAGE_KEY,
+      JSON.stringify(Array.from(hiddenConversationIds)),
+    );
+  }, [hiddenConversationIds]);
+
+  useEffect(() => {
     void loadData();
   }, [loadData]);
 
@@ -147,6 +169,13 @@ export default function AdminChatsSection() {
 
     setError(null);
     setBusyConversationId(conversationId);
+    // Ocultamos de inmediato para evitar que reaparezca por auto-refresh.
+    setHiddenConversationIds((prev) => {
+      const next = new Set(prev);
+      next.add(conversationId);
+      deleteCandidates.forEach((id) => next.add(id));
+      return next;
+    });
 
     const previous = chats;
     setChats((curr) => curr.filter((chat) => chat.id !== conversationId));
@@ -155,16 +184,15 @@ export default function AdminChatsSection() {
       // Debug: ayuda a validar qué ids exactos se envían al endpoint de borrado.
       console.log("[AdminChatsSection] delete ids:", [conversationId, ...deleteCandidates]);
       await adminChatService.deleteConversation(conversationId, deleteCandidates);
-      // Si backend hace borrado parcial, ocultamos la conversación en la vista admin.
-      setHiddenConversationIds((prev) => {
-        const next = new Set(prev);
-        next.add(conversationId);
-        deleteCandidates.forEach((id) => next.add(id));
-        return next;
-      });
       await loadData();
     } catch (e: unknown) {
       console.error("Delete conversation error:", e);
+      setHiddenConversationIds((prev) => {
+        const next = new Set(prev);
+        next.delete(conversationId);
+        deleteCandidates.forEach((id) => next.delete(id));
+        return next;
+      });
       setChats(previous);
       setError(
         e instanceof Error
@@ -228,7 +256,8 @@ export default function AdminChatsSection() {
   };
 
   const totalUnread = useMemo(
-    () => chats.reduce((acc, chat) => acc + chat.unreadCount, 0),
+    // El dashboard debe contar conversaciones pendientes, no cantidad de mensajes.
+    () => chats.filter((chat) => chat.unreadCount > 0).length,
     [chats],
   );
   const hasUnread = totalUnread > 0;

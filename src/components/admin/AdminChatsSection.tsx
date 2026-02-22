@@ -6,9 +6,7 @@ import {
   type AdminChatConversation,
 } from "@/src/services/adminChat.services";
 import {
-  blockUser,
   getAllUsers,
-  unblockUser,
   type AdminUIUser,
 } from "@/src/services/users.services";
 import AdminDirectChatModal from "@/src/components/admin/AdminDirectChatModal";
@@ -80,7 +78,8 @@ export default function AdminChatsSection() {
   const [filter, setFilter] = useState<ChatFilter>("all");
   const [loadingList, setLoadingList] = useState(false);
   const [busyConversationId, setBusyConversationId] = useState<string | null>(null);
-  const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [busyModerationConversationId, setBusyModerationConversationId] =
+    useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -123,6 +122,8 @@ export default function AdminChatsSection() {
     setChats((curr) => curr.filter((chat) => chat.id !== conversationId));
 
     try {
+      // Debug: ayuda a validar qué id exacto se envía al endpoint de borrado.
+      console.log("[AdminChatsSection] delete conversationId:", conversationId);
       await adminChatService.deleteConversation(conversationId);
       await loadData();
     } catch (e: unknown) {
@@ -138,9 +139,9 @@ export default function AdminChatsSection() {
     }
   };
 
-  const handleBanToggle = async (userId: string, isBanned: boolean) => {
-    if (!userId) {
-      setError("No se pudo resolver el usuario de esta conversación.");
+  const handleBanToggle = async (conversationId: string, isBanned: boolean) => {
+    if (!conversationId) {
+      setError("No se pudo resolver la conversación seleccionada.");
       return;
     }
 
@@ -150,18 +151,17 @@ export default function AdminChatsSection() {
     if (!confirmAction) return;
 
     setError(null);
-    setBusyUserId(userId);
+    setBusyModerationConversationId(conversationId);
 
     const previous = chats;
     setChats((curr) =>
       curr.map((chat) =>
-        chat.userId === userId ? { ...chat, isBanned: !isBanned } : chat,
+        chat.id === conversationId ? { ...chat, isBanned: !isBanned } : chat,
       ),
     );
 
     try {
-      if (isBanned) await unblockUser(userId);
-      else await blockUser(userId);
+      await adminChatService.blockConversation(conversationId, !isBanned);
       await loadData();
     } catch (e: unknown) {
       console.error("Chat user ban toggle error:", e);
@@ -172,7 +172,7 @@ export default function AdminChatsSection() {
           : "No se pudo actualizar el estado de bloqueo.",
       );
     } finally {
-      setBusyUserId(null);
+      setBusyModerationConversationId(null);
     }
   };
 
@@ -269,7 +269,7 @@ export default function AdminChatsSection() {
           <tbody>
             {filteredChats.map((chat) => {
               const busyDelete = busyConversationId === chat.id;
-              const busyBanToggle = busyUserId === chat.userId;
+              const busyBanToggle = busyModerationConversationId === chat.id;
 
               return (
                 <tr key={chat.id} className="border-t border-amber-200 align-top">
@@ -321,7 +321,7 @@ export default function AdminChatsSection() {
                     <div className="flex gap-2">
                       <button
                         disabled={loadingList || busyBanToggle}
-                        onClick={() => handleBanToggle(chat.userId, chat.isBanned)}
+                        onClick={() => handleBanToggle(chat.id, chat.isBanned)}
                         className={`px-3 py-1 rounded-lg font-extrabold border-2 disabled:opacity-60 ${
                           chat.isBanned
                             ? "bg-emerald-700 text-white border-emerald-800"

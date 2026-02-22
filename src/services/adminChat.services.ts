@@ -2,6 +2,7 @@ import { authService } from "@/src/services/auth";
 
 export type AdminChatConversation = {
   id: string;
+  deleteCandidates?: string[];
   userId: string;
   userName: string;
   userEmail: string;
@@ -373,6 +374,23 @@ function resolveConversationId(raw: ApiRecord, base: ApiRecord): string {
   return String(idCandidate || "");
 }
 
+function collectConversationIds(raw: ApiRecord, base: ApiRecord): string[] {
+  const ids = [
+    base.conversationId,
+    raw.conversationId,
+    base.chatId,
+    raw.chatId,
+    base.id,
+    raw.id,
+    base._id,
+    raw._id,
+  ]
+    .map((value) => (value ? String(value) : ""))
+    .filter(Boolean);
+
+  return Array.from(new Set(ids));
+}
+
 function isMissingName(name: string): boolean {
   const normalized = name.trim().toLowerCase();
   return !normalized || normalized === "usuario";
@@ -398,7 +416,8 @@ function shouldHydrateConversation(conversation: AdminChatConversation): boolean
 
 function normalizeConversation(raw: ApiRecord, currentUserId: string): AdminChatConversation | null {
   const base = getConversationRecord(raw);
-  const id = resolveConversationId(raw, base);
+  const resolvedIds = collectConversationIds(raw, base);
+  const id = resolveConversationId(raw, base) || resolvedIds[0] || "";
   if (!id) return null;
 
   const participants = collectParticipants(raw, base);
@@ -419,6 +438,7 @@ function normalizeConversation(raw: ApiRecord, currentUserId: string): AdminChat
 
   return {
     id,
+    deleteCandidates: resolvedIds,
     userId: userRecord ? getParticipantId(userRecord) : fallbackUserId,
     userName,
     userEmail,
@@ -535,11 +555,10 @@ export const adminChatService = {
 
     const configured = getConfiguredPaths("NEXT_PUBLIC_ADMIN_CHAT_ENDPOINTS");
     const defaults = [
-      "/chat/admin/conversations",
-      "/chat/conversations/admin",
+      "/chat/my-conversations",
       "/chat/conversations",
       "/chat/all-conversations",
-      "/chat/my-conversations",
+      "/chat/conversations/admin",
     ];
 
     let data: unknown;
@@ -568,28 +587,37 @@ export const adminChatService = {
     return hydrated;
   },
 
-  async deleteConversation(conversationId: string): Promise<void> {
-    const encodedId = encodeURIComponent(conversationId);
-    const configured = getConfiguredPaths("NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS")
-      .map((path) => path.replace(":id", encodedId));
-    const defaults = [
-      `/chat/${encodedId}`,
-      `/chat/support/${encodedId}`,
-      `/chat/admin/conversation/${encodedId}`,
-      `/chat/conversation/${encodedId}`,
-      `/chat/conversations/${encodedId}`,
-    ];
+  async deleteConversation(conversationId: string, idCandidates: string[] = []): Promise<void> {
+    const uniqueIds = Array.from(new Set([conversationId, ...idCandidates].filter(Boolean)));
+    let lastError: unknown = null;
 
-    try {
-      await tryMany(uniquePaths([...configured, ...defaults]), { method: "DELETE" });
-    } catch (error) {
-      if (error instanceof HttpError && (error.status === 404 || error.status === 405)) {
-        throw new Error(
-          "El backend no expone un endpoint para borrar conversaciones admin. Configura NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS con la ruta correcta.",
-        );
+    for (const candidateId of uniqueIds) {
+      const encodedId = encodeURIComponent(candidateId);
+      const configured = getConfiguredPaths("NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS")
+        .map((path) => path.replace(":id", encodedId));
+      const defaults = [
+        `/chat/${encodedId}`,
+        `/chat/support/${encodedId}`,
+        `/chat/admin/conversation/${encodedId}`,
+        `/chat/conversation/${encodedId}`,
+        `/chat/conversations/${encodedId}`,
+      ];
+
+      try {
+        await tryMany(uniquePaths([...configured, ...defaults]), { method: "DELETE" });
+        return;
+      } catch (error) {
+        lastError = error;
       }
-      throw error;
     }
+
+    if (lastError instanceof HttpError && (lastError.status === 404 || lastError.status === 405)) {
+      throw new Error(
+        "El backend no expone un endpoint para borrar conversaciones admin. Configura NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS con la ruta correcta.",
+      );
+    }
+    if (lastError instanceof Error) throw lastError;
+    throw new Error("No se pudo borrar la conversación seleccionada.");
   },
 
   async blockConversation(conversationId: string, blocked: boolean): Promise<void> {

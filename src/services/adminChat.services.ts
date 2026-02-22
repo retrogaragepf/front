@@ -359,38 +359,6 @@ function parseSubjectFromMessage(content: string): string {
   return match?.[1]?.trim() || "";
 }
 
-function getMessageSenderId(message: ApiRecord): string {
-  const sender = asRecord(message.sender);
-  const senderId = sender.id ?? sender.userId ?? message.senderId ?? message.userId ?? "";
-  return String(senderId || "");
-}
-
-function getDerivedUnreadCount(messages: ApiRecord[], currentUserId: string): number {
-  if (messages.length === 0) return 0;
-
-  // Cuenta mensajes del usuario después de la última respuesta del admin.
-  let pendingSinceLastAdminReply = 0;
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const message = asRecord(messages[i]);
-    const senderId = getMessageSenderId(message);
-    if (senderId && senderId === currentUserId) break;
-    pendingSinceLastAdminReply += 1;
-  }
-
-  if (pendingSinceLastAdminReply > 0) return pendingSinceLastAdminReply;
-
-  // Fallback por flags de lectura del backend si existen.
-  const unreadByFlag = messages.reduce((acc, entry) => {
-    const message = asRecord(entry);
-    const senderId = getMessageSenderId(message);
-    const isRead = getBoolean(message.isRead, true);
-    if (senderId && senderId === currentUserId) return acc;
-    return isRead ? acc : acc + 1;
-  }, 0);
-
-  return unreadByFlag;
-}
-
 function resolveConversationId(raw: ApiRecord, base: ApiRecord): string {
   const idCandidate =
     base.conversationId ??
@@ -542,7 +510,7 @@ async function hydrateConversationFromMessages(
   conversation: AdminChatConversation,
   currentUserId: string,
 ): Promise<AdminChatConversation> {
-  const shouldHydrate = shouldHydrateConversation(conversation) || conversation.unreadCount === 0;
+  const shouldHydrate = shouldHydrateConversation(conversation);
   if (!shouldHydrate) return conversation;
 
   try {
@@ -592,15 +560,12 @@ async function hydrateConversationFromMessages(
       }
     }
 
-    const derivedUnreadCount = getDerivedUnreadCount(messages, currentUserId);
-
     return {
       ...conversation,
       userName: nextName,
       userEmail: nextEmail,
       subject: nextSubject,
       userId: nextUserId,
-      unreadCount: Math.max(conversation.unreadCount, derivedUnreadCount),
     };
   } catch {
     return conversation;

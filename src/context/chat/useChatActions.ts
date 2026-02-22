@@ -33,6 +33,33 @@ type Params = {
   activeConversationId: string;
 };
 
+const CHAT_HIDDEN_CONVERSATIONS_KEY = "chat_hidden_conversations";
+
+function readHiddenConversationIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(CHAT_HIDDEN_CONVERSATIONS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map(String).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
+function writeHiddenConversationIds(ids: Set<string>) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      CHAT_HIDDEN_CONVERSATIONS_KEY,
+      JSON.stringify(Array.from(ids)),
+    );
+  } catch {
+    // Ignore storage quota/private mode errors.
+  }
+}
+
 function isSupportConversation(conversation: ChatConversation): boolean {
   const sellerName = (conversation.sellerName || "").toLowerCase();
   const sellerNested = (conversation.seller?.name || "").toLowerCase();
@@ -310,12 +337,18 @@ export function useChatActions({
         return rest;
       });
       setActiveConversationId(nextActiveId);
+      const hiddenConversationIds = readHiddenConversationIds();
+      hiddenConversationIds.add(conversationId);
+      writeHiddenConversationIds(hiddenConversationIds);
 
       void (async () => {
         try {
           await chatService.deleteConversation(conversationId);
         } catch (error) {
           console.error("No se pudo borrar conversación:", error);
+          const restoredHiddenConversationIds = readHiddenConversationIds();
+          restoredHiddenConversationIds.delete(conversationId);
+          writeHiddenConversationIds(restoredHiddenConversationIds);
           setConversations(previousConversations);
           setMessagesByConversation(previousMessages);
           setActiveConversationId(previousActiveId);

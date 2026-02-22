@@ -211,7 +211,7 @@ const Navbar = () => {
         </nav>
 
         <div className="flex items-center gap-3">
-          {isLogged && hasUnreadMessages && (
+          {isLogged && (
             <button
               type="button"
               onClick={handleOpenUnreadChat}
@@ -220,10 +220,12 @@ const Navbar = () => {
               title="Mensajes"
             >
               <span className="text-lg">💬</span>
-              <span
-                className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
-                aria-label={`${unreadTotal} mensajes nuevos`}
-              />
+              {hasUnreadMessages && (
+                <span
+                  className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
+                  aria-label={`${unreadTotal} mensajes nuevos`}
+                />
+              )}
             </button>
           )}
 
@@ -336,7 +338,7 @@ const Navbar = () => {
               </li>
             )}
 
-            {isLogged && hasUnreadMessages && (
+            {isLogged && (
               <li>
                 <button
                   type="button"
@@ -344,7 +346,9 @@ const Navbar = () => {
                   className="relative hover:text-emerald-900 transition"
                 >
                   Chat
-                  <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
+                  {hasUnreadMessages && (
+                    <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
+                  )}
                 </button>
               </li>
             )}

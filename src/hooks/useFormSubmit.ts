@@ -4,7 +4,7 @@ interface UseFormSubmitProps<T> {
   onValidate: () => boolean;
   onGetData: () => T;
   onSuccess: (data: T) => void | Promise<void>;
-  onError?: (error: string) => void;
+  onError?: (error: unknown) => void;
 }
 
 export const useFormSubmit = <T,>({
@@ -34,7 +34,7 @@ export const useFormSubmit = <T,>({
       await onSuccess(formData);
       
     } catch (error) {
-      onError?.(error instanceof Error ? error.message : 'Error desconocido');
+      onError?.(error);
     } finally {
       setIsSubmitting(false);
     }

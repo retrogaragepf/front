@@ -10,6 +10,22 @@ function getApiBaseUrl(): string {
   );
 }
 
+function getConfiguredPaths(envKey: string): string[] {
+  const raw =
+    envKey === "NEXT_PUBLIC_CHAT_SUPPORT_ENDPOINTS"
+      ? process.env.NEXT_PUBLIC_CHAT_SUPPORT_ENDPOINTS
+      : envKey === "NEXT_PUBLIC_CHAT_DELETE_ENDPOINTS"
+        ? process.env.NEXT_PUBLIC_CHAT_DELETE_ENDPOINTS
+        : undefined;
+
+  if (!raw) return [];
+
+  return raw
+    .split(",")
+    .map((path) => path.trim())
+    .filter(Boolean);
+}
+
 function getToken(): string | null {
   return authService.getToken?.() || null;
 }
@@ -232,6 +248,60 @@ async function requestPost(path: string, body: Record<string, unknown>) {
   return data;
 }
 
+async function requestDelete(path: string) {
+  const token = assertToken();
+  const base = getApiBaseUrl();
+  const response = await fetch(`${base}${path}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await parseJsonSafe(response);
+  if (!response.ok) {
+    const message = getErrorMessage(data, "Error eliminando conversación.");
+    throw new Error(message);
+  }
+  return data;
+}
+
+async function tryDeleteMany(paths: string[]): Promise<void> {
+  let lastError: unknown = null;
+
+  for (const path of paths) {
+    try {
+      await requestDelete(path);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError instanceof Error) throw lastError;
+  throw new Error("No se pudo borrar la conversación.");
+}
+
+async function tryPostMany(
+  paths: string[],
+  payloads: Record<string, unknown>[],
+): Promise<unknown> {
+  let lastError: unknown = null;
+
+  for (const path of paths) {
+    for (const payload of payloads) {
+      try {
+        return await requestPost(path, payload);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+
+  if (lastError instanceof Error) throw lastError;
+  throw new Error("No se pudo crear el chat de soporte.");
+}
+
 export const chatService = {
   isAuthenticated(): boolean {
     return Boolean(getToken());
@@ -284,6 +354,35 @@ export const chatService = {
     return normalizeConversation(created as ApiRecord);
   },
 
+  async createSupportConversation(payload: {
+    subject: string;
+    detail?: string;
+    content?: string;
+  }): Promise<ChatConversation> {
+    const configured = getConfiguredPaths("NEXT_PUBLIC_CHAT_SUPPORT_ENDPOINTS");
+    const paths = [...configured, "/chat/support"];
+
+    // Swagger define /chat/support; probamos variaciones de claves para compatibilidad.
+    const payloadVariants: Record<string, unknown>[] = [
+      {
+        subject: payload.subject,
+        detail: payload.detail ?? "",
+        content: payload.content ?? "",
+      },
+      {
+        subject: payload.subject,
+        message: payload.content ?? payload.detail ?? "",
+      },
+      {
+        asunto: payload.subject,
+        detalle: payload.detail ?? "",
+      },
+    ];
+
+    const created = await tryPostMany(paths, payloadVariants);
+    return normalizeConversation(created as ApiRecord);
+  },
+
   async sendMessage(payload: {
     conversationId: string;
     content: string;
@@ -294,5 +393,20 @@ export const chatService = {
       payload.conversationId,
       getCurrentUserIdFromToken(),
     );
+  },
+
+  async deleteConversation(conversationId: string): Promise<void> {
+    const encodedId = encodeURIComponent(conversationId);
+    const configured = getConfiguredPaths("NEXT_PUBLIC_CHAT_DELETE_ENDPOINTS").map(
+      (path) => path.replace(":id", encodedId),
+    );
+    const paths = [
+      ...configured,
+      `/chat/${encodedId}`,
+      `/chat/conversation/${encodedId}`,
+      `/chat/conversations/${encodedId}`,
+      `/chat/admin/conversation/${encodedId}`,
+    ];
+    await tryDeleteMany(paths);
   },
 };

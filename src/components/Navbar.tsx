@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
 import { useChat } from "@/src/context/ChatContext";
-import { getAllUsers } from "@/src/services/users.services";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
@@ -60,49 +59,6 @@ const Navbar = () => {
     }
   };
 
-  const ADMIN_SUPPORT_USER_ID =
-    process.env.NEXT_PUBLIC_ADMIN_SUPPORT_USER_ID?.trim() || "";
-
-  const resolveAdminSupportTarget = async (): Promise<{
-    id: string;
-    name: string;
-  } | null> => {
-    if (ADMIN_SUPPORT_USER_ID) {
-      return { id: ADMIN_SUPPORT_USER_ID, name: "Administrador" };
-    }
-
-    const fromChat = conversations.find((conversation) => {
-      const name = (conversation.sellerName || "").toLowerCase();
-      return name.includes("admin");
-    });
-
-    if (fromChat?.sellerId) {
-      return {
-        id: String(fromChat.sellerId),
-        name: fromChat.sellerName || "Administrador",
-      };
-    }
-
-    try {
-      const users = await getAllUsers();
-      const adminUser = users.find((user) =>
-        String(user.role || "")
-          .toLowerCase()
-          .includes("admin"),
-      );
-      if (adminUser?.id) {
-        return {
-          id: String(adminUser.id),
-          name: adminUser.name || "Administrador",
-        };
-      }
-    } catch {
-      // Silencioso: si falla, usamos mensaje final de configuración.
-    }
-
-    return null;
-  };
-
   const launchAdminSupportChat = async () => {
     const normalizedSubject = adminSubject.trim();
     if (!normalizedSubject) {
@@ -119,22 +75,6 @@ const Navbar = () => {
 
     setIsLaunchingAdminChat(true);
     try {
-      const target = await resolveAdminSupportTarget();
-      if (!target?.id) {
-        showToast.error(
-          "No se pudo encontrar el usuario administrador. Configura NEXT_PUBLIC_ADMIN_SUPPORT_USER_ID.",
-          {
-            duration: 3000,
-            progress: true,
-            position: "top-center",
-            transition: "popUp",
-            icon: "",
-            sound: true,
-          },
-        );
-        return;
-      }
-
       const normalizedDetail = adminDetail.trim();
       const initialMessage = [
         "Hola, este es el chat auto respuesta de administrador.",
@@ -146,8 +86,10 @@ const Navbar = () => {
 
       openChat({
         asParticipant: "customer",
-        sellerId: target.id,
-        sellerName: target.name || "Administrador",
+        isSupportRequest: true,
+        supportSubject: normalizedSubject,
+        supportDetail: normalizedDetail,
+        sellerName: "Administrador",
         product: normalizedSubject,
         initialMessage,
       });
@@ -201,6 +143,18 @@ const Navbar = () => {
     });
 
     router.push("/");
+  };
+
+  const handleOpenUnreadChat = () => {
+    // Abrimos primero una conversación con no leídos para limpiar la alerta al entrar.
+    const firstUnreadConversation = conversations.find(
+      (conversation) => conversation.unreadCount > 0,
+    );
+    if (firstUnreadConversation?.id) {
+      openChat({ conversationId: firstUnreadConversation.id });
+      return;
+    }
+    openChat();
   };
 
   return (
@@ -257,19 +211,21 @@ const Navbar = () => {
         </nav>
 
         <div className="flex items-center gap-3">
-          {isLogged && hasUnreadMessages && (
+          {isLogged && (
             <button
               type="button"
-              onClick={() => openChat()}
+              onClick={handleOpenUnreadChat}
               className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-300 bg-amber-50 transition hover:bg-amber-200"
               aria-label="Mensajes"
               title="Mensajes"
             >
               <span className="text-lg">💬</span>
-              <span
-                className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
-                aria-label={`${unreadTotal} mensajes nuevos`}
-              />
+              {hasUnreadMessages && (
+                <span
+                  className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
+                  aria-label={`${unreadTotal} mensajes nuevos`}
+                />
+              )}
             </button>
           )}
 
@@ -382,15 +338,17 @@ const Navbar = () => {
               </li>
             )}
 
-            {isLogged && hasUnreadMessages && (
+            {isLogged && (
               <li>
                 <button
                   type="button"
-                  onClick={() => openChat()}
+                  onClick={handleOpenUnreadChat}
                   className="relative hover:text-emerald-900 transition"
                 >
                   Chat
-                  <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
+                  {hasUnreadMessages && (
+                    <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
+                  )}
                 </button>
               </li>
             )}

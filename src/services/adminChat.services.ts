@@ -2,6 +2,7 @@ import { authService } from "@/src/services/auth";
 
 export type AdminChatConversation = {
   id: string;
+  deleteCandidates?: string[];
   userId: string;
   userName: string;
   userEmail: string;
@@ -32,12 +33,14 @@ function getApiBaseUrl(): string {
 }
 
 function getConfiguredPaths(envKey: string): string[] {
-  const raw =
-    envKey === "NEXT_PUBLIC_ADMIN_CHAT_ENDPOINTS"
-      ? process.env.NEXT_PUBLIC_ADMIN_CHAT_ENDPOINTS
-      : envKey === "NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS"
-        ? process.env.NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS
-        : undefined;
+  const rawMap: Record<string, string | undefined> = {
+    NEXT_PUBLIC_ADMIN_CHAT_ENDPOINTS: process.env.NEXT_PUBLIC_ADMIN_CHAT_ENDPOINTS,
+    NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS:
+      process.env.NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS,
+    NEXT_PUBLIC_ADMIN_CHAT_BLOCK_ENDPOINTS:
+      process.env.NEXT_PUBLIC_ADMIN_CHAT_BLOCK_ENDPOINTS,
+  };
+  const raw = rawMap[envKey];
   if (!raw) return [];
 
   return raw
@@ -195,6 +198,17 @@ function getParticipantStatus(record: ApiRecord): "active" | "blocked" {
   return isBlocked ? "blocked" : "active";
 }
 
+function getConversationStatus(raw: ApiRecord, base: ApiRecord): "active" | "blocked" {
+  const isBlocked =
+    getBoolean(raw.isBlocked) ||
+    getBoolean(base.isBlocked) ||
+    getBoolean(raw.blocked) ||
+    getBoolean(base.blocked) ||
+    getBoolean(raw.isBanned) ||
+    getBoolean(base.isBanned);
+  return isBlocked ? "blocked" : "active";
+}
+
 function getConversationRecord(raw: ApiRecord): ApiRecord {
   const nested = asRecord(raw.conversation);
   return Object.keys(nested).length > 0 ? nested : raw;
@@ -345,6 +359,38 @@ function parseSubjectFromMessage(content: string): string {
   return match?.[1]?.trim() || "";
 }
 
+function resolveConversationId(raw: ApiRecord, base: ApiRecord): string {
+  const idCandidate =
+    base.conversationId ??
+    raw.conversationId ??
+    base.chatId ??
+    raw.chatId ??
+    base.id ??
+    raw.id ??
+    base._id ??
+    raw._id ??
+    "";
+
+  return String(idCandidate || "");
+}
+
+function collectConversationIds(raw: ApiRecord, base: ApiRecord): string[] {
+  const ids = [
+    base.conversationId,
+    raw.conversationId,
+    base.chatId,
+    raw.chatId,
+    base.id,
+    raw.id,
+    base._id,
+    raw._id,
+  ]
+    .map((value) => (value ? String(value) : ""))
+    .filter(Boolean);
+
+  return Array.from(new Set(ids));
+}
+
 function isMissingName(name: string): boolean {
   const normalized = name.trim().toLowerCase();
   return !normalized || normalized === "usuario";
@@ -370,7 +416,8 @@ function shouldHydrateConversation(conversation: AdminChatConversation): boolean
 
 function normalizeConversation(raw: ApiRecord, currentUserId: string): AdminChatConversation | null {
   const base = getConversationRecord(raw);
-  const id = String(base.id ?? base._id ?? raw.id ?? raw._id ?? "");
+  const resolvedIds = collectConversationIds(raw, base);
+  const id = resolveConversationId(raw, base) || resolvedIds[0] || "";
   if (!id) return null;
 
   const participants = collectParticipants(raw, base);
@@ -386,14 +433,17 @@ function normalizeConversation(raw: ApiRecord, currentUserId: string): AdminChat
   const userName = userRecord ? getParticipantName(userRecord) || fallbackName : fallbackName;
   const userEmail = userRecord ? getParticipantEmail(userRecord) || fallbackEmail : fallbackEmail;
   const subject = parseSubject(raw, base);
+  const conversationStatus = getConversationStatus(raw, base);
+  const participantStatus = userRecord ? getParticipantStatus(userRecord) : "active";
 
   return {
     id,
+    deleteCandidates: resolvedIds,
     userId: userRecord ? getParticipantId(userRecord) : fallbackUserId,
     userName,
     userEmail,
     subject,
-    status: userRecord ? getParticipantStatus(userRecord) : "active",
+    status: conversationStatus === "blocked" ? "blocked" : participantStatus,
     unreadCount: parseUnreadCount(raw, base),
     lastMessage: parseLastMessage(raw, base),
     timestamp: parseTimestamp(raw, base),
@@ -422,6 +472,29 @@ async function tryMany(paths: string[], init?: RequestInit): Promise<unknown> {
   throw new Error("No se pudo completar la operación de chats.");
 }
 
+async function tryDeleteMany(paths: string[]): Promise<void> {
+  let lastError: unknown = null;
+
+  for (const path of paths) {
+    try {
+      await request(path, { method: "DELETE" });
+      return;
+    } catch (error) {
+      if (error instanceof HttpError) {
+        // Algunos endpoints responden 400/404/405/422 según el tipo de id.
+        if ([400, 404, 405, 422].includes(error.status)) {
+          lastError = error;
+          continue;
+        }
+      }
+      lastError = error;
+    }
+  }
+
+  if (lastError instanceof Error) throw lastError;
+  throw new Error("No se pudo borrar la conversación.");
+}
+
 async function getConversationMessages(conversationId: string): Promise<ApiRecord[]> {
   const encodedId = encodeURIComponent(conversationId);
   const data = await tryMany([
@@ -437,7 +510,8 @@ async function hydrateConversationFromMessages(
   conversation: AdminChatConversation,
   currentUserId: string,
 ): Promise<AdminChatConversation> {
-  if (!shouldHydrateConversation(conversation)) return conversation;
+  const shouldHydrate = shouldHydrateConversation(conversation);
+  if (!shouldHydrate) return conversation;
 
   try {
     const messages = await getConversationMessages(conversation.id);
@@ -505,16 +579,16 @@ export const adminChatService = {
 
     const configured = getConfiguredPaths("NEXT_PUBLIC_ADMIN_CHAT_ENDPOINTS");
     const defaults = [
-      "/chat/admin/conversations",
-      "/chat/conversations/admin",
+      "/chat/my-conversations",
       "/chat/conversations",
       "/chat/all-conversations",
-      "/chat/my-conversations",
+      "/chat/conversations/admin",
     ];
 
     let data: unknown;
     try {
-      data = await tryMany(uniquePaths([...configured, ...defaults]));
+      // Probamos defaults primero para evitar ruido de endpoints viejos en .env.
+      data = await tryMany(uniquePaths([...defaults, ...configured]));
     } catch (error) {
       if (error instanceof HttpError && (error.status === 404 || error.status === 405)) {
         throw new Error(
@@ -538,25 +612,82 @@ export const adminChatService = {
     return hydrated;
   },
 
-  async deleteConversation(conversationId: string): Promise<void> {
+  async deleteConversation(conversationId: string, idCandidates: string[] = []): Promise<void> {
+    const uniqueIds = Array.from(new Set([conversationId, ...idCandidates].filter(Boolean)));
+    let lastError: unknown = null;
+
+    for (const candidateId of uniqueIds) {
+      const encodedId = encodeURIComponent(candidateId);
+      const configured = getConfiguredPaths("NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS")
+        .map((path) => path.replace(":id", encodedId));
+      const defaults = [
+        `/chat/${encodedId}`,
+        `/chat/support/${encodedId}`,
+        `/chat/admin/conversation/${encodedId}`,
+        `/chat/conversation/${encodedId}`,
+        `/chat/conversations/${encodedId}`,
+      ];
+
+      try {
+        await tryDeleteMany(uniquePaths([...defaults, ...configured]));
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (lastError instanceof HttpError && (lastError.status === 404 || lastError.status === 405)) {
+      throw new Error(
+        "El backend no expone un endpoint para borrar conversaciones admin. Configura NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS con la ruta correcta.",
+      );
+    }
+    if (lastError instanceof Error) throw lastError;
+    throw new Error("No se pudo borrar la conversación seleccionada.");
+  },
+
+  async blockConversation(conversationId: string, blocked: boolean): Promise<void> {
     const encodedId = encodeURIComponent(conversationId);
-    const configured = getConfiguredPaths("NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS")
+    const configured = getConfiguredPaths("NEXT_PUBLIC_ADMIN_CHAT_BLOCK_ENDPOINTS")
       .map((path) => path.replace(":id", encodedId));
-    const defaults = [
-      `/chat/admin/conversation/${encodedId}`,
-      `/chat/conversation/${encodedId}`,
-      `/chat/conversations/${encodedId}`,
+    const defaults = [`/chat/${encodedId}/block`];
+
+    // Swagger define PATCH /chat/{id}/block; soportamos body flexible.
+    const bodyVariants: Record<string, unknown>[] = [
+      { blocked },
+      { isBlocked: blocked },
+      { status: blocked ? "blocked" : "active" },
+      {},
     ];
 
-    try {
-      await tryMany(uniquePaths([...configured, ...defaults]), { method: "DELETE" });
-    } catch (error) {
-      if (error instanceof HttpError && (error.status === 404 || error.status === 405)) {
-        throw new Error(
-          "El backend no expone un endpoint para borrar conversaciones admin. Configura NEXT_PUBLIC_ADMIN_CHAT_DELETE_ENDPOINTS con la ruta correcta.",
-        );
+    let lastError: unknown = null;
+    for (const path of uniquePaths([...configured, ...defaults])) {
+      for (const body of bodyVariants) {
+        try {
+          await request(path, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          });
+          return;
+        } catch (error) {
+          if (error instanceof HttpError) {
+            if (error.status === 401 || error.status === 403) throw error;
+            if (error.status === 404 || error.status === 405) {
+              lastError = error;
+              continue;
+            }
+          }
+          lastError = error;
+        }
       }
-      throw error;
     }
+
+    if (lastError instanceof HttpError && (lastError.status === 404 || lastError.status === 405)) {
+      throw new Error(
+        "El backend no expone un endpoint para bloquear conversaciones admin. Configura NEXT_PUBLIC_ADMIN_CHAT_BLOCK_ENDPOINTS con la ruta correcta.",
+      );
+    }
+
+    if (lastError instanceof Error) throw lastError;
+    throw new Error("No se pudo actualizar el bloqueo de la conversación.");
   },
 };

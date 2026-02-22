@@ -1,23 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useChat } from "@/src/context/ChatContext";
 import {
   adminChatService,
   type AdminChatConversation,
 } from "@/src/services/adminChat.services";
 import {
-  blockUser,
   getAllUsers,
-  unblockUser,
   type AdminUIUser,
 } from "@/src/services/users.services";
+import AdminDirectChatModal from "@/src/components/admin/AdminDirectChatModal";
 
 type ChatFilter = "all" | "active" | "banned";
 
 type ChatRow = AdminChatConversation & {
   isBanned: boolean;
 };
+
+const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
+const ADMIN_READ_CHATS_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const ADMIN_READ_CHATS_MAX_ENTRIES = 500;
+
+type ReadMarkers = Record<string, number>;
 
 function formatTimestamp(value: string): string {
   if (!value) return "-";
@@ -50,36 +54,89 @@ function buildUsersIndex(users: AdminUIUser[]): UsersIndex {
   return { byId, byEmail };
 }
 
+function loadReadMarkers(): ReadMarkers {
+  try {
+    const now = Date.now();
+    const raw = localStorage.getItem(ADMIN_READ_CHATS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.entries(parsed).reduce<ReadMarkers>((acc, [id, value]) => {
+      const at = typeof value === "number" ? value : Number(value);
+      if (
+        id &&
+        Number.isFinite(at) &&
+        at > 0 &&
+        now - at <= ADMIN_READ_CHATS_TTL_MS
+      ) {
+        acc[id] = at;
+      }
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function persistReadMarkers(markers: ReadMarkers) {
+  try {
+    const entries = Object.entries(markers)
+      .filter(([, at]) => Number.isFinite(at) && at > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, ADMIN_READ_CHATS_MAX_ENTRIES);
+    localStorage.setItem(
+      ADMIN_READ_CHATS_STORAGE_KEY,
+      JSON.stringify(Object.fromEntries(entries)),
+    );
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
 function mergeChatsWithUsers(
   chats: AdminChatConversation[],
   usersIndex: UsersIndex,
+  hiddenConversationIds: Set<string>,
 ): ChatRow[] {
-  return chats.map((chat) => {
-    const userById = usersIndex.byId.get(chat.userId);
-    const userByEmail = chat.userEmail
-      ? usersIndex.byEmail.get(chat.userEmail.toLowerCase())
-      : undefined;
-    const user = userById || userByEmail;
-    const fallbackBlocked = chat.status === "blocked";
+  return chats
+    .filter((chat) => {
+      if (hiddenConversationIds.has(chat.id)) return false;
+      const candidates = chat.deleteCandidates ?? [];
+      return !candidates.some((id) => hiddenConversationIds.has(id));
+    })
+    .map((chat) => {
+      const userById = usersIndex.byId.get(chat.userId);
+      const userByEmail = chat.userEmail
+        ? usersIndex.byEmail.get(chat.userEmail.toLowerCase())
+        : undefined;
+      const user = userById || userByEmail;
+      const fallbackBlocked = chat.status === "blocked";
 
-    return {
-      ...chat,
-      userName: user?.name || chat.userName || "Usuario",
-      userEmail: user?.email || chat.userEmail || "Email no disponible",
-      userId: user?.id ? String(user.id) : chat.userId,
-      isBanned: Boolean(user?.isBanned ?? fallbackBlocked),
-    };
-  });
+      return {
+        ...chat,
+        userName: user?.name || chat.userName || "Usuario",
+        userEmail: user?.email || chat.userEmail || "Email no disponible",
+        userId: user?.id ? String(user.id) : chat.userId,
+        isBanned: Boolean(user?.isBanned ?? fallbackBlocked),
+      };
+    });
 }
 
 export default function AdminChatsSection() {
-  const { openChat } = useChat();
+  const HIDDEN_CHATS_STORAGE_KEY = "admin_hidden_chats";
   const [chats, setChats] = useState<ChatRow[]>([]);
+  const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [readMarkers, setReadMarkers] = useState<ReadMarkers>({});
+  const [directChatConversationId, setDirectChatConversationId] = useState<string | null>(null);
+  const [directChatUserName, setDirectChatUserName] = useState("Usuario");
 
   const [filter, setFilter] = useState<ChatFilter>("all");
   const [loadingList, setLoadingList] = useState(false);
   const [busyConversationId, setBusyConversationId] = useState<string | null>(null);
-  const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [busyModerationConversationId, setBusyModerationConversationId] =
+    useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -93,7 +150,17 @@ export default function AdminChatsSection() {
       ]);
 
       const nextUsersIndex = buildUsersIndex(users);
-      setChats(mergeChatsWithUsers(rawChats, nextUsersIndex));
+      const merged = mergeChatsWithUsers(rawChats, nextUsersIndex, hiddenConversationIds);
+      const normalized = merged.map((chat) => {
+        const readAt = readMarkers[chat.id];
+        if (!readAt) return chat;
+        const timestamp = Date.parse(chat.timestamp || "");
+        if (chat.unreadCount === 0 || (Number.isFinite(timestamp) && timestamp > readAt)) {
+          return chat;
+        }
+        return { ...chat, unreadCount: 0 };
+      });
+      setChats(normalized);
     } catch (e: unknown) {
       console.error("Admin chats load error:", e);
       const message =
@@ -105,27 +172,87 @@ export default function AdminChatsSection() {
     } finally {
       setLoadingList(false);
     }
+  }, [hiddenConversationIds, readMarkers]);
+
+  useEffect(() => {
+    // En Next, la carga inicial puede no tener window. Cargamos ocultos al montar.
+    try {
+      const raw = localStorage.getItem(HIDDEN_CHATS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      setHiddenConversationIds(new Set(parsed.map(String)));
+    } catch {
+      // Silencioso: si hay dato inválido, seguimos con estado vacío.
+    }
   }, []);
+
+  useEffect(() => {
+    setReadMarkers(loadReadMarkers());
+  }, []);
+
+  useEffect(() => {
+    // Persistimos ocultos para evitar que reaparezcan al refrescar.
+    localStorage.setItem(
+      HIDDEN_CHATS_STORAGE_KEY,
+      JSON.stringify(Array.from(hiddenConversationIds)),
+    );
+  }, [hiddenConversationIds]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
 
-  const handleDeleteConversation = async (conversationId: string) => {
+  useEffect(() => {
+    // Auto-refresh para que el admin reciba nuevos mensajes sin recargar manualmente.
+    const intervalId = window.setInterval(() => {
+      void loadData();
+    }, 10000);
+    return () => window.clearInterval(intervalId);
+  }, [loadData]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      console.log("[AdminChatsSection] window focus -> reload chats");
+      void loadData();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadData]);
+
+  const handleDeleteConversation = async (
+    conversationId: string,
+    deleteCandidates: string[] = [],
+  ) => {
     const confirmDelete = confirm("¿Seguro que querés borrar esta conversación?");
     if (!confirmDelete) return;
 
     setError(null);
     setBusyConversationId(conversationId);
+    // Ocultamos de inmediato para evitar que reaparezca por auto-refresh.
+    setHiddenConversationIds((prev) => {
+      const next = new Set(prev);
+      next.add(conversationId);
+      deleteCandidates.forEach((id) => next.add(id));
+      return next;
+    });
 
     const previous = chats;
     setChats((curr) => curr.filter((chat) => chat.id !== conversationId));
 
     try {
-      await adminChatService.deleteConversation(conversationId);
+      // Debug: ayuda a validar qué ids exactos se envían al endpoint de borrado.
+      console.log("[AdminChatsSection] delete ids:", [conversationId, ...deleteCandidates]);
+      await adminChatService.deleteConversation(conversationId, deleteCandidates);
       await loadData();
     } catch (e: unknown) {
       console.error("Delete conversation error:", e);
+      setHiddenConversationIds((prev) => {
+        const next = new Set(prev);
+        next.delete(conversationId);
+        deleteCandidates.forEach((id) => next.delete(id));
+        return next;
+      });
       setChats(previous);
       setError(
         e instanceof Error
@@ -137,9 +264,9 @@ export default function AdminChatsSection() {
     }
   };
 
-  const handleBanToggle = async (userId: string, isBanned: boolean) => {
-    if (!userId) {
-      setError("No se pudo resolver el usuario de esta conversación.");
+  const handleBanToggle = async (conversationId: string, isBanned: boolean) => {
+    if (!conversationId) {
+      setError("No se pudo resolver la conversación seleccionada.");
       return;
     }
 
@@ -149,18 +276,17 @@ export default function AdminChatsSection() {
     if (!confirmAction) return;
 
     setError(null);
-    setBusyUserId(userId);
+    setBusyModerationConversationId(conversationId);
 
     const previous = chats;
     setChats((curr) =>
       curr.map((chat) =>
-        chat.userId === userId ? { ...chat, isBanned: !isBanned } : chat,
+        chat.id === conversationId ? { ...chat, isBanned: !isBanned } : chat,
       ),
     );
 
     try {
-      if (isBanned) await unblockUser(userId);
-      else await blockUser(userId);
+      await adminChatService.blockConversation(conversationId, !isBanned);
       await loadData();
     } catch (e: unknown) {
       console.error("Chat user ban toggle error:", e);
@@ -171,7 +297,7 @@ export default function AdminChatsSection() {
           : "No se pudo actualizar el estado de bloqueo.",
       );
     } finally {
-      setBusyUserId(null);
+      setBusyModerationConversationId(null);
     }
   };
 
@@ -190,10 +316,19 @@ export default function AdminChatsSection() {
   };
 
   const totalUnread = useMemo(
-    () => chats.reduce((acc, chat) => acc + chat.unreadCount, 0),
+    // El dashboard debe contar conversaciones pendientes, no cantidad de mensajes.
+    () => chats.filter((chat) => chat.unreadCount > 0).length,
     [chats],
   );
   const hasUnread = totalUnread > 0;
+
+  useEffect(() => {
+    // Debug: valida cálculo de no respondidos en dashboard admin.
+    console.log("[AdminChatsSection] unread summary:", {
+      totalUnread,
+      conversations: chats.length,
+    });
+  }, [chats.length, totalUnread]);
 
   return (
     <div>
@@ -268,7 +403,7 @@ export default function AdminChatsSection() {
           <tbody>
             {filteredChats.map((chat) => {
               const busyDelete = busyConversationId === chat.id;
-              const busyBanToggle = busyUserId === chat.userId;
+              const busyBanToggle = busyModerationConversationId === chat.id;
 
               return (
                 <tr key={chat.id} className="border-t border-amber-200 align-top">
@@ -306,12 +441,22 @@ export default function AdminChatsSection() {
                   <td className="pt-4 pr-4">
                     <button
                       type="button"
-                      onClick={() =>
-                        openChat({
-                          conversationId: chat.id,
-                          asParticipant: "seller",
-                        })
-                      }
+                      onClick={() => {
+                        const nextReadAt = Date.now();
+                        setReadMarkers((prev) => {
+                          const next = { ...prev, [chat.id]: nextReadAt };
+                          persistReadMarkers(next);
+                          return next;
+                        });
+                        // Al abrir desde admin, quitamos alerta local de no respondido.
+                        setChats((curr) =>
+                          curr.map((row) =>
+                            row.id === chat.id ? { ...row, unreadCount: 0 } : row,
+                          ),
+                        );
+                        setDirectChatConversationId(chat.id);
+                        setDirectChatUserName(chat.userName || "Usuario");
+                      }}
                       className="px-3 py-1 rounded-lg font-extrabold border-2 bg-amber-200 text-amber-900 border-amber-900"
                     >
                       Ir al chat
@@ -322,7 +467,7 @@ export default function AdminChatsSection() {
                     <div className="flex gap-2">
                       <button
                         disabled={loadingList || busyBanToggle}
-                        onClick={() => handleBanToggle(chat.userId, chat.isBanned)}
+                        onClick={() => handleBanToggle(chat.id, chat.isBanned)}
                         className={`px-3 py-1 rounded-lg font-extrabold border-2 disabled:opacity-60 ${
                           chat.isBanned
                             ? "bg-emerald-700 text-white border-emerald-800"
@@ -338,7 +483,9 @@ export default function AdminChatsSection() {
 
                       <button
                         disabled={loadingList || busyDelete}
-                        onClick={() => handleDeleteConversation(chat.id)}
+                        onClick={() =>
+                          handleDeleteConversation(chat.id, chat.deleteCandidates ?? [])
+                        }
                         className="px-3 py-1 rounded-lg font-extrabold border-2 disabled:opacity-60 bg-white text-amber-900 border-amber-900"
                       >
                         {busyDelete ? "..." : "Borrar"}
@@ -359,6 +506,16 @@ export default function AdminChatsSection() {
           </tbody>
         </table>
       </div>
+
+      <AdminDirectChatModal
+        isOpen={Boolean(directChatConversationId)}
+        conversationId={directChatConversationId}
+        userName={directChatUserName}
+        onClose={() => {
+          setDirectChatConversationId(null);
+          setDirectChatUserName("Usuario");
+        }}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ interface ChatHistoryListProps {
   conversations: ChatConversation[];
   activeConversationId?: string;
   onSelectConversation: (conversationId: string) => void;
+  onDeleteConversation: (conversationId: string) => void;
 }
 
 const formatShortDateTime = (value: string): string => {
@@ -24,6 +25,7 @@ const ChatHistoryList = ({
   conversations,
   activeConversationId,
   onSelectConversation,
+  onDeleteConversation,
 }: ChatHistoryListProps) => {
   return (
     <aside className="h-full overflow-hidden rounded-xl border border-amber-300 bg-amber-50/90 shadow-sm">
@@ -38,22 +40,38 @@ const ChatHistoryList = ({
           const isActive = conversation.id === activeConversationId;
           return (
             <li key={conversation.id}>
-              <button
-                type="button"
-                onClick={() => onSelectConversation(conversation.id)}
+              <div
                 className={`w-full rounded-lg border px-3 py-3 text-left transition ${
                   isActive
                     ? "border-emerald-900/60 bg-amber-200/90"
                     : "border-amber-300 bg-amber-100/80 hover:border-emerald-900/30"
                 }`}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="truncate font-display text-xs uppercase tracking-[0.15em] text-emerald-900">
-                    {conversation.sellerName || "Usuario"}
-                  </p>
-                  <span className="text-[10px] text-amber-900/70">
-                    {formatShortDateTime(conversation.timestamp)}
-                  </span>
+                <div className="flex items-start justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onSelectConversation(conversation.id)}
+                    className="flex-1 min-w-0 text-left"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate font-display text-xs uppercase tracking-[0.15em] text-emerald-900">
+                        {conversation.sellerName || "Usuario"}
+                      </p>
+                      <span className="text-[10px] text-amber-900/70">
+                        {formatShortDateTime(conversation.timestamp)}
+                      </span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onDeleteConversation(conversation.id)}
+                    className="shrink-0 rounded-md border border-amber-900 px-2 py-0.5 text-[10px] font-extrabold text-amber-900 hover:bg-amber-200"
+                    aria-label={`Borrar chat con ${conversation.sellerName || "usuario"}`}
+                    title="Borrar chat"
+                  >
+                    X
+                  </button>
                 </div>
                 <p className="mt-1 truncate text-xs text-amber-900/80 italic">
                   Producto: {conversation.product || ""}
@@ -70,7 +88,7 @@ const ChatHistoryList = ({
                     {conversation.unreadCount} nuevos
                   </span>
                 )}
-              </button>
+              </div>
             </li>
           );
         })}

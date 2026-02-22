@@ -10,6 +10,26 @@ import useFormField from "@/src/hooks/useFormField";
 import { useFormSubmit } from "@/src/hooks/useFormSubmit";
 import { authService } from "@/src/services/auth";
 
+const parseRegisterErrorMessage = (error: unknown): string => {
+  if (!error) return "No se pudo registrar. Intenta nuevamente.";
+  if (typeof error === "string") return error;
+  if (error instanceof Error && error.message.trim()) return error.message;
+
+  if (typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    const message = record.message ?? record.error;
+    if (Array.isArray(message)) {
+      const normalized = message
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean);
+      if (normalized.length > 0) return normalized.join(". ");
+    }
+    if (typeof message === "string" && message.trim()) return message;
+  }
+
+  return "No se pudo registrar. Intenta nuevamente.";
+};
+
 const RegisterForm = () => {
   const router = useRouter();
 
@@ -84,11 +104,11 @@ const RegisterForm = () => {
 
       if (
         response?.success === false ||
-        (typeof response === "object" &&
-          (response?.error ||
-            response?.message?.toLowerCase?.().includes("error")))
+        (typeof response === "object" && response?.error)
       ) {
-        throw new Error(response?.message || "Error registrando usuario.");
+        throw new Error(
+          parseRegisterErrorMessage(response?.error || response?.message || response),
+        );
       }
 
       showToast.success("¡Usuario registrado! Ahora inicia sesión ✅", {
@@ -103,9 +123,8 @@ const RegisterForm = () => {
       router.push("/login");
     },
 
-    onError: (error: any) => {
-      const msg =
-        error?.message || "No se pudo registrar. Correo ya registrado.";
+    onError: (error: unknown) => {
+      const msg = parseRegisterErrorMessage(error);
       showToast.error(String(msg), {
         duration: 2500,
         progress: true,

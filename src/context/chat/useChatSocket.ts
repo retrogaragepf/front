@@ -82,19 +82,42 @@ export function useChatSocket({
           ),
         }));
 
-        setConversations((prev) =>
-          prev.map((conversation) => {
+        setConversations((prev) => {
+          const exists = prev.some(
+            (conversation) => conversation.id === incoming.conversationId,
+          );
+          if (!exists) {
+            const isOpenConversation =
+              isChatOpen && activeConversationRef.current === incoming.conversationId;
+            // Si llega mensaje de conversación nueva, la agregamos para no perder unread.
+            return [
+              {
+                id: incoming.conversationId,
+                sellerName: incoming.senderName || "Usuario",
+                sellerId: incoming.senderId,
+                seller: { name: incoming.senderName || "Usuario" },
+                customer: "Tú",
+                product: "",
+                lastMessage: incoming.content,
+                timestamp: new Date(incoming.createdAt).toISOString(),
+                unreadCount: isOpenConversation ? 0 : 1,
+              },
+              ...prev,
+            ];
+          }
+
+          return prev.map((conversation) => {
             if (conversation.id !== incoming.conversationId) return conversation;
             const isOpenConversation =
               isChatOpen && activeConversationRef.current === incoming.conversationId;
             return {
               ...conversation,
               lastMessage: incoming.content,
-              timestamp: `Hoy, ${incoming.time}`,
+              timestamp: new Date(incoming.createdAt).toISOString(),
               unreadCount: isOpenConversation ? 0 : conversation.unreadCount + 1,
             };
-          }),
-        );
+          });
+        });
       });
 
       socketRef.current = socket;

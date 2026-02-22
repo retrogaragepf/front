@@ -359,6 +359,38 @@ function parseSubjectFromMessage(content: string): string {
   return match?.[1]?.trim() || "";
 }
 
+function getMessageSenderId(message: ApiRecord): string {
+  const sender = asRecord(message.sender);
+  const senderId = sender.id ?? sender.userId ?? message.senderId ?? message.userId ?? "";
+  return String(senderId || "");
+}
+
+function getDerivedUnreadCount(messages: ApiRecord[], currentUserId: string): number {
+  if (messages.length === 0) return 0;
+
+  // Cuenta mensajes del usuario después de la última respuesta del admin.
+  let pendingSinceLastAdminReply = 0;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = asRecord(messages[i]);
+    const senderId = getMessageSenderId(message);
+    if (senderId && senderId === currentUserId) break;
+    pendingSinceLastAdminReply += 1;
+  }
+
+  if (pendingSinceLastAdminReply > 0) return pendingSinceLastAdminReply;
+
+  // Fallback por flags de lectura del backend si existen.
+  const unreadByFlag = messages.reduce((acc, entry) => {
+    const message = asRecord(entry);
+    const senderId = getMessageSenderId(message);
+    const isRead = getBoolean(message.isRead, true);
+    if (senderId && senderId === currentUserId) return acc;
+    return isRead ? acc : acc + 1;
+  }, 0);
+
+  return unreadByFlag;
+}
+
 function resolveConversationId(raw: ApiRecord, base: ApiRecord): string {
   const idCandidate =
     base.conversationId ??
@@ -472,6 +504,29 @@ async function tryMany(paths: string[], init?: RequestInit): Promise<unknown> {
   throw new Error("No se pudo completar la operación de chats.");
 }
 
+async function tryDeleteMany(paths: string[]): Promise<void> {
+  let lastError: unknown = null;
+
+  for (const path of paths) {
+    try {
+      await request(path, { method: "DELETE" });
+      return;
+    } catch (error) {
+      if (error instanceof HttpError) {
+        // Algunos endpoints responden 400/404/405/422 según el tipo de id.
+        if ([400, 404, 405, 422].includes(error.status)) {
+          lastError = error;
+          continue;
+        }
+      }
+      lastError = error;
+    }
+  }
+
+  if (lastError instanceof Error) throw lastError;
+  throw new Error("No se pudo borrar la conversación.");
+}
+
 async function getConversationMessages(conversationId: string): Promise<ApiRecord[]> {
   const encodedId = encodeURIComponent(conversationId);
   const data = await tryMany([
@@ -487,7 +542,8 @@ async function hydrateConversationFromMessages(
   conversation: AdminChatConversation,
   currentUserId: string,
 ): Promise<AdminChatConversation> {
-  if (!shouldHydrateConversation(conversation)) return conversation;
+  const shouldHydrate = shouldHydrateConversation(conversation) || conversation.unreadCount === 0;
+  if (!shouldHydrate) return conversation;
 
   try {
     const messages = await getConversationMessages(conversation.id);
@@ -536,12 +592,15 @@ async function hydrateConversationFromMessages(
       }
     }
 
+    const derivedUnreadCount = getDerivedUnreadCount(messages, currentUserId);
+
     return {
       ...conversation,
       userName: nextName,
       userEmail: nextEmail,
       subject: nextSubject,
       userId: nextUserId,
+      unreadCount: Math.max(conversation.unreadCount, derivedUnreadCount),
     };
   } catch {
     return conversation;
@@ -563,7 +622,8 @@ export const adminChatService = {
 
     let data: unknown;
     try {
-      data = await tryMany(uniquePaths([...configured, ...defaults]));
+      // Probamos defaults primero para evitar ruido de endpoints viejos en .env.
+      data = await tryMany(uniquePaths([...defaults, ...configured]));
     } catch (error) {
       if (error instanceof HttpError && (error.status === 404 || error.status === 405)) {
         throw new Error(
@@ -604,7 +664,7 @@ export const adminChatService = {
       ];
 
       try {
-        await tryMany(uniquePaths([...configured, ...defaults]), { method: "DELETE" });
+        await tryDeleteMany(uniquePaths([...defaults, ...configured]));
         return;
       } catch (error) {
         lastError = error;

@@ -232,6 +232,24 @@ async function requestPost(path: string, body: Record<string, unknown>) {
   return data;
 }
 
+async function requestDelete(path: string) {
+  const token = assertToken();
+  const base = getApiBaseUrl();
+  const response = await fetch(`${base}${path}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await parseJsonSafe(response);
+  if (!response.ok) {
+    const message = getErrorMessage(data, "Error eliminando conversación.");
+    throw new Error(message);
+  }
+  return data;
+}
+
 export const chatService = {
   isAuthenticated(): boolean {
     return Boolean(getToken());
@@ -294,5 +312,27 @@ export const chatService = {
       payload.conversationId,
       getCurrentUserIdFromToken(),
     );
+  },
+
+  async deleteConversation(conversationId: string): Promise<void> {
+    const encodedId = encodeURIComponent(conversationId);
+    const paths = [
+      `/chat/conversation/${encodedId}`,
+      `/chat/conversations/${encodedId}`,
+      `/chat/admin/conversation/${encodedId}`,
+    ];
+
+    let lastError: unknown = null;
+    for (const path of paths) {
+      try {
+        await requestDelete(path);
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (lastError instanceof Error) throw lastError;
+    throw new Error("No se pudo borrar la conversación.");
   },
 };

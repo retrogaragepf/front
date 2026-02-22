@@ -20,6 +20,7 @@ const ChatModal = () => {
     currentUserId,
     closeChat,
     selectConversation,
+    deleteConversation,
     sendMessage,
   } = useChat();
   const panelRef = useRef<HTMLElement | null>(null);
@@ -107,6 +108,7 @@ const ChatModal = () => {
                 conversations={conversations}
                 activeConversationId={activeConversation?.id}
                 onSelectConversation={selectConversation}
+                onDeleteConversation={deleteConversation}
               />
             </div>
           )}

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
 import { useChat } from "@/src/context/ChatContext";
-import { getAllUsers } from "@/src/services/users.services";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
@@ -15,7 +14,7 @@ const Navbar = () => {
   const router = useRouter();
 
   const { cartItems } = useCart();
-  const { openChat, hasUnreadMessages, unreadTotal, conversations } = useChat();
+  const { openChat, hasUnreadMessages, unreadTotal } = useChat();
   const itemsCart = cartItems.length;
   const [isAdminSupportOpen, setIsAdminSupportOpen] = useState(false);
   const [adminSubject, setAdminSubject] = useState("");
@@ -60,49 +59,6 @@ const Navbar = () => {
     }
   };
 
-  const ADMIN_SUPPORT_USER_ID =
-    process.env.NEXT_PUBLIC_ADMIN_SUPPORT_USER_ID?.trim() || "";
-
-  const resolveAdminSupportTarget = async (): Promise<{
-    id: string;
-    name: string;
-  } | null> => {
-    if (ADMIN_SUPPORT_USER_ID) {
-      return { id: ADMIN_SUPPORT_USER_ID, name: "Administrador" };
-    }
-
-    const fromChat = conversations.find((conversation) => {
-      const name = (conversation.sellerName || "").toLowerCase();
-      return name.includes("admin");
-    });
-
-    if (fromChat?.sellerId) {
-      return {
-        id: String(fromChat.sellerId),
-        name: fromChat.sellerName || "Administrador",
-      };
-    }
-
-    try {
-      const users = await getAllUsers();
-      const adminUser = users.find((user) =>
-        String(user.role || "")
-          .toLowerCase()
-          .includes("admin"),
-      );
-      if (adminUser?.id) {
-        return {
-          id: String(adminUser.id),
-          name: adminUser.name || "Administrador",
-        };
-      }
-    } catch {
-      // Silencioso: si falla, usamos mensaje final de configuración.
-    }
-
-    return null;
-  };
-
   const launchAdminSupportChat = async () => {
     const normalizedSubject = adminSubject.trim();
     if (!normalizedSubject) {
@@ -119,22 +75,6 @@ const Navbar = () => {
 
     setIsLaunchingAdminChat(true);
     try {
-      const target = await resolveAdminSupportTarget();
-      if (!target?.id) {
-        showToast.error(
-          "No se pudo encontrar el usuario administrador. Configura NEXT_PUBLIC_ADMIN_SUPPORT_USER_ID.",
-          {
-            duration: 3000,
-            progress: true,
-            position: "top-center",
-            transition: "popUp",
-            icon: "",
-            sound: true,
-          },
-        );
-        return;
-      }
-
       const normalizedDetail = adminDetail.trim();
       const initialMessage = [
         "Hola, este es el chat auto respuesta de administrador.",
@@ -146,8 +86,10 @@ const Navbar = () => {
 
       openChat({
         asParticipant: "customer",
-        sellerId: target.id,
-        sellerName: target.name || "Administrador",
+        isSupportRequest: true,
+        supportSubject: normalizedSubject,
+        supportDetail: normalizedDetail,
+        sellerName: "Administrador",
         product: normalizedSubject,
         initialMessage,
       });

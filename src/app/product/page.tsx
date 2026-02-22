@@ -137,13 +137,6 @@ export default function ProductPage() {
                       </span>
                     )}
                   </div>
-
-                  {/* ✅ Mensaje debajo (solo si está agotado) */}
-                  {/* {isOut && (
-                    <p className="mt-2 text-xs font-semibold text-rose-900">
-                      Agotado por ahora. Vuelve pronto 👀
-                    </p>
-                  )} */}
                 </div>
               );
             })}

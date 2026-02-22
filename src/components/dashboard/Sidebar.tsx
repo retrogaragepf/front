@@ -42,7 +42,7 @@ const Sidebar = () => {
 
         <button
           onClick={() => router.push("/dashboard/orders")}
-          className="w-full px-4 py-3 rounded-lg border-2 bg-amber-100 border-amber-900 font-bold text-left text-amber-900"
+          className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
         >
           ¬ Mis Ordenes
         </button>
@@ -65,9 +65,7 @@ const Sidebar = () => {
         <button
           onClick={handleOpenChat}
           className="
-            w-full px-4 py-3 rounded-lg border-2 text-left font-bold transition
-            border-emerald-900 bg-amber-900 text-amber-50
-            hover:bg-amber-50 hover:text-emerald-900
+            w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left
           "
         >
           Chat con usuarios

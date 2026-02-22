@@ -111,7 +111,10 @@ export default function AdminChatsSection() {
     void loadData();
   }, [loadData]);
 
-  const handleDeleteConversation = async (conversationId: string) => {
+  const handleDeleteConversation = async (
+    conversationId: string,
+    deleteCandidates: string[] = [],
+  ) => {
     const confirmDelete = confirm("¿Seguro que querés borrar esta conversación?");
     if (!confirmDelete) return;
 
@@ -122,9 +125,9 @@ export default function AdminChatsSection() {
     setChats((curr) => curr.filter((chat) => chat.id !== conversationId));
 
     try {
-      // Debug: ayuda a validar qué id exacto se envía al endpoint de borrado.
-      console.log("[AdminChatsSection] delete conversationId:", conversationId);
-      await adminChatService.deleteConversation(conversationId);
+      // Debug: ayuda a validar qué ids exactos se envían al endpoint de borrado.
+      console.log("[AdminChatsSection] delete ids:", [conversationId, ...deleteCandidates]);
+      await adminChatService.deleteConversation(conversationId, deleteCandidates);
       await loadData();
     } catch (e: unknown) {
       console.error("Delete conversation error:", e);
@@ -337,7 +340,9 @@ export default function AdminChatsSection() {
 
                       <button
                         disabled={loadingList || busyDelete}
-                        onClick={() => handleDeleteConversation(chat.id)}
+                        onClick={() =>
+                          handleDeleteConversation(chat.id, chat.deleteCandidates ?? [])
+                        }
                         className="px-3 py-1 rounded-lg font-extrabold border-2 disabled:opacity-60 bg-white text-amber-900 border-amber-900"
                       >
                         {busyDelete ? "..." : "Borrar"}

@@ -50,7 +50,10 @@ export function mergeConversationData(
       name: sellerName || remote.seller?.name || previous.seller?.name || "Usuario",
     },
     product: product || "",
-    unreadCount: Math.max(remote.unreadCount, previous.unreadCount),
+    // Debe respetar el valor remoto para permitir que "no leídos" vuelva a 0.
+    unreadCount: Number.isFinite(remote.unreadCount)
+      ? remote.unreadCount
+      : previous.unreadCount,
   };
 }
 

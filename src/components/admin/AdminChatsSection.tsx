@@ -382,6 +382,12 @@ export default function AdminChatsSection() {
                     <button
                       type="button"
                       onClick={() => {
+                        // Al abrir desde admin, quitamos alerta local de no respondido.
+                        setChats((curr) =>
+                          curr.map((row) =>
+                            row.id === chat.id ? { ...row, unreadCount: 0 } : row,
+                          ),
+                        );
                         setDirectChatConversationId(chat.id);
                         setDirectChatUserName(chat.userName || "Usuario");
                       }}

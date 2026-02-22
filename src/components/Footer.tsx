@@ -54,7 +54,7 @@ function Footer() {
           <ul className="font-handwritten space-y-3 text-sm text-zinc-700">
             <li>
               <Link
-                href="/categorias/decoracion"
+                href="/categories/decoracion"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Decoración
@@ -62,15 +62,15 @@ function Footer() {
             </li>
             <li>
               <Link
-                href="/categorias/electronica-retro"
-                className="font-handwrittenhover:text-emerald-900 hover:underline underline-offset-4"
+                href="/categories/electronica-retro"
+                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Electrónica Retro
               </Link>
             </li>
             <li>
               <Link
-                href="/categorias/mobiliario-industrial"
+                href="/categories/mobiliario-industrial"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Mobiliario Industrial
@@ -78,7 +78,7 @@ function Footer() {
             </li>
             <li>
               <Link
-                href="/categorias/libros-y-papel"
+                href="/categories/libros-y-papel"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Libros y Papel

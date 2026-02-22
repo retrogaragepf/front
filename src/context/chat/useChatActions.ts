@@ -54,6 +54,38 @@ export function useChatActions({
       if (!canUseChat) return "";
       if (payload.conversationId) return payload.conversationId;
 
+      if (payload.isSupportRequest) {
+        const supportSubject =
+          payload.supportSubject?.trim() || payload.product?.trim() || "Soporte";
+        const supportDetail = payload.supportDetail?.trim() || "";
+        const supportContent =
+          payload.initialMessage?.trim() ||
+          (supportDetail ? `Asunto: ${supportSubject}\nDetalle: ${supportDetail}` : "");
+
+        // El chat de ayuda debe crearse con /chat/support según Swagger.
+        const supportConversation = await chatService.createSupportConversation({
+          subject: supportSubject,
+          detail: supportDetail,
+          content: supportContent,
+        });
+
+        setConversations((prev) => {
+          const merged = dedupeConversations([supportConversation, ...prev]);
+          return merged.map((conversation) =>
+            conversation.id === supportConversation.id
+              ? mergeConversationData(supportConversation, conversation)
+              : conversation,
+          );
+        });
+
+        setMessagesByConversation((prev) => ({
+          ...prev,
+          [supportConversation.id]: prev[supportConversation.id] ?? [],
+        }));
+
+        return supportConversation.id;
+      }
+
       const sellerId = payload.sellerId?.trim();
       const customerId = payload.customerId?.trim() || chatService.getCurrentUserId();
 
@@ -142,7 +174,7 @@ export function useChatActions({
           setActiveConversationId(conversationId);
 
           const initialMessage = payload.initialMessage?.trim();
-          if (initialMessage) {
+          if (initialMessage && !payload.isSupportRequest) {
             const persistedMessage = await chatService.sendMessage({
               conversationId,
               content: initialMessage,

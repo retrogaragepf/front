@@ -26,6 +26,7 @@ const CHAT_READ_MARKERS_KEY = "chat_read_markers";
 const CHAT_HIDDEN_CONVERSATIONS_KEY = "chat_hidden_conversations";
 const CHAT_READ_MARKERS_TTL_MS = 1000 * 60 * 60 * 24;
 const CHAT_READ_MARKERS_MAX_ENTRIES = 200;
+const CHAT_UNREAD_FALLBACK_INTERVAL_MS = 30_000;
 
 type ReadMarkers = Record<string, number>;
 
@@ -100,6 +101,7 @@ export function useChatSync({
   setActiveConversationId,
 }: Params) {
   const localReadMarkersRef = useRef<ReadMarkers>({});
+  const lastUnreadFallbackAtRef = useRef(0);
 
   const applyLocalReadState = useCallback((conversation: ChatConversation) => {
     const readAt = localReadMarkersRef.current[conversation.id];
@@ -126,9 +128,45 @@ export function useChatSync({
     try {
       const remoteConversations = await chatService.getConversations();
       const hiddenConversationIds = loadHiddenConversationIds();
-      const normalizedConversations = dedupeConversations(remoteConversations)
+      const baseConversations = dedupeConversations(remoteConversations)
         .filter((conversation) => !hiddenConversationIds.has(conversation.id))
         .map(applyLocalReadState);
+
+      const totalUnread = baseConversations.reduce(
+        (acc, conversation) => acc + (conversation.unreadCount || 0),
+        0,
+      );
+
+      let normalizedConversations = baseConversations;
+      const now = Date.now();
+      const shouldRunUnreadFallback =
+        Boolean(currentUserId) &&
+        totalUnread === 0 &&
+        now - lastUnreadFallbackAtRef.current >= CHAT_UNREAD_FALLBACK_INTERVAL_MS;
+
+      if (shouldRunUnreadFallback) {
+        lastUnreadFallbackAtRef.current = now;
+        normalizedConversations = await Promise.all(
+          baseConversations.map(async (conversation) => {
+            if (localReadMarkersRef.current[conversation.id]) return conversation;
+
+            try {
+              const messages = await chatService.getMessages(conversation.id);
+              let pending = 0;
+
+              for (let i = messages.length - 1; i >= 0; i -= 1) {
+                const message = messages[i];
+                if (message.senderId && message.senderId === currentUserId) break;
+                pending += 1;
+              }
+
+              return pending > 0 ? { ...conversation, unreadCount: pending } : conversation;
+            } catch {
+              return conversation;
+            }
+          }),
+        );
+      }
 
       setConversations((prev) => {
         const prevById = new Map(prev.map((conversation) => [conversation.id, conversation]));
@@ -153,6 +191,7 @@ export function useChatSync({
   }, [
     applyLocalReadState,
     canUseChat,
+    currentUserId,
     setActiveConversationId,
     setConversations,
   ]);

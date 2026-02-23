@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ReactElement } from "react";
 import {
   adminSalesService,
   type AdminSaleRecord,
@@ -45,7 +46,7 @@ function badgeClass(status: SimpleSaleStatus): string {
   return "border-emerald-700 text-emerald-800 bg-emerald-100";
 }
 
-export default function AdminSalesSection(): JSX.Element {
+export default function AdminSalesSection(): ReactElement {
   const [rows, setRows] = useState<AdminSaleRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

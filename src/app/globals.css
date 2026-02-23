@@ -24,3 +24,82 @@
 .font-typewriter {
   font-family: var(--font-typewriter);
 }
+
+.retro-view {
+  font-family: var(--font-typewriter);
+  color: rgb(24 24 27);
+  line-height: 1.6;
+}
+
+.retro-view * {
+  font-family: inherit;
+}
+
+.retro-view button,
+.retro-view [role="button"] {
+  font-family: var(--font-typewriter) !important;
+}
+
+.retro-view h1,
+.retro-view h2,
+.retro-view h3,
+.retro-view h4,
+.retro-view h5,
+.retro-view h6 {
+  font-family: var(--font-typewriter);
+  color: rgb(24 24 27);
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.retro-view p,
+.retro-view li {
+  font-family: var(--font-typewriter);
+  color: rgb(39 39 42);
+}
+
+.retro-view h1 {
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  font-weight: 700;
+}
+
+.retro-view h2 {
+  font-size: clamp(1.5rem, 2.2vw, 2rem);
+  font-weight: 700;
+}
+
+.retro-view h3 {
+  font-size: clamp(1.25rem, 1.6vw, 1.5rem);
+  font-weight: 700;
+}
+
+.retro-view h4 {
+  font-size: clamp(1.1rem, 1.3vw, 1.25rem);
+  font-weight: 700;
+}
+
+.retro-view h5,
+.retro-view h6 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.retro-view p,
+.retro-view li,
+.retro-view span,
+.retro-view label,
+.retro-view small,
+.retro-view input,
+.retro-view textarea,
+.retro-view select,
+.retro-view button {
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.retro-view .subtitle,
+.retro-view .subtitulo {
+  font-size: 0.95rem;
+  color: rgb(82 82 91);
+  font-weight: 500;
+}

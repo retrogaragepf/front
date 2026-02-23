@@ -3,14 +3,6 @@ import "./globals.css";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Providers from "./providers";
-import { Special_Elite } from "next/font/google";
-
-const specialElite = Special_Elite({
-  weight: "400",
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-special-elite",
-});
 
 export const metadata: Metadata = {
   title: "RetroGarage™",
@@ -23,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={specialElite.variable}>
+    <html lang="es">
       <body
         className={`
           retro-view

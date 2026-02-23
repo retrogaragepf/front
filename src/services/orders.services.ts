@@ -66,12 +66,13 @@ function getAuthToken(): string | null {
   return null;
 }
 
-export async function getMyOrders(): Promise<OrderDTO[]> {
+export async function getMyOrders(
+  tokenFromCaller?: string,
+): Promise<OrderDTO[]> {
   const base = assertApiBaseUrl();
-  const token = getAuthToken();
+  const token = tokenFromCaller ?? getAuthToken();
 
   if (!token) {
-    // En UI puedes redirigir a login si llega vacío
     throw new Error("No hay token. Inicia sesión para ver tus órdenes.");
   }
 
@@ -96,9 +97,12 @@ export async function getMyOrders(): Promise<OrderDTO[]> {
   return Array.isArray(data) ? (data as OrderDTO[]) : [];
 }
 
-export async function getOrderById(id: string): Promise<OrderDTO> {
+export async function getOrderById(
+  id: string,
+  tokenFromCaller?: string,
+): Promise<OrderDTO> {
   const base = assertApiBaseUrl();
-  const token = getAuthToken();
+  const token = tokenFromCaller ?? getAuthToken();
 
   if (!id) throw new Error("Falta el id de la orden.");
   if (!token) throw new Error("No hay token. Inicia sesión para ver tu orden.");

@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
+import { useAuth } from "@/src/context/AuthContext";
 import {
   getOrderById,
   type OrderDTO,
@@ -49,6 +50,9 @@ export default function OrderDetailPage() {
 
   const orderId = params?.id;
 
+  // ✅ AuthContext (token en memoria para evitar race con localStorage)
+  const { dataUser, isLoadingUser, isAuth } = useAuth();
+
   const [order, setOrder] = useState<OrderDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,28 +66,80 @@ export default function OrderDetailPage() {
     return items.reduce((acc, it) => acc + (Number(it.subtotal) || 0), 0);
   }, [items]);
 
-  const load = async () => {
+  // ✅ silent toast para refrescos automáticos
+  const load = async (opts?: { silent?: boolean }) => {
     setLoading(true);
     setError(null);
 
     try {
       if (!orderId) throw new Error("No se encontró el id en la URL.");
-      const data = await getOrderById(String(orderId));
+
+      // ✅ pasa token desde contexto
+      const data = await getOrderById(
+        String(orderId),
+        dataUser?.token ?? undefined,
+      );
       setOrder(data);
     } catch (e: any) {
       const msg = e?.message || "Error cargando la orden.";
       setError(msg);
-      showToast.error(msg);
       setOrder(null);
+      if (!opts?.silent) showToast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ Carga principal SIN doble carga: espera hidratación auth
   useEffect(() => {
+    if (isLoadingUser) return;
+
+    if (!isAuth) {
+      setLoading(false);
+      setError("No hay sesión activa. Inicia sesión para ver tu orden.");
+      setOrder(null);
+      return;
+    }
+
+    if (!orderId) {
+      setLoading(false);
+      setError("No se encontró el id en la URL.");
+      setOrder(null);
+      return;
+    }
+
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+  }, [orderId, isLoadingUser, isAuth, dataUser?.token]);
+
+  // ✅ Refrescar al volver con atrás/adelante (bfcache) y al volver a la pestaña
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted && !isLoadingUser && isAuth && orderId) {
+        load({ silent: true });
+      }
+    };
+
+    const onVisibility = () => {
+      if (
+        document.visibilityState === "visible" &&
+        !isLoadingUser &&
+        isAuth &&
+        orderId
+      ) {
+        load({ silent: true });
+      }
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId, isLoadingUser, isAuth, dataUser?.token]);
 
   return (
     <div className="min-h-screen bg-amber-100">
@@ -107,7 +163,7 @@ export default function OrderDetailPage() {
               Volver
             </Link>
             <button
-              onClick={load}
+              onClick={() => load()}
               className="px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-200 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
             >
               Refrescar
@@ -134,7 +190,7 @@ export default function OrderDetailPage() {
                 Ir a Mis Órdenes
               </button>
               <button
-                onClick={load}
+                onClick={() => load()}
                 className="px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-200 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
               >
                 Reintentar

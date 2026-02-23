@@ -27,13 +27,24 @@ const ENDPOINTS = {
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
+
   try {
     const raw = localStorage.getItem(TOKEN_KEY);
     if (!raw) return null;
 
-    // authService guarda JSON con { user, token }
+    // ✅ Compatibilidad: JWT plano
+    if (raw.startsWith("eyJ")) return raw;
+
+    // ✅ JSON con { user, token }
     const parsed = JSON.parse(raw);
-    return parsed?.token ?? null;
+
+    if (typeof parsed?.token === "string") return parsed.token;
+    if (typeof parsed?.dataUser?.token === "string")
+      return parsed.dataUser.token;
+    if (typeof parsed?.userSession?.token === "string")
+      return parsed.userSession.token;
+
+    return null;
   } catch {
     return null;
   }
@@ -68,12 +79,17 @@ function normalizeUser(u: AdminUser): AdminUIUser {
   };
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL; // AUI VA 
-  if (!API_BASE_URL) throw new Error("NEXT_PUBLIC_API_BASE_URL no está configurado.");
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  tokenFromContext?: string | null,
+): Promise<T> {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!API_BASE_URL)
+    throw new Error("NEXT_PUBLIC_API_BASE_URL no está configurado.");
 
-  const token = getToken();
-  if (!token) throw new Error(`Unauthorized: no hay token guardado.`);
+  const token = tokenFromContext ?? getToken();
+  if (!token) throw new Error("Unauthorized: no hay token guardado.");
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -89,19 +105,39 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /** ✅ Ya devuelve isBanned normalizado */
-export async function getAllUsers(): Promise<AdminUIUser[]> {
-  const data = await request<AdminUser[]>(ENDPOINTS.all, { method: "GET" });
+export async function getAllUsers(
+  token?: string | null,
+): Promise<AdminUIUser[]> {
+  const data = await request<AdminUser[]>(
+    ENDPOINTS.all,
+    { method: "GET" },
+    token,
+  );
   return (data ?? []).map(normalizeUser);
 }
 
-export async function blockUser(id: string): Promise<AdminUIUser> {
-  const data = await request<any>(ENDPOINTS.block(id), { method: "PATCH" });
+export async function blockUser(
+  id: string,
+  token?: string | null,
+): Promise<AdminUIUser> {
+  const data = await request<any>(
+    ENDPOINTS.block(id),
+    { method: "PATCH" },
+    token,
+  );
   const user: AdminUser = (data?.user ?? data) as AdminUser;
   return normalizeUser(user);
 }
 
-export async function unblockUser(id: string): Promise<AdminUIUser> {
-  const data = await request<any>(ENDPOINTS.unblock(id), { method: "PATCH" });
+export async function unblockUser(
+  id: string,
+  token?: string | null,
+): Promise<AdminUIUser> {
+  const data = await request<any>(
+    ENDPOINTS.unblock(id),
+    { method: "PATCH" },
+    token,
+  );
   const user: AdminUser = (data?.user ?? data) as AdminUser;
   return normalizeUser(user);
 }

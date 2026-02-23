@@ -331,14 +331,14 @@ export default function Receipt() {
       {/* ✅ Cupón */}
       <div className="pt-2 space-y-2">
         <label className="text-slate-600 italic text-sm">
-          Código de descuento
+          Introduce Código de descuento
         </label>
 
         <div className="flex items-center gap-2">
           <input
             value={couponInput}
             onChange={(e) => setCouponInput(e.target.value)}
-            placeholder="Tu Código aqui(ej: CFB59C9E)"
+            placeholder="(CFB59C9E)"
             className="min-w-0 flex-1 px-2 py-2 rounded-lg border-2 border-slate-900 text-xs outline-none placeholder:text-[10px]"
             disabled={isPaying}
             autoComplete="off"
@@ -355,7 +355,7 @@ export default function Receipt() {
               }`}
               title="Validar y aplicar cupón"
             >
-              {isValidatingCoupon ? "Validando..." : "Aplicar"}
+              {isValidatingCoupon ? "Validando" : "Aplicar"}
             </button>
           ) : (
             <button

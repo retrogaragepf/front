@@ -5,9 +5,12 @@ import AdminLayout from "@/src/components/admin/AdminLayout";
 import UsersSection from "@/src/components/admin/UsersSection";
 import ProductRequestsSection from "@/src/components/admin/ProductRequestsSection";
 import AdminChatsSection from "@/src/components/admin/AdminChatsSection";
+import AdminSalesSection from "@/src/components/admin/AdminSalesSection";
 
-export default function AdminDashboard() {
-  const [section, setSection] = useState<"users" | "products" | "chats">(
+export default function AdminDashboard(): JSX.Element {
+  const [section, setSection] = useState<
+    "users" | "products" | "chats" | "sales"
+  >(
     "users",
   );
 
@@ -17,6 +20,7 @@ export default function AdminDashboard() {
       {section === "users" && <UsersSection />}
       {section === "products" && <ProductRequestsSection />}
       {section === "chats" && <AdminChatsSection />}
+      {section === "sales" && <AdminSalesSection />}
     </AdminLayout>
   );
 }

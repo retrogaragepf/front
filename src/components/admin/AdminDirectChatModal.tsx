@@ -18,40 +18,53 @@ export default function AdminDirectChatModal({
   conversationId,
   userName,
   onClose,
-}: Props) {
+}: Props): JSX.Element | null {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const currentUserId = useMemo(() => chatService.getCurrentUserId(), []);
+  const POLL_INTERVAL_MS = 15_000;
 
-  const loadMessages = useCallback(async () => {
+  const areMessagesEqualById = (prev: ChatMessage[], next: ChatMessage[]) => {
+    if (prev === next) return true;
+    if (prev.length !== next.length) return false;
+    for (let i = 0; i < prev.length; i += 1) {
+      if (prev[i].id !== next[i].id) return false;
+    }
+    return true;
+  };
+
+  const loadMessages = useCallback(async (options?: { silent?: boolean }) => {
     if (!conversationId) return;
+    const silent = Boolean(options?.silent);
     try {
-      setLoading(true);
-      setError(null);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
       const data = await chatService.getMessages(conversationId);
-      setMessages(data);
+      setMessages((prev) => (areMessagesEqualById(prev, data) ? prev : data));
     } catch (e: unknown) {
       const message =
         e instanceof Error ? e.message : "No se pudieron cargar los mensajes.";
       setError(message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [conversationId]);
 
   useEffect(() => {
     if (!isOpen || !conversationId) return;
-    void loadMessages();
+    void loadMessages({ silent: false });
   }, [conversationId, isOpen, loadMessages]);
 
   useEffect(() => {
     if (!isOpen || !conversationId) return;
     const intervalId = window.setInterval(() => {
-      void loadMessages();
-    }, 4500);
+      void loadMessages({ silent: true });
+    }, POLL_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [conversationId, isOpen, loadMessages]);
+  }, [conversationId, isOpen, loadMessages, POLL_INTERVAL_MS]);
 
   const handleSendMessage = async (content: string) => {
     if (!conversationId) return;

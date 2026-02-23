@@ -240,9 +240,9 @@ export default function MyProductsPage() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="font-display text-3xl text-amber-900 font-extrabold">
+            <h3 className="font-display text-3xl text-amber-900 font-extrabold">
               Mis productos
-            </h1>
+            </h3>
             <p className="text-sm text-slate-700">
               Aquí ves solo los productos asociados a tu cuenta.
             </p>

@@ -371,9 +371,9 @@ export default function MyProductsPanel() {
   return (
     <section className="bg-amber-100 border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="text-xl font-extrabold tracking-wide text-amber-900">
+        <h3 className="text-xl font-extrabold tracking-wide text-amber-900">
           Mis productos
-        </h2>
+        </h3>
 
         <div className="flex items-center gap-2">
           <Link

@@ -8,14 +8,13 @@ const Sidebar = () => {
   const { openChat } = useChat();
 
   const handleOpenChat = () => {
-    console.log("[Sidebar] open chat from dashboard");
     openChat({ asParticipant: "customer" });
   };
 
   return (
     <aside className="w-64 min-h-screen bg-amber-100 border-r-4 border-slate-900 flex flex-col">
       <div className="p-6 border-b-2 border-dashed">
-        <h1 className="text-amber-900 font-display text-2xl">Mi Cuenta</h1>
+        <h2 className="text-amber-900 font-display text-2xl">Mi Cuenta</h2>
       </div>
 
       <nav className="flex-1 p-4 space-y-2 font-sans">

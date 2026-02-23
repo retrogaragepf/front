@@ -35,15 +35,22 @@ export function useChatSocket({
 }: Params) {
   useEffect(() => {
     if (!canUseChat) return;
+    const socketDisabled = process.env.NEXT_PUBLIC_ENABLE_CHAT_SOCKET === "false";
+    if (socketDisabled) {
+      return;
+    }
+
     let canceled = false;
     const scriptId = "socket-io-client-cdn";
 
-    const mountSocket = () => {
-      if (canceled || !window.io || socketRef.current) return;
+    const mountSocketWithFactory = (
+      ioFactory: ((url: string, options?: Record<string, unknown>) => SocketLike) | undefined,
+    ) => {
+      if (canceled || !ioFactory || socketRef.current) return;
       const token = chatService.getSocketToken();
       if (!token) return;
 
-      const socket = window.io(chatService.getSocketUrl(), {
+      const socket = ioFactory(chatService.getSocketUrl(), {
         auth: { token },
         transports: ["websocket", "polling"],
         reconnection: true,
@@ -123,24 +130,50 @@ export function useChatSocket({
       socketRef.current = socket;
     };
 
-    if (window.io) {
-      mountSocket();
-    } else if (!document.getElementById(scriptId)) {
-      const script = document.createElement("script");
-      script.id = scriptId;
-      script.src = "https://cdn.socket.io/4.7.5/socket.io.min.js";
-      script.async = true;
-      script.onload = mountSocket;
-      script.onerror = () => {
-        console.warn(
-          "[ChatContext] socket.io bloqueado por navegador/extensión. Chat seguirá por REST.",
-        );
-      };
-      document.body.appendChild(script);
-    } else {
-      const existingScript = document.getElementById(scriptId);
-      existingScript?.addEventListener("load", mountSocket);
-    }
+    const connect = async () => {
+      // Prioridad: cliente socket empaquetado localmente (evita bloqueos por extensiones).
+      try {
+        const dynamicImport = new Function(
+          "specifier",
+          "return import(specifier)",
+        ) as (specifier: string) => Promise<unknown>;
+        const socketClientModule = (await dynamicImport(
+          "socket.io-client",
+        )) as { io?: (url: string, options?: Record<string, unknown>) => SocketLike };
+        const ioFactory = socketClientModule?.io as
+          | ((url: string, options?: Record<string, unknown>) => SocketLike)
+          | undefined;
+        mountSocketWithFactory(ioFactory);
+        if (socketRef.current) return;
+      } catch {
+        // Si no está instalado, caemos al fallback por CDN.
+      }
+
+      if (window.io) {
+        mountSocketWithFactory(window.io);
+        return;
+      }
+
+      if (!document.getElementById(scriptId)) {
+        const script = document.createElement("script");
+        script.id = scriptId;
+        script.src = "https://cdn.socket.io/4.7.5/socket.io.min.js";
+        script.async = true;
+        script.onload = () => mountSocketWithFactory(window.io);
+        script.onerror = () => {
+          console.warn(
+            "[ChatContext] socket.io bloqueado por navegador/extensión. Chat seguirá por REST.",
+          );
+        };
+        document.body.appendChild(script);
+      } else {
+        const existingScript = document.getElementById(scriptId);
+        const onLoad = () => mountSocketWithFactory(window.io);
+        existingScript?.addEventListener("load", onLoad);
+      }
+    };
+
+    void connect();
 
     return () => {
       canceled = true;

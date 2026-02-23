@@ -14,11 +14,19 @@ function getAuthToken(): string | null {
   const raw = localStorage.getItem(TOKEN_KEY);
   if (!raw) return null;
 
+  // JWT pelado
   if (raw.startsWith("eyJ")) return raw;
 
   try {
     const parsed = JSON.parse(raw);
-    return typeof parsed?.token === "string" ? parsed.token : null;
+
+    if (typeof parsed?.token === "string") return parsed.token;
+    if (typeof parsed?.dataUser?.token === "string")
+      return parsed.dataUser.token;
+    if (typeof parsed?.userSession?.token === "string")
+      return parsed.userSession.token;
+
+    return null;
   } catch {
     return null;
   }
@@ -32,20 +40,48 @@ export type DiscountDTO = {
   isUsed: boolean;
 };
 
-export async function createDiscountCode(payload: { percentage: number }) {
+export async function createDiscountCode(
+  payload: { percentage: number },
+  tokenFromContext?: string | null,
+) {
   const base = assertApiBaseUrl();
-  const token = getAuthToken();
+  const tokenFromStorage = getAuthToken();
+  const token = tokenFromContext ?? tokenFromStorage;
+
+  // ✅ DEBUG temporal
+  console.log("createDiscountCode DEBUG", {
+    base,
+    tokenFromContext: tokenFromContext
+      ? `${tokenFromContext.slice(0, 12)}...`
+      : null,
+    tokenFromStorage: tokenFromStorage
+      ? `${tokenFromStorage.slice(0, 12)}...`
+      : null,
+    finalToken: token ? `${token.slice(0, 12)}...` : null,
+    payload,
+  });
+
+  if (!token) {
+    throw new Error("Unauthorized: no hay token guardado.");
+  }
 
   const res = await fetch(`${base}/discounts`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(payload), // ✅ { percentage }
+    body: JSON.stringify(payload),
   });
 
   const data = await res.json().catch(() => ({}));
+
+  // ✅ DEBUG temporal
+  console.log("createDiscountCode RESPONSE", {
+    status: res.status,
+    ok: res.ok,
+    data,
+  });
 
   if (!res.ok) {
     throw new Error(
@@ -53,5 +89,5 @@ export async function createDiscountCode(payload: { percentage: number }) {
     );
   }
 
-  return data as DiscountDTO; // { id, code, percentage, isActive, isUsed }
+  return data as DiscountDTO;
 }

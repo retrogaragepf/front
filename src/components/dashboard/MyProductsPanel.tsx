@@ -252,13 +252,7 @@ export default function MyProductsPanel() {
     if (!isLoadingUser && isAuth) load();
   }, [isLoadingUser, isAuth, load]);
 
-  useEffect(() => {
-    const onFocus = () => {
-      if (!isLoadingUser && isAuth) load();
-    };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [isLoadingUser, isAuth, load]);
+ 
 
   const startEdit = useCallback((p: any) => {
     setEditingId(String(p.id));
@@ -273,11 +267,10 @@ export default function MyProductsPanel() {
           : "0",
     });
 
-    // ✅ esperar render y enfocar input
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       priceInputRef.current?.focus();
       priceInputRef.current?.select();
-    });
+    }, 0);
   }, []);
 
   const cancelEdit = useCallback(() => {
@@ -418,7 +411,7 @@ export default function MyProductsPanel() {
         </div>
       ) : (
         <div className="mt-6 space-y-4">
-          {products.slice(0, 6).map((p: any) => {
+          {products.map((p: any) => {
             const image = p.image || "";
             const title = p.title || "Producto";
             const price = p.price;
@@ -531,36 +524,55 @@ export default function MyProductsPanel() {
                   )}
                 </div>
 
-                <div className="shrink-0 flex items-center gap-2 flex-wrap justify-end">
-                  {!isEditing ? (
-                    <button
-                      type="button"
-                      onClick={() => startEdit(p)}
-                      className="px-3 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold"
-                    >
-                      Editar
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => saveEdit(p)}
-                        disabled={isSaving}
-                        className="px-3 py-2 rounded-xl border-2 border-emerald-900 bg-emerald-200 text-emerald-900 font-extrabold disabled:opacity-60"
-                      >
-                        {isSaving ? "Guardando..." : "Guardar"}
-                      </button>
+                <div
+                  className="shrink-0 flex items-center gap-2 flex-wrap justify-end"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* botones */}
 
+                  <div className="shrink-0 flex items-center gap-2 flex-wrap justify-end">
+                    {!isEditing ? (
                       <button
                         type="button"
-                        onClick={cancelEdit}
-                        disabled={isSaving}
-                        className="px-3 py-2 rounded-xl border-2 border-zinc-800 bg-white text-zinc-800 font-extrabold disabled:opacity-60"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          startEdit(p);
+                        }}
+                        className="px-3 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold"
                       >
-                        Cancelar
+                        Editar
                       </button>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            saveEdit(p);
+                          }}
+                          disabled={isSaving}
+                          className="px-3 py-2 rounded-xl border-2 border-emerald-900 bg-emerald-200 text-emerald-900 font-extrabold disabled:opacity-60"
+                        >
+                          {isSaving ? "Guardando..." : "Guardar"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            cancelEdit();
+                          }}
+                          disabled={isSaving}
+                          className="px-3 py-2 rounded-xl border-2 border-zinc-800 bg-white text-zinc-800 font-extrabold disabled:opacity-60"
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </article>
             );

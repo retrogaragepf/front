@@ -7,7 +7,7 @@ function Footer() {
       <div className="max-w-7xl mx-auto px-8 sm:px-10 lg:pl-8 lg:pr-12 pt-14 pb-10 grid grid-cols-1 md:grid-cols-5 gap-10 md:gap-x-14">
         {/* Marca */}
         <div className="w-full max-w-[220px] mx-auto md:mx-0 md:pr-8 space-y-5 text-center">
-          <h2 className="text-3xl font-extrabold tracking-wide text-amber-900">
+          <h2 className="text-2xl font-extrabold tracking-wide text-amber-900">
             RetroGarage™
           </h2>
 

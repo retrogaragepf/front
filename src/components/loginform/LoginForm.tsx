@@ -175,14 +175,14 @@ const LoginForm = () => {
     <div className="flex items-center justify-center min-h-screen px-4 py-10 sm:px-6 lg:px-8">
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
         <section className="p-2 sm:p-4 flex flex-col justify-center text-left lg:pr-10">
-          <h2 className="font-display text-4xl text-emerald-900 mb-4 leading-tight">
+          <h2 className="font-display text-4xl text-emerald-900  amber-900 mb-4 leading-tight">
             Hola de nuevo
           </h2>
           <p className="font-handwritten text-lg text-zinc-700 mb-6">
             Qué bueno tenerte otra vez en RetroGarage. Vuelve a tu cuenta y
             sigue disfrutando de la experiencia retro.
           </p>
-          <ul className="space-y-3 text-sm sm:text-base list-disc pl-5 marker:text-emerald-600 text-zinc-800">
+          <ul className="space-y-3 text-sm sm:text-base list-disc pl-5 marker:text-emerald-600 text-amber-900">
             <li>Recupera tu carrito y continúa tu compra en segundos.</li>
             <li>Guarda favoritos y compara productos retro fácilmente.</li>
             <li>Recibe alertas de novedades según tus intereses.</li>
@@ -201,7 +201,7 @@ const LoginForm = () => {
 
             <div className="relative z-10 ">
               <div className="text-center space-y-2">
-                <h2 className="text-4xl text-amber-800 font-display">
+                <h2 className="text-4xl text-amber-900 font-display">
                   Hola de nuevo
                 </h2>
                 <p className="text-lg text-emerald-800 font-handwritten pb-2">

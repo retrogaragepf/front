@@ -9,6 +9,7 @@ import * as ToastNotify from "nextjs-toast-notify";
 
 interface CardProps {
   product: IProductWithDetails;
+  hideDescription?: boolean; // ✅ nuevo
 }
 
 /** ✅ Toast wrapper compatible con:
@@ -40,7 +41,7 @@ function notify(
   console.log(`[toast:${type}]`, msg);
 }
 
-function Card({ product }: CardProps) {
+function Card({ product, hideDescription = true }: CardProps) {
   const { addProduct, cartItems } = useCart();
   const { dataUser, isLoadingUser } = useAuth();
 
@@ -137,7 +138,6 @@ function Card({ product }: CardProps) {
             Sin imagen
           </div>
         )}
-
         ✅ SOLD OUT badge opcional dentro del card
         {isOutOfStock && (
           <div className="absolute top-3 left-3 z-10">
@@ -146,7 +146,6 @@ function Card({ product }: CardProps) {
             </div>
           </div>
         )}
-
         <div className="absolute top-3 right-3 z-10">
           <div className="px-3 py-1.5 text-sm shadow-md bg-amber-800/95 text-amber-50 font-extrabold border border-amber-900/30 rounded-lg">
             $ {priceFormatted}
@@ -155,19 +154,20 @@ function Card({ product }: CardProps) {
       </div>
 
       <div className="mt-4 space-y-1">
-        <h4 className="font-extrabold text-lg group-hover:text-amber-800 transition-colors line-clamp-2">
+        <h4 className="font-extrabold text-lg group-hover:text-amber-800 transition-colors line-clamp-2 min-h-[3rem] leading-snug">
           {(product as any).title}
         </h4>
 
-        {(product as any).description ? (
-          <p className="text-sm text-zinc-700 italic opacity-90 line-clamp-2">
-            {(product as any).description}
-          </p>
-        ) : (
-          <p className="text-sm text-zinc-700 italic opacity-60">
-            Sin descripción
-          </p>
-        )}
+        {!hideDescription &&
+          ((product as any).description ? (
+            <p className="text-sm text-zinc-700 italic opacity-90 line-clamp-2">
+              {(product as any).description}
+            </p>
+          ) : (
+            <p className="text-sm text-zinc-700 italic opacity-60">
+              Sin descripción
+            </p>
+          ))}
       </div>
 
       <div className="w-full flex flex-col gap-2 mt-2">

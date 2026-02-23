@@ -70,7 +70,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     useState<ChatMessageMap>({});
   const [activeConversationId, setActiveConversationId] = useState<string>("");
 
-  const canUseChat = isAuth && chatService.isAuthenticated();
+  const canUseChat =
+    isAuth && chatService.isAuthenticated() && !chatService.isAdminUser();
   const currentUserId = chatService.getCurrentUserId();
 
   const conversationsRef = useRef<ChatConversation[]>([]);
@@ -151,6 +152,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (!isChatOpen || !activeConversationId) return;
     clearUnreadLocal(activeConversationId);
   }, [activeConversationId, clearUnreadLocal, isChatOpen]);
+
+  useEffect(() => {
+    if (canUseChat) return;
+    // Si el usuario es admin o no está autenticado, evitamos estado residual del chat cliente.
+    setConversations([]);
+    setMessagesByConversation({});
+    setActiveConversationId("");
+    setIsChatOpen(false);
+  }, [canUseChat]);
 
   useChatUnreadNotifications({
     canUseChat,

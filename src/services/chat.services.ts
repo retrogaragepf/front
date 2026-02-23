@@ -55,6 +55,15 @@ function getCurrentUserIdFromToken(): string | null {
   return id ? String(id) : null;
 }
 
+function isAdminFromToken(): boolean {
+  const payload = parseJwtPayload(getToken());
+  if (!payload) return false;
+  return Boolean(
+    payload.isAdmin ??
+      (isRecord(payload.user) ? (payload.user as ApiRecord).isAdmin : false),
+  );
+}
+
 async function parseJsonSafe(response: Response) {
   const text = await response.text();
   const isJson = response.headers.get("content-type")?.includes("application/json");
@@ -317,6 +326,10 @@ export const chatService = {
 
   getCurrentUserId(): string | null {
     return getCurrentUserIdFromToken();
+  },
+
+  isAdminUser(): boolean {
+    return isAdminFromToken();
   },
 
   normalizeSocketMessage(raw: ApiRecord, fallbackConversationId: string): ChatMessage | null {

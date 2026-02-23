@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useMemo, useState } from "react";
+import type { ReactElement } from "react";
 import { showToast } from "nextjs-toast-notify";
 import { createDiscountCode } from "@/src/services/discounts.services";
 import { useAuth } from "@/src/context/AuthContext";
@@ -15,7 +16,7 @@ export default function AdminLayout({
   children,
   section,
   setSection,
-}: Props): JSX.Element {
+}: Props): ReactElement {
   const [isCreatingDiscount, setIsCreatingDiscount] = useState(false);
   const { dataUser, isLoadingUser, isAuth } = useAuth();
 

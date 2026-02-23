@@ -4,7 +4,7 @@
   --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-display: "Impact", "Arial Black", "Segoe UI", sans-serif;
   --font-handwritten: "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive;
-  --font-typewriter: var(--font-special-elite);
+  --font-typewriter: "Courier New", Courier, "Lucida Console", monospace;
 }
 
 @theme inline {

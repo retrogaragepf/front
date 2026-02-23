@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactElement } from "react";
 import { chatService } from "@/src/services/chat.services";
 import { ChatMessage } from "@/src/types/chat.types";
 import ChatMessages from "@/src/components/chat/chat-window/ChatMessages";
@@ -18,7 +19,7 @@ export default function AdminDirectChatModal({
   conversationId,
   userName,
   onClose,
-}: Props): JSX.Element | null {
+}: Props): ReactElement | null {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -1,10 +1,15 @@
 export type ChatParticipant = "customer" | "seller";
 
 export interface ChatConversation {
-  sellerName: any;
-  seller: any;
+  sellerName: string;
+  sellerId?: string;
+  seller: {
+    name: string;
+  };
   id: string;
   customer: string;
+  customerId?: string;
+  participantIds?: string[];
   product: string;
   lastMessage: string;
   timestamp: string;
@@ -13,13 +18,30 @@ export interface ChatConversation {
 
 export interface ChatMessage {
   id: string;
+  conversationId: string;
+  senderId?: string;
+  senderName?: string;
+  isRead?: boolean;
   from: ChatParticipant;
   content: string;
   time: string;
+  createdAt: number;
 }
 
-export interface ChatPanelProps {
-  conversations: ChatConversation[];
-  activeConversation: ChatConversation;
-  messages: ChatMessage[];
+export type ChatMessageMap = Record<string, ChatMessage[]>;
+
+export interface OpenChatPayload {
+  conversationId?: string;
+  product?: string;
+  sellerName?: string;
+  sellerId?: string;
+  customerName?: string;
+  customerId?: string;
+  initialMessage?: string;
+  isSupportRequest?: boolean;
+  supportSubject?: string;
+  supportDetail?: string;
+  asParticipant?: ChatParticipant;
+  adminDirect?: boolean;
+  chatWithName?: string;
 }

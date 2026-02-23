@@ -4,10 +4,31 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
+import { signIn } from "next-auth/react";
 
 import useFormField from "@/src/hooks/useFormField";
 import { useFormSubmit } from "@/src/hooks/useFormSubmit";
 import { authService } from "@/src/services/auth";
+
+const parseRegisterErrorMessage = (error: unknown): string => {
+  if (!error) return "No se pudo registrar. Intenta nuevamente.";
+  if (typeof error === "string") return error;
+  if (error instanceof Error && error.message.trim()) return error.message;
+
+  if (typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    const message = record.message ?? record.error;
+    if (Array.isArray(message)) {
+      const normalized = message
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean);
+      if (normalized.length > 0) return normalized.join(". ");
+    }
+    if (typeof message === "string" && message.trim()) return message;
+  }
+
+  return "No se pudo registrar. Intenta nuevamente.";
+};
 
 const RegisterForm = () => {
   const router = useRouter();
@@ -82,15 +103,16 @@ const RegisterForm = () => {
       }
 
       if (
-        typeof response === "object" &&
-        (response?.error ||
-          response?.message?.toLowerCase?.().includes("error"))
+        response?.success === false ||
+        (typeof response === "object" && response?.error)
       ) {
-        throw new Error(response?.message || "Error registrando usuario.");
+        throw new Error(
+          parseRegisterErrorMessage(response?.error || response?.message || response),
+        );
       }
 
       showToast.success("¡Usuario registrado! Ahora inicia sesión ✅", {
-        duration: 4000,
+        duration: 2500,
         progress: true,
         position: "top-center",
         transition: "popUp",
@@ -101,10 +123,12 @@ const RegisterForm = () => {
       router.push("/login");
     },
 
-    onError: (error: any) => {
-      const msg = error?.message || "No se pudo registrar. Revisa tus datos.";
+    onError: (error: unknown) => {
+      // DEBUG: log rápido para inspeccionar errores de registro en desarrollo.
+      console.log("[RegisterForm][debug] Error detectado:", error);
+      const msg = parseRegisterErrorMessage(error);
       showToast.error(String(msg), {
-        duration: 4500,
+        duration: 2500,
         progress: true,
         position: "top-center",
         transition: "popUp",
@@ -120,9 +144,27 @@ const RegisterForm = () => {
     (passwordField.value ?? "") !== (confirmPasswordField.value ?? "");
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
+    <div className="flex items-center justify-center min-h-screen px-4 py-10 sm:px-6 lg:px-8">
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <section className="p-2 sm:p-4 flex flex-col justify-center text-left lg:pr-10">
+          <h2 className="font-display text-4xl text-amber-900 mb-4 leading-tight">
+            Bienvenido a RetroGarage
+          </h2>
+          <p className="font-handwritten text-lg text-zinc-700 mb-6">
+            Crea tu cuenta y forma parte de una comunidad que valora lo clásico,
+            auténtico y con historia.
+          </p>
+          <ul className="space-y-3 text-sm sm:text-base list-disc pl-5 marker:text-emerald-700 text-amber-900">
+            <li>Acceso a piezas únicas y coleccionables retro.</li>
+            <li>Compra y venta en un solo lugar, de forma simple.</li>
+            <li>Seguimiento de pedidos y estado de tus compras.</li>
+            <li>Perfil personalizado para guardar tu actividad.</li>
+            <li>Comunidad apasionada por el estilo vintage.</li>
+          </ul>
+        </section>
+
+        <div className="w-full max-w-md lg:max-w-none lg:justify-self-end lg:pl-10">
+          <div className="bg-amber-100 rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
           {/* decor */}
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
@@ -130,12 +172,12 @@ const RegisterForm = () => {
             <div className="absolute bottom-8 left-1/4 w-32 h-32 bg-amber-200 rounded-full opacity-60"></div>
           </div>
 
-          <div className="relative z-10 space-y-6">
+            <div className="relative z-10 space-y-6">
             <div className="text-center space-y-2">
-              <h1 className="font-bold text-amber-800 font-display text-4xl">
-                ¡Bienvenido!
-              </h1>
-              <p className="text-lg text-emerald-800 font-handwritten">
+              <h2 className="font-display text-3xl text-amber-900 font-bold">
+                Bienvenido
+              </h2>
+              <p className="text-lg text-zinc-700 font-handwritten">
                 Regístrate para crear una cuenta
               </p>
             </div>
@@ -143,7 +185,11 @@ const RegisterForm = () => {
             {/* Botón Google (solo UI) */}
             <button
               type="button"
-              className="w-full flex items-center justify-center gap-3 border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl transition-colors"
+              onClick={() => {
+                sessionStorage.setItem("google-login", "true");
+                signIn("google", { callbackUrl: "/login" });
+              }}
+              className="w-full flex items-center justify-center gap-3 border border-gray-300 bg-amber-100 hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl transition-colors"
             >
               <svg className="w-5 h-5" viewBox="0 0 48 48">
                 <path
@@ -171,7 +217,7 @@ const RegisterForm = () => {
                 <div className="w-full border-t border-gray-200"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-400">
+                <span className="px-4 bg-amber-100 text-gray-400">
                   o usa tu email
                 </span>
               </div>
@@ -336,7 +382,7 @@ const RegisterForm = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
+                className="w-full rounded-xl bg-emerald-900 hover:bg-amber-900 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
               >
                 {isSubmitting ? (
                   <>
@@ -377,9 +423,7 @@ const RegisterForm = () => {
                         d="M14 5l7 7m0 0l-7 7m7-7H3"
                       />
                     </svg>
-                    <span className="font-handwritten text-md">
-                      Registrarse
-                    </span>
+                    <span className=" text-md">Registrarse</span>
                   </>
                 )}
               </button>
@@ -389,11 +433,12 @@ const RegisterForm = () => {
               ¿Ya tienes cuenta?{" "}
               <Link
                 href="/login"
-                className="font-semibold text-amber-800 hover:text-gray-900 transition-colors"
+                className="font-bold text-amber-900 hover:text-amber-800 transition-colors"
               >
                 Inicia sesión
               </Link>
             </p>
+            </div>
           </div>
         </div>
       </div>

@@ -44,14 +44,14 @@ export default function DashboardPage() {
     (dataUser as any)?.email ?? (dataUser as any)?.user?.email ?? "";
 
   return (
-    <div className="flex min-h-screen bg-amber-200">
+    <div className="flex min-h-screen bg-amber-100">
       <Sidebar />
 
       <main className="flex-1 p-10 space-y-10">
         <ProfileHeader />
 
         {!isLoadingUser && email ? (
-          <section className="bg-amber-50 border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
+          <section className="bg-amber-100 border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
             <p className="text-zinc-800">
               <span className="font-extrabold tracking-wide text-amber-900">
                 Email:

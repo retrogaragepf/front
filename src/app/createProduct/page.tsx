@@ -25,7 +25,7 @@ async function urlToFile(url: string, filename = "product.jpg") {
 
 export default function CreateProductPage() {
   const router = useRouter();
-  const { isAuth } = useAuth();
+  const { isAuth, isLoadingUser } = useAuth();
 
   const [form, setForm] = useState<IProductCreate>({
     title: "",
@@ -40,9 +40,11 @@ export default function CreateProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    if (isLoadingUser) return; // ✅ espera a que cargue la sesión
     if (!isAuth) router.push("/login");
-  }, [isAuth, router]);
+  }, [isLoadingUser, isAuth, router]);
 
+  if (isLoadingUser) return null; // ✅ o un loader
   if (!isAuth) return null;
 
   const handleChange = (field: keyof IProductCreate, value: any) => {
@@ -107,8 +109,8 @@ export default function CreateProductPage() {
   };
 
   return (
-    <main className="min-h-screen bg-amber-200 py-12 px-6">
-      <div className="max-w-3xl mx-auto bg-amber-100 rounded-3xl shadow-lg p-10">
+    <main className="min-h-screen bg-amber-100 py-12 px-6">
+      <div className="max-w-3xl mx-auto bg-amber-200 rounded-3xl shadow-lg p-10">
         <h1 className="text-3xl font-bold text-amber-800 mb-8">
           Completa los datos del producto
         </h1>
@@ -123,7 +125,7 @@ export default function CreateProductPage() {
               type="text"
               value={form.title}
               onChange={(e) => handleChange("title", e.target.value)}
-              className="w-full bg-amber-200 rounded-xl px-4 py-3 outline-none"
+              className="w-full bg-amber-100 rounded-xl px-4 py-3 outline-none"
               placeholder="Ej: Walkman Sony 1982"
             />
           </div>
@@ -135,7 +137,7 @@ export default function CreateProductPage() {
             <textarea
               value={form.description}
               onChange={(e) => handleChange("description", e.target.value)}
-              className="w-full  bg-amber-200 rounded-xl px-4 py-3 h-32 outline-none"
+              className="w-full  bg-amber-100 rounded-xl px-4 py-3 h-32 outline-none"
             />
           </div>
 
@@ -148,7 +150,7 @@ export default function CreateProductPage() {
                 type="number"
                 value={form.price}
                 onChange={(e) => handleChange("price", e.target.value)}
-                className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
+                className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
                 min={0}
                 step="0.01"
               />
@@ -162,7 +164,7 @@ export default function CreateProductPage() {
                 type="number"
                 value={form.stock}
                 onChange={(e) => handleChange("stock", Number(e.target.value))}
-                className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
+                className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
                 min={0}
               />
             </div>
@@ -175,7 +177,7 @@ export default function CreateProductPage() {
             <select
               value={form.categoryId}
               onChange={(e) => handleChange("categoryId", e.target.value)}
-              className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
+              className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
             >
               <option value="">Selecciona categoría</option>
               {CATEGORY_OPTIONS.map((c) => (
@@ -193,7 +195,7 @@ export default function CreateProductPage() {
             <select
               value={form.eraId}
               onChange={(e) => handleChange("eraId", e.target.value)}
-              className="w-full  bg-amber-200 rounded-xl px-4 py-3 outline-none"
+              className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
             >
               <option value="">Selecciona era</option>
               {ERA_OPTIONS.map((era) => (
@@ -215,22 +217,43 @@ export default function CreateProductPage() {
               }
               options={{
                 cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+                resourceType: "image",
+                maxFiles: 1,
+                maxFileSize: 500 * 1024 * 1024,
+                clientAllowedFormats: [
+                  "png",
+                  "jpg",
+                  "jpeg",
+                  "webp",
+                  "gif",
+                  "avif",
+                ],
               }}
               onSuccess={(result: any) => {
                 const secureUrl = result?.info?.secure_url;
                 if (!secureUrl) return;
 
-                setForm((prev) => ({
-                  ...prev,
-                  images: [secureUrl],
-                }));
+                setForm((prev) => ({ ...prev, images: [secureUrl] }));
+              }}
+              onUpload={(result: any) => {
+                // Cloudinary manda eventos distintos; este cubre fallos comunes
+                const evt = result?.event;
+                const info = result?.info;
+
+                if (evt === "error") {
+                  const msg =
+                    info?.message ||
+                    info?.error?.message ||
+                    "No se pudo subir el archivo. Verifica que sea una imagen y pese menos de 500MB.";
+                  showToast.error(msg);
+                }
               }}
             >
               {({ open }) => (
                 <button
                   type="button"
                   onClick={() => open()}
-                  className="px-4 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700"
+                  className="px-4 py-3 bg-emerald-900 text-white rounded-xl hover:bg-amber-900"
                 >
                   Subir imagen
                 </button>
@@ -253,7 +276,7 @@ export default function CreateProductPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-gray-700 hover:bg-gray-800 text-white font-semibold py-4 rounded-xl transition-all shadow-md"
+            className="w-full bg-emerald-900 hover:bg-amber-900 text-white font-semibold py-4 rounded-xl transition-all shadow-md"
           >
             {isSubmitting ? "Publicando..." : "Publicar producto"}
           </button>

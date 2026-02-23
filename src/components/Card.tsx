@@ -9,6 +9,7 @@ import * as ToastNotify from "nextjs-toast-notify";
 
 interface CardProps {
   product: IProductWithDetails;
+  hideDescription?: boolean; // ✅ nuevo
 }
 
 /** ✅ Toast wrapper compatible con:
@@ -40,7 +41,7 @@ function notify(
   console.log(`[toast:${type}]`, msg);
 }
 
-function Card({ product }: CardProps) {
+function Card({ product, hideDescription = true }: CardProps) {
   const { addProduct, cartItems } = useCart();
   const { dataUser, isLoadingUser } = useAuth();
 
@@ -69,6 +70,10 @@ function Card({ product }: CardProps) {
     (it) => String((it as any).id) === safeId,
   );
 
+  // ✅ STOCK (solo UI + guard)
+  const stockNumber = Number((product as any)?.stock ?? 0);
+  const isOutOfStock = !Number.isFinite(stockNumber) || stockNumber <= 0;
+
   const toastOpts = {
     duration: 2500,
     progress: true,
@@ -80,6 +85,12 @@ function Card({ product }: CardProps) {
 
   const handleAddToCart = () => {
     if (!isLogged) return;
+
+    // ✅ Guard: no permitir agregar si está agotado
+    if (isOutOfStock) {
+      notify("warning", "Producto agotado por ahora.", toastOpts);
+      return;
+    }
 
     if (!safeId) {
       notify("error", "Este producto no tiene ID válido (id/_id).", {
@@ -108,6 +119,8 @@ function Card({ product }: CardProps) {
     notify("success", "Agregado al carrito", toastOpts);
   };
 
+  const addDisabled = alreadyInCart || isOutOfStock;
+
   return (
     <div className="group w-full flex flex-col">
       <div className="relative aspect-square overflow-hidden bg-amber-100 border border-amber-300 shadow-sm">
@@ -125,7 +138,14 @@ function Card({ product }: CardProps) {
             Sin imagen
           </div>
         )}
-
+        ✅ SOLD OUT badge opcional dentro del card
+        {isOutOfStock && (
+          <div className="absolute top-3 left-3 z-10">
+            <div className="px-3 py-1.5 text-sm shadow-md bg-rose-100 text-rose-900 font-extrabold border-2 border-zinc-900 rounded-lg">
+              AGOTADO
+            </div>
+          </div>
+        )}
         <div className="absolute top-3 right-3 z-10">
           <div className="px-3 py-1.5 text-sm shadow-md bg-amber-800/95 text-amber-50 font-extrabold border border-amber-900/30 rounded-lg">
             $ {priceFormatted}
@@ -134,19 +154,20 @@ function Card({ product }: CardProps) {
       </div>
 
       <div className="mt-4 space-y-1">
-        <h4 className="font-extrabold text-lg group-hover:text-emerald-900 transition-colors line-clamp-2">
+        <h4 className="font-extrabold text-xl group-hover:text-amber-800 transition-colors line-clamp-2 min-h-[3rem] leading-snug">
           {(product as any).title}
         </h4>
 
-        {(product as any).description ? (
-          <p className="text-sm text-zinc-700 italic opacity-90 line-clamp-2">
-            {(product as any).description}
-          </p>
-        ) : (
-          <p className="text-sm text-zinc-700 italic opacity-60">
-            Sin descripción
-          </p>
-        )}
+        {!hideDescription &&
+          ((product as any).description ? (
+            <p className="text-sm text-zinc-700 italic opacity-90 line-clamp-2">
+              {(product as any).description}
+            </p>
+          ) : (
+            <p className="text-sm text-zinc-700 italic opacity-60">
+              Sin descripción
+            </p>
+          ))}
       </div>
 
       <div className="w-full flex flex-col gap-2 mt-2">
@@ -154,7 +175,11 @@ function Card({ product }: CardProps) {
           href={safeId ? `/product/${safeId}` : "/products"}
           className="w-full"
         >
-          <button className="bg-amber-100 font-display w-full border-2 border-amber-800 py-2 uppercase tracking-tight text-sm hover:bg-emerald-800 hover:text-amber-50 transition-all">
+          <button
+            className="w-full border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm
+          font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+          hover:bg-amber-300 transition"
+          >
             Ver
           </button>
         </Link>
@@ -162,14 +187,27 @@ function Card({ product }: CardProps) {
         {!isLoadingUser && isLogged && (
           <button
             onClick={handleAddToCart}
-            className={`font-display w-full border-2 border-slate-900 py-2 uppercase tracking-tight transition-all text-sm ${
-              alreadyInCart
-                ? "bg-slate-200 text-slate-600 cursor-not-allowed"
-                : "bg-emerald-900 hover:bg-amber-300"
-            }`}
-            disabled={alreadyInCart}
+            disabled={addDisabled}
+            className={`text-black border-2 border-slate-900 px-4 py-2 text-sm font-semibold
+              shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] transition
+              ${
+                addDisabled
+                  ? "bg-zinc-200 text-zinc-700 cursor-not-allowed opacity-80"
+                  : "bg-emerald-800 text-white hover:bg-amber-900"
+              }`}
+            title={
+              isOutOfStock
+                ? "Producto agotado"
+                : alreadyInCart
+                  ? "Ya está en tu carrito"
+                  : "Agregar al carrito"
+            }
           >
-            {alreadyInCart ? "Ya en el 🛒" : "🛒"}
+            {alreadyInCart
+              ? "Ya en el 🛒"
+              : isOutOfStock
+                ? "Agotado"
+                : "Agregar al 🛒"}
           </button>
         )}
       </div>

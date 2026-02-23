@@ -60,14 +60,45 @@ export default function ProductRequestsSection() {
       (p.title || "").toLowerCase().includes(search.toLowerCase()),
     );
 
-    return filtered;
+    return [...filtered]
+      .map((product, index) => ({ product, index }))
+      .sort((a: any, b: any) => {
+        const aTs = Date.parse(
+          String(
+            a.product?.createdAt ??
+              a.product?.created_at ??
+              a.product?.publishedAt ??
+              a.product?.updatedAt ??
+              "",
+          ),
+        );
+        const bTs = Date.parse(
+          String(
+            b.product?.createdAt ??
+              b.product?.created_at ??
+              b.product?.publishedAt ??
+              b.product?.updatedAt ??
+              "",
+          ),
+        );
+
+        const hasATs = Number.isFinite(aTs);
+        const hasBTs = Number.isFinite(bTs);
+        if (hasATs && hasBTs && aTs !== bTs) return bTs - aTs;
+        if (hasATs && !hasBTs) return -1;
+        if (!hasATs && hasBTs) return 1;
+
+        // Fallback: último recibido primero (útil cuando el backend no expone fechas)
+        return b.index - a.index;
+      })
+      .map((entry) => entry.product);
   }, [products, filter, search]);
 
   return (
     <div>
-      <h1 className="font-display text-3xl text-amber-900 mb-2">
+      <h2 className="font-display text-2xl text-amber-900 mb-2">
         Solicitudes de Productos
-      </h1>
+      </h2>
 
       <p className="text-zinc-700 mb-6">
         Revisá y moderá publicaciones antes de que salgan al marketplace.
@@ -115,7 +146,11 @@ export default function ProductRequestsSection() {
               </p>
 
               <p className="font-extrabold text-zinc-800 mb-2">
-                ${product.price}
+                $
+                {Number(product.price ?? 0).toLocaleString("es-CO", {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}
               </p>
 
               <p className="text-xs text-zinc-500 mb-4">

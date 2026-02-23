@@ -1,18 +1,25 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
+import { useChat } from "@/src/context/ChatContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
 import { signOut } from "next-auth/react";
 
-function Navbar() {
+const Navbar = () => {
   const { dataUser, logout } = useAuth();
   const router = useRouter();
 
   const { cartItems } = useCart();
+  const { openChat, hasUnreadMessages, unreadTotal, conversations } = useChat();
   const itemsCart = cartItems.length;
+  const [isAdminSupportOpen, setIsAdminSupportOpen] = useState(false);
+  const [adminSubject, setAdminSubject] = useState("");
+  const [adminDetail, setAdminDetail] = useState("");
+  const [isLaunchingAdminChat, setIsLaunchingAdminChat] = useState(false);
 
   const safeName =
     (dataUser as any)?.user?.name ??
@@ -49,6 +56,59 @@ function Navbar() {
       return Boolean(payload?.isAdmin);
     } catch {
       return false;
+    }
+  };
+
+  const isAdminUser = useMemo(() => {
+    const userFlag =
+      Boolean((dataUser as any)?.user?.isAdmin) || Boolean((dataUser as any)?.isAdmin);
+    if (userFlag) return true;
+
+    const token =
+      (dataUser as any)?.token ?? (dataUser as any)?.user?.token ?? null;
+    return decodeIsAdminFromJwt(token);
+  }, [dataUser]);
+
+  const launchAdminSupportChat = async () => {
+    const normalizedSubject = adminSubject.trim();
+    if (!normalizedSubject) {
+      showToast.warning("Debes indicar el asunto para iniciar el chat admin.", {
+        duration: 2200,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+      return;
+    }
+
+    setIsLaunchingAdminChat(true);
+    try {
+      const normalizedDetail = adminDetail.trim();
+      const initialMessage = [
+        "Hola, este es el chat auto respuesta de administrador.",
+        `Asunto: ${normalizedSubject}`,
+        normalizedDetail
+          ? `Detalle: ${normalizedDetail}`
+          : "Detalle: Sin detalle adicional.",
+      ].join("\n");
+
+      openChat({
+        asParticipant: "customer",
+        isSupportRequest: true,
+        supportSubject: normalizedSubject,
+        supportDetail: normalizedDetail,
+        sellerName: "Administrador",
+        product: normalizedSubject,
+        initialMessage,
+      });
+
+      setIsAdminSupportOpen(false);
+      setAdminSubject("");
+      setAdminDetail("");
+    } finally {
+      setIsLaunchingAdminChat(false);
     }
   };
 
@@ -95,6 +155,18 @@ function Navbar() {
     router.push("/");
   };
 
+  const handleOpenUnreadChat = () => {
+    // Abrimos primero una conversación con no leídos para limpiar la alerta al entrar.
+    const firstUnreadConversation = conversations.find(
+      (conversation) => conversation.unreadCount > 0,
+    );
+    if (firstUnreadConversation?.id) {
+      openChat({ conversationId: firstUnreadConversation.id });
+      return;
+    }
+    openChat();
+  };
+
   return (
     <header className="w-full bg-amber-100 text-zinc-900 border-b-2 border-amber-300 sticky top-0 z-50">
       <div className="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -106,7 +178,7 @@ function Navbar() {
         </Link>
 
         <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2">
-          <ul className="flex items-center gap-8 text-sm font-extrabold tracking-wide text-amber-900 uppercase list-none m-0 p-0">
+          <ul className="flex items-center gap-8 text-sm font-extrabold tracking-wide text-amber-900 uppercase list-none m-0 p-0 ">
             <li>
               <Link
                 href="/aboutus"
@@ -133,10 +205,38 @@ function Navbar() {
                 Categorias
               </Link>
             </li>
+
+            {isLogged && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setIsAdminSupportOpen(true)}
+                  className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
+                >
+                  AYUDA
+                </button>
+              </li>
+            )}
           </ul>
         </nav>
 
         <div className="flex items-center gap-3">
+          {isLogged && !isAdminUser && hasUnreadMessages && (
+            <button
+              type="button"
+              onClick={handleOpenUnreadChat}
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-300 bg-amber-50 transition hover:bg-amber-200"
+              aria-label="Mensajes"
+              title="Mensajes"
+            >
+              <span className="text-lg">💬</span>
+              <span
+                className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
+                aria-label={`${unreadTotal} mensajes nuevos`}
+              />
+            </button>
+          )}
+
           <Link
             href="/cart"
             className="relative inline-flex items-center justify-center w-10 h-10 rounded-full border border-amber-300 bg-amber-50 hover:bg-amber-200 transition"
@@ -246,16 +346,115 @@ function Navbar() {
               </li>
             )}
 
+            {isLogged && !isAdminUser && hasUnreadMessages && (
+              <li>
+                <button
+                  type="button"
+                  onClick={handleOpenUnreadChat}
+                  className="relative hover:text-emerald-900 transition"
+                >
+                  Chat
+                  <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
+                </button>
+              </li>
+            )}
+
             <li>
               <Link href="/cart" className="hover:text-emerald-900 transition">
                 Carrito
               </Link>
             </li>
+
+            {isLogged && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setIsAdminSupportOpen(true)}
+                  className="hover:text-emerald-900 transition"
+                >
+                  AYUDA
+                </button>
+              </li>
+            )}
           </ul>
         </nav>
       </div>
+
+      {isAdminSupportOpen && (
+        <div
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-zinc-900/60 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget)
+              setIsAdminSupportOpen(false);
+          }}
+        >
+          <section className="w-full max-w-lg rounded-2xl border-2 border-amber-900 bg-amber-100 p-5 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.8)]">
+            <h3 className="font-display text-xl text-amber-900">
+              Chat Administrador
+            </h3>
+            <p className="mt-2 text-sm text-zinc-700">
+              Hola, este es el chat auto respuesta de administrador. Por favor,
+              indica el asunto por el cual escribes.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <label
+                  htmlFor="admin-chat-subject"
+                  className="block text-xs font-extrabold uppercase tracking-widest text-amber-900 mb-1"
+                >
+                  Asunto
+                </label>
+                <input
+                  id="admin-chat-subject"
+                  type="text"
+                  value={adminSubject}
+                  onChange={(event) => setAdminSubject(event.target.value)}
+                  className="w-full rounded-lg border-2 border-amber-900 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none"
+                  placeholder="Ej: Problema con una compra"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="admin-chat-detail"
+                  className="block text-xs font-extrabold uppercase tracking-widest text-amber-900 mb-1"
+                >
+                  Detalle (opcional)
+                </label>
+                <textarea
+                  id="admin-chat-detail"
+                  rows={4}
+                  value={adminDetail}
+                  onChange={(event) => setAdminDetail(event.target.value)}
+                  className="w-full resize-y rounded-lg border-2 border-amber-900 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none"
+                  placeholder="Describe brevemente el motivo."
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsAdminSupportOpen(false)}
+                className="px-3 py-2 rounded-lg border-2 border-amber-900 bg-white text-amber-900 text-xs font-extrabold uppercase tracking-widest"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isLaunchingAdminChat}
+                onClick={() => void launchAdminSupportChat()}
+                className="px-3 py-2 rounded-lg border-2 border-emerald-900 bg-emerald-900 text-amber-50 text-xs font-extrabold uppercase tracking-widest disabled:opacity-60"
+              >
+                {isLaunchingAdminChat ? "Abriendo..." : "Iniciar chat"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </header>
   );
-}
+};
 
 export default Navbar;

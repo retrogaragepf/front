@@ -98,23 +98,9 @@ const LoginForm = () => {
         console.log("------RESPUESTA--------", response);
         console.log("response?.token:", response?.token);
 
-        // ❌ si tu authService normaliza errores como { success:false, error,... }
-        if (!response.token) {
-          console.log("Login sin token");
-          showToast.error(response?.error || "Credenciales inválidas", {
-            duration: 3000,
-            progress: true,
-            position: "top-center",
-            transition: "popUp",
-            icon: "",
-            sound: true,
-          });
-          return;
-        }
-
         if (!response?.token) {
           console.error("Login sin token");
-          showToast.error(response?.error || "Credenciales inválidas", {
+          showToast.error(response?.message || response?.error || "Credenciales inválidas", {
             duration: 3000,
             progress: true,
             position: "top-center",
@@ -125,34 +111,15 @@ const LoginForm = () => {
           return;
         }
 
-        //---------DATOS DEL LOCALSTORAGE ANTES DE GUARDAR SESIÓN----------------
-        const TOKEN_KEY =
-          process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
-        const authData = localStorage.getItem(TOKEN_KEY);
-        if (!authData) {
-          console.error("No hay datos en localStorage");
-          showToast.error("Error al guardar sesión.Intenta de nuevo", {
-            duration: 3000,
-            progress: true,
-            position: "top-center",
-            transition: "popUp",
-            icon: "",
-            sound: true,
-          });
-          return;
-        }
-        const savedData = JSON.parse(authData);
-        console.log("DATOS DEL LOCALSTORAGE", savedData);
-
-        //-----------GUARDA EN CONTEXTO CON DATOS REALES/ QUE VIENEN EN EL TOKEN----------------
+        //-----------GUARDA EN CONTEXTO CON DATOS DE LA RESPUESTA----------------
         login({
           user: {
-            id: savedData.user.id,
-            name: savedData.user.name, // ← AQUÍ VIENE EL NOMBRE
-            email: savedData.user.email,
+            id: response.user?.id,
+            name: response.user?.name ?? "",
+            email: response.user?.email ?? data.email,
           },
-          token: savedData.token,
-          email: savedData.user.email,
+          token: response.token,
+          email: response.user?.email ?? data.email,
         });
 
         console.log("LOGIN EXITOSO - Datos guardados en contexto");
@@ -166,10 +133,10 @@ const LoginForm = () => {
           sound: true,
         });
 
-        // ✅ NUEVO: revisa isAdmin desde el token que YA guardaste (savedData.token)
+        // ✅ revisa isAdmin desde el token recibido
         let isAdmin = false;
         try {
-          const decoded = jwtDecode<JwtPayload>(savedData.token);
+          const decoded = jwtDecode<JwtPayload>(response.token);
           isAdmin = decoded?.isAdmin === true;
         } catch (e) {
           console.warn("No se pudo decodificar JWT para isAdmin:", e);
@@ -177,6 +144,8 @@ const LoginForm = () => {
 
         router.push(isAdmin ? "/admin/dashboard" : "/dashboard");
       } catch (error) {
+        // DEBUG: log rápido para inspeccionar errores de login en desarrollo.
+        console.log("[LoginForm][debug] Error detectado:", error);
         console.error("Error en login:", error);
         showToast.error("Error en login", {
           duration: 3000,
@@ -203,34 +172,52 @@ const LoginForm = () => {
   });
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
+    <div className="flex items-center justify-center min-h-screen px-4 py-10 sm:px-6 lg:px-8">
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <section className="p-2 sm:p-4 flex flex-col justify-center text-left lg:pr-10">
+          <h2 className="font-display text-4xl text-amber-900 mb-4 leading-tight">
+            Bienvenido a RetroGarage
+          </h2>
+          <p className="font-handwritten text-lg text-zinc-700 mb-6">
+            Qué bueno tenerte otra vez en RetroGarage. Vuelve a tu cuenta y
+            sigue disfrutando de la experiencia retro.
+          </p>
+          <ul className="space-y-3 text-sm sm:text-base list-disc pl-5 marker:text-emerald-700 text-amber-900">
+            <li>Recupera tu carrito y continúa tu compra en segundos.</li>
+            <li>Guarda favoritos y compara productos retro fácilmente.</li>
+            <li>Recibe alertas de novedades según tus intereses.</li>
+            <li>Accede a ofertas y oportunidades exclusivas para usuarios.</li>
+            <li>Contacta vendedores y resuelve dudas desde tu cuenta.</li>
+          </ul>
+        </section>
+
+        <div className="w-full max-w-md lg:max-w-none lg:justify-self-end lg:pl-10">
+          <div className="bg-amber-100 rounded-3xl shadow-2xl p-8 space-y-6 relative overflow-hidden">
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-800 rounded-full transform -translate-x-12 translate-y-24 opacity-70"></div>
             <div className="absolute bottom-8 left-1/4 w-32 h-32 bg-amber-200 rounded-full opacity-60"></div>
           </div>
 
-          <div className="relative z-10 ">
-            <div className="text-center space-y-2">
-              <h2 className="text-4xl  text-amber-800 font-display">
-                RetroGarage
-              </h2>
-              <p className="text-lg text-emerald-800 font-handwritten pb-2">
-                Inicia sesión para acceder a tu cuenta
-              </p>
-            </div>
+            <div className="relative z-10 ">
+              <div className="text-center space-y-2">
+                <h2 className="font-display text-3xl text-amber-900 font-bold">
+                  Login
+                </h2>
+                <p className="text-lg text-zinc-700 font-handwritten pb-2">
+                  Inicia sesión para volver a RetroGarage
+                </p>
+              </div>
 
             {/* ----------------------BOTÓN DE GOOGLE ----------------------------*/}
-            <div className="p-1 rounded-xl bg-gray-200">
+            <div className="p-1 rounded-xl bg-amber-100">
               <button
                 type="button"
                 onClick={() => {
                   sessionStorage.setItem("google-login", "true");
                   signIn("google", { callbackUrl: "/login" });
                 }}
-                className="w-full rounded-xl bg-white border border-gray-300 hover:bg-gray-50 px-4 py-3 font-medium text-gray-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 pt-3"
+                className="w-full rounded-xl bg-amber-100 border border-gray-300 hover:bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 pt-3"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path
@@ -322,7 +309,7 @@ const LoginForm = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
+                className="w-full rounded-xl bg-emerald-800 hover:bg-amber-900 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-4 font-semibold text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-6"
               >
                 {isSubmitting ? (
                   <>
@@ -363,23 +350,22 @@ const LoginForm = () => {
                         d="M14 5l7 7m0 0l-7 7m7-7H3"
                       />
                     </svg>
-                    <span className="font-handwritten text-md">
-                      Iniciar sesión
-                    </span>
+                    <span className="">Iniciar sesión</span>
                   </>
                 )}
               </button>
             </form>
 
-            <p className="text-center text-sm text-black pt-4 font-handwritten">
+            <p className="text-center text-sm text-emerald-800 pt-4 ">
               ¿No tienes cuenta?{" "}
               <Link
                 href="/register"
-                className="font-semibold text-black hover:text-gray-900 transition-colors"
+                className="font-bold text-amber-900 hover:text-amber-800 transition-colors"
               >
                 Regístrate
               </Link>
             </p>
+            </div>
           </div>
         </div>
       </div>

@@ -61,9 +61,9 @@ export default async function CategoriesPage() {
         <div className="flex items-center gap-3"></div>
 
         <header className="mt-6">
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-wide text-amber-900">
+          <h2 className="text-l md:text-2xl font-extrabold tracking-wide text-amber-900">
             Categorías principales
-          </h1>
+          </h2>
           <p className="mt-2 text-zinc-700 max-w-2xl leading-relaxed">
             Explora lo mejor del universo retro: piezas con historia, estilo y
             carácter. Elige una categoría y empieza tu cacería vintage.
@@ -89,13 +89,13 @@ export default async function CategoriesPage() {
                 flex flex-col
               "
             >
-              <div className="p-5 flex flex-col h-full">
+              <div className="bg-amber-100 p-5 flex flex-col h-full">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-2xl shrink-0">{cat.emoji}</span>
-                    <h2 className="text-lg font-extrabold tracking-wide text-amber-900 group-hover:text-emerald-900 transition truncate">
+                    <h4 className="text-lg md:text-base font-extrabold tracking-wide text-amber-900 group-hover:text-emerald-900 transition truncate">
                       {cat.name}
-                    </h2>
+                    </h4>
                   </div>
 
                   <span className="inline-flex items-center px-3 py-1 rounded-full border border-amber-300 bg-amber-100 text-amber-900 text-[10px] font-extrabold tracking-widest uppercase shrink-0">
@@ -127,7 +127,7 @@ export default async function CategoriesPage() {
                     className="
                       inline-flex items-center justify-center
                       w-9 h-9 rounded-full
-                      border border-amber-300 bg-amber-50
+                      border border-amber-300 bg-amber-100
                       text-amber-900 font-extrabold
                       group-hover:bg-amber-200
                       transition
@@ -151,9 +151,9 @@ export default async function CategoriesPage() {
             href="/product"
             className="
               w-full sm:w-auto text-center
-              font-handwritten px-4 py-3 rounded-xl
+              font-extrabold px-4 py-3 rounded-xl
               border-2 border-amber-900
-              bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm
+              bg-amber-100 text-amber-900 font-extrabold tracking-wide text-sm
               shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
               hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
               active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]

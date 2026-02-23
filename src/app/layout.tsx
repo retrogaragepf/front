@@ -2,11 +2,19 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import Providers from "./providers"; //
+import Providers from "./providers";
+import { Special_Elite } from "next/font/google";
+
+const specialElite = Special_Elite({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-special-elite",
+});
 
 export const metadata: Metadata = {
-  title: "Your Treasure Cart",
-  description: "Checkout",
+  title: "RetroGarage™",
+  description: "E-commerce de tecnología retro y coleccionables",
 };
 
 export default function RootLayout({
@@ -15,14 +23,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" className={specialElite.variable}>
       <body
         className={`
+          retro-view
           antialiased
           min-h-screen
           flex
           flex-col
-          bg-amber-200
+          bg-amber-100
           text-zinc-900
         `}
       >

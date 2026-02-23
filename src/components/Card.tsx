@@ -141,7 +141,7 @@ function Card({ product, hideDescription = true }: CardProps) {
         ✅ SOLD OUT badge opcional dentro del card
         {isOutOfStock && (
           <div className="absolute top-3 left-3 z-10">
-            <div className="px-3 py-1.5 text-xs shadow-md bg-rose-100 text-rose-900 font-extrabold border-2 border-zinc-900 rounded-lg">
+            <div className="px-3 py-1.5 text-sm shadow-md bg-rose-100 text-rose-900 font-extrabold border-2 border-zinc-900 rounded-lg">
               AGOTADO
             </div>
           </div>
@@ -154,7 +154,7 @@ function Card({ product, hideDescription = true }: CardProps) {
       </div>
 
       <div className="mt-4 space-y-1">
-        <h4 className="font-extrabold text-lg group-hover:text-amber-800 transition-colors line-clamp-2 min-h-[3rem] leading-snug">
+        <h4 className="font-extrabold text-xl group-hover:text-amber-800 transition-colors line-clamp-2 min-h-[3rem] leading-snug">
           {(product as any).title}
         </h4>
 

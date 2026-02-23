@@ -96,9 +96,9 @@ export default function ProductRequestsSection() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl text-amber-900 mb-2">
+      <h2 className="font-display text-2xl text-amber-900 mb-2">
         Solicitudes de Productos
-      </h1>
+      </h2>
 
       <p className="text-zinc-700 mb-6">
         Revisá y moderá publicaciones antes de que salgan al marketplace.

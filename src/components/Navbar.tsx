@@ -178,7 +178,7 @@ const Navbar = () => {
         </Link>
 
         <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2">
-          <ul className="flex items-center gap-8 text-sm font-extrabold tracking-wide text-amber-900 uppercase list-none m-0 p-0">
+          <ul className="flex items-center gap-8 text-sm font-extrabold tracking-wide text-amber-900 uppercase list-none m-0 p-0 ">
             <li>
               <Link
                 href="/aboutus"

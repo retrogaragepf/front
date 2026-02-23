@@ -7,9 +7,9 @@ export default function AboutUsPage() {
       <main className="max-w-6xl mx-auto px-4 py-10">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-typewriter text-black">
+            <h2 className="text-3xl sm:text-4xl font-typewriter text-amber-900 font-bold">
               Sobre nosotros
-            </h1>
+            </h2>
             <p className="mt-2 max-w-2xl leading-relaxed font-typewriter text-black/80">
               Un marketplace C2C especializado en artículos vintage, retro y
               antigüedades: curado, confiable y pensado para encontrar piezas
@@ -30,9 +30,9 @@ export default function AboutUsPage() {
         <section className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <article className="rounded-2xl border border-black/10 bg-amber-200 backdrop-blur p-6 sm:p-8">
-              <h2 className="font-typewriter text-xl font-bold text-black">
+              <h3 className="font-typewriter text-xl font-bold text-black">
                 Contexto
-              </h2>
+              </h3>
               <p className="font-typewriter mt-3 leading-relaxed text-black/80">
                 El mercado de comercio electrónico C2C de artículos vintage,
                 retro y antigüedades está fragmentado entre ventas de garaje
@@ -47,9 +47,9 @@ export default function AboutUsPage() {
             </article>
 
             <article className="rounded-2xl border border-black/10 bg-amber-200 backdrop-blur p-6 sm:p-8">
-              <h2 className="font-typewriter text-xl font-bold text-black">
+              <h3 className="font-typewriter text-xl font-bold text-black">
                 Nuestra Solucion
-              </h2>
+              </h3>
               <p className="font-typewriter mt-3 leading-relaxed text-black/80">
                 RetroGarage digitaliza el concepto de “venta de garaje” para que
                 cualquier adulto pueda publicar, vender o subastar artículos
@@ -64,9 +64,9 @@ export default function AboutUsPage() {
             </article>
 
             <article className="rounded-2xl border border-black/10 bg-amber-200 backdrop-blur p-6 sm:p-8">
-              <h2 className="text-xl font-bold text-black font-typewriter">
+              <h3 className="text-xl font-bold text-black font-typewriter">
                 Diferenciación
-              </h2>
+              </h3>
               <p className="font-typewriter mt-3 leading-relaxed text-black/80">
                 Nuestro diferencial es el enfoque exclusivo en artículos vintage
                 y antigüedades, acompañado de un sistema de reputación y

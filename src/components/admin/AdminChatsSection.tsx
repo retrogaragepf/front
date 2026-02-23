@@ -336,9 +336,9 @@ export default function AdminChatsSection() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl text-amber-900 mb-2">
+      <h2 className="font-display text-2xl text-amber-900 mb-2">
         Gestión de Chats
-      </h1>
+      </h2>
 
       <p className="text-zinc-700 mb-6">
         Conversaciones controladas por administración. Usuarios, estado y

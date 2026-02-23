@@ -26,6 +26,7 @@ export default function RootLayout({
     <html lang="es" className={specialElite.variable}>
       <body
         className={`
+          retro-view
           antialiased
           min-h-screen
           flex

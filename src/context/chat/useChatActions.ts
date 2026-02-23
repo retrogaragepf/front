@@ -18,6 +18,7 @@ import {
 
 type Params = {
   canUseChat: boolean;
+  isAuthLoading: boolean;
   messagesByConversation: ChatMessageMap;
   conversationsRef: MutableRefObject<ChatConversation[]>;
   activeConversationRef: MutableRefObject<string>;
@@ -31,6 +32,14 @@ type Params = {
   clearUnreadLocal: (conversationId: string) => void;
   joinConversationRoom: (conversationId: string) => void;
   activeConversationId: string;
+};
+
+type UseChatActionsResult = {
+  openChat: (payload?: OpenChatPayload) => void;
+  closeChat: () => void;
+  selectConversation: (conversationId: string) => void;
+  deleteConversation: (conversationId: string) => void;
+  sendMessage: (content: string) => Promise<void>;
 };
 
 const CHAT_HIDDEN_CONVERSATIONS_KEY = "chat_hidden_conversations";
@@ -74,6 +83,7 @@ function isSupportConversation(conversation: ChatConversation): boolean {
 
 export function useChatActions({
   canUseChat,
+  isAuthLoading,
   messagesByConversation,
   conversationsRef,
   activeConversationRef,
@@ -87,7 +97,7 @@ export function useChatActions({
   clearUnreadLocal,
   joinConversationRoom,
   activeConversationId,
-}: Params) {
+}: Params): UseChatActionsResult {
   const ensureConversation = useCallback(
     async (
       payload: OpenChatPayload,
@@ -216,6 +226,7 @@ export function useChatActions({
       if (nextParticipant) setCurrentParticipant(nextParticipant);
 
       if (!canUseChat) {
+        if (isAuthLoading) return;
         showToast.warning("Debes iniciar sesión para usar el chat.", {
           duration: 2200,
           progress: true,
@@ -290,6 +301,7 @@ export function useChatActions({
     [
       canUseChat,
       ensureConversation,
+      isAuthLoading,
       setActiveConversationId,
       setAdminChatWithName,
       setConversations,
@@ -343,8 +355,36 @@ export function useChatActions({
 
       void (async () => {
         try {
+          // En backend actual, DELETE de conversación está restringido a admin.
+          // Para usuario normal mantenemos borrado local persistente.
+          if (!chatService.isAdminUser()) {
+            showToast.success("Conversación eliminada de tu vista.", {
+              duration: 2200,
+              progress: true,
+              position: "top-center",
+              transition: "popUp",
+              icon: "",
+              sound: true,
+            });
+            return;
+          }
+
           await chatService.deleteConversation(conversationId);
         } catch (error) {
+          const status = Number((error as { status?: number })?.status ?? 0);
+          if ([401, 403, 404, 405].includes(status)) {
+            // Si el backend no permite borrar o no encuentra, dejamos oculto local.
+            showToast.info("Conversación ocultada localmente.", {
+              duration: 2200,
+              progress: true,
+              position: "top-center",
+              transition: "popUp",
+              icon: "",
+              sound: true,
+            });
+            return;
+          }
+
           console.error("No se pudo borrar conversación:", error);
           const restoredHiddenConversationIds = readHiddenConversationIds();
           restoredHiddenConversationIds.delete(conversationId);

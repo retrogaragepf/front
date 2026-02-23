@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { showToast } from "nextjs-toast-notify";
 import { getMyOrders, type OrderDTO } from "@/src/services/orders.services";
+import { useAuth } from "@/src/context/AuthContext";
 
 function formatCOP(value: any) {
   const n = Number(value);
@@ -43,6 +44,9 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ Auth desde contexto (token en memoria)
+  const { dataUser, isLoadingUser, isAuth } = useAuth();
+
   const sorted = useMemo(() => {
     return [...orders].sort((a, b) => {
       const da = new Date(a.createdAt).getTime();
@@ -51,25 +55,63 @@ export default function OrdersPage() {
     });
   }, [orders]);
 
-  const load = async () => {
+  // ✅ Silent toast opcional para refrescos automáticos (pageshow/visibilitychange)
+  const load = async (opts?: { silent?: boolean }) => {
     setLoading(true);
     setError(null);
+
     try {
-      const data = await getMyOrders();
+      // ✅ Usa token desde AuthContext para evitar race con localStorage
+      const data = await getMyOrders(dataUser?.token ?? undefined);
       setOrders(data);
     } catch (e: any) {
       const msg = e?.message || "Error cargando órdenes.";
       setError(msg);
-      showToast.error(msg);
       setOrders([]);
+      if (!opts?.silent) showToast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ Carga principal SIN doble carga: espera hidratación de auth
   useEffect(() => {
+    if (isLoadingUser) return;
+
+    if (!isAuth) {
+      setLoading(false);
+      setError("No hay sesión activa. Inicia sesión para ver tus órdenes.");
+      setOrders([]);
+      return;
+    }
+
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoadingUser, isAuth, dataUser?.token]);
+
+  // ✅ Rehidratar al volver con atrás/adelante (bfcache) y al volver a la pestaña
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted && !isLoadingUser && isAuth) {
+        load({ silent: true });
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && !isLoadingUser && isAuth) {
+        load({ silent: true });
+      }
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoadingUser, isAuth, dataUser?.token]);
 
   return (
     <div className="min-h-screen bg-amber-100">
@@ -85,7 +127,7 @@ export default function OrdersPage() {
           </div>
 
           <button
-            onClick={load}
+            onClick={() => load()}
             className="shrink-0 px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-[1px] active:translate-y-[1px]"
           >
             Actualizar
@@ -143,7 +185,6 @@ export default function OrdersPage() {
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-3 flex-wrap">
-                      {/* ✅ Ahora el título lleva al detalle */}
                       <Link
                         href={`/dashboard/orders/${o.id}`}
                         className="text-zinc-900 font-black hover:underline"
@@ -190,13 +231,6 @@ export default function OrdersPage() {
                       ${formatCOP(o.total)}
                     </p>
 
-                    {/* {o.stripeSessionId ? (
-                      <p className="text-zinc-500 text-xs mt-1 font-mono">
-                        session: {o.stripeSessionId.slice(0, 14)}…
-                      </p>
-                    ) : null} */}
-
-                    {/* ✅ Botón de detalle (opcional pero recomendado) */}
                     <div className="mt-3">
                       <Link
                         href={`/dashboard/orders/${o.id}`}

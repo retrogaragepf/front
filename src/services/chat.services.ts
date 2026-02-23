@@ -2,6 +2,7 @@ import { authService } from "@/src/services/auth";
 import { ChatConversation, ChatMessage } from "@/src/types/chat.types";
 
 type ApiRecord = Record<string, unknown>;
+type HttpError = Error & { status?: number };
 
 function getApiBaseUrl(): string {
   return (
@@ -270,7 +271,9 @@ async function requestDelete(path: string) {
   const data = await parseJsonSafe(response);
   if (!response.ok) {
     const message = getErrorMessage(data, "Error eliminando conversación.");
-    throw new Error(message);
+    const error = new Error(message) as HttpError;
+    error.status = response.status;
+    throw error;
   }
   return data;
 }

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useAuth } from "@/src/context/AuthContext";
 import * as ToastNotify from "nextjs-toast-notify";
@@ -134,11 +140,22 @@ function normalizeProduct(p: any) {
   };
 }
 
+type EditDraft = {
+  price: string;
+  stock: string;
+};
+
 export default function MyProductsPanel() {
   const { dataUser, isLoadingUser, isAuth } = useAuth();
 
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ✅ edición inline
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<EditDraft>({ price: "", stock: "" });
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const priceInputRef = useRef<HTMLInputElement | null>(null);
 
   const userId = useMemo(() => {
     return (dataUser as any)?.user?.id ?? (dataUser as any)?.id ?? null;
@@ -178,7 +195,6 @@ export default function MyProductsPanel() {
       const data = await parseJsonSafe(res);
 
       if (!res.ok) {
-        // si no hay token o expiró
         if (res.status === 401 || res.status === 403) {
           setProducts([]);
           notify("warning", "Tu sesión expiró. Inicia sesión de nuevo.");
@@ -236,22 +252,128 @@ export default function MyProductsPanel() {
     if (!isLoadingUser && isAuth) load();
   }, [isLoadingUser, isAuth, load]);
 
-  useEffect(() => {
-    const onFocus = () => {
-      if (!isLoadingUser && isAuth) load();
-    };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [isLoadingUser, isAuth, load]);
+ 
+
+  const startEdit = useCallback((p: any) => {
+    setEditingId(String(p.id));
+    setDraft({
+      price:
+        typeof p.price === "number" && Number.isFinite(p.price)
+          ? String(Math.trunc(p.price))
+          : "",
+      stock:
+        typeof p.stock === "number" && Number.isFinite(p.stock)
+          ? String(Math.trunc(p.stock))
+          : "0",
+    });
+
+    setTimeout(() => {
+      priceInputRef.current?.focus();
+      priceInputRef.current?.select();
+    }, 0);
+  }, []);
+
+  const cancelEdit = useCallback(() => {
+    setEditingId(null);
+    setDraft({ price: "", stock: "" });
+  }, []);
+
+  const saveEdit = useCallback(
+    async (p: any) => {
+      const id = String(p?.id ?? "").trim();
+      if (!id) {
+        notify("error", "No se pudo identificar el producto.");
+        return;
+      }
+
+      if (!token) {
+        notify("warning", "Tu sesión expiró. Inicia sesión de nuevo.");
+        return;
+      }
+
+      const priceNum = Number(draft.price);
+      const stockNum = Number(draft.stock);
+
+      if (!Number.isFinite(priceNum) || priceNum < 0) {
+        notify("warning", "Ingresa un precio válido (mayor o igual a 0).");
+        return;
+      }
+
+      if (!Number.isInteger(stockNum) || stockNum < 0) {
+        notify(
+          "warning",
+          "Ingresa un stock válido (entero, mayor o igual a 0).",
+        );
+        return;
+      }
+
+      setSavingId(id);
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/products/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            price: priceNum,
+            stock: stockNum,
+            // ⚠️ Si tu back usa "quantity" en vez de "stock", cambia por:
+            // quantity: stockNum,
+          }),
+        });
+
+        const data = await parseJsonSafe(res);
+
+        if (!res.ok) {
+          const msg =
+            typeof data === "string"
+              ? data
+              : data?.message
+                ? Array.isArray(data.message)
+                  ? data.message.join(", ")
+                  : data.message
+                : "No se pudo actualizar el producto";
+          notify("error", msg);
+          setSavingId(null);
+          return;
+        }
+
+        // ✅ Actualización optimista local
+        setProducts((prev) =>
+          prev.map((item) =>
+            String(item.id) === id
+              ? normalizeProduct({
+                  ...item,
+                  ...(typeof data === "object" && data ? data : {}),
+                  price: priceNum,
+                  stock: stockNum,
+                })
+              : item,
+          ),
+        );
+
+        notify("success", "Producto actualizado correctamente.");
+        setEditingId(null);
+        setDraft({ price: "", stock: "" });
+      } catch {
+        notify("error", "Error de red al actualizar el producto.");
+      } finally {
+        setSavingId(null);
+      }
+    },
+    [draft.price, draft.stock, token],
+  );
 
   if (isLoadingUser) return null;
 
   return (
     <section className="bg-amber-100 border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="text-xl font-extrabold tracking-wide text-amber-900">
+        <h3 className="text-xl font-extrabold tracking-wide text-amber-900">
           Mis productos
-        </h2>
+        </h3>
 
         <div className="flex items-center gap-2">
           <Link
@@ -289,12 +411,15 @@ export default function MyProductsPanel() {
         </div>
       ) : (
         <div className="mt-6 space-y-4">
-          {products.slice(0, 6).map((p: any) => {
+          {products.map((p: any) => {
             const image = p.image || "";
             const title = p.title || "Producto";
             const price = p.price;
             const stock = p.stock ?? "—";
             const status = String(p.status ?? "published");
+
+            const isEditing = editingId === String(p.id);
+            const isSaving = savingId === String(p.id);
 
             const statusKey = status.toLowerCase();
             const statusClass =
@@ -332,32 +457,123 @@ export default function MyProductsPanel() {
                     {title}
                   </h3>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                    <span className="font-extrabold text-amber-900">
-                      $
-                      {typeof price === "number"
-                        ? price.toLocaleString("es-CO", {
-                            minimumFractionDigits: 0,
-                          })
-                        : "—"}
-                    </span>
+                  {!isEditing ? (
+                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                      <span className="font-extrabold text-amber-900">
+                        $
+                        {typeof price === "number"
+                          ? price.toLocaleString("es-CO", {
+                              minimumFractionDigits: 0,
+                            })
+                          : "—"}
+                      </span>
 
-                    <span className="text-zinc-700">Stock: {stock}</span>
+                      <span className="text-zinc-700">Stock: {stock}</span>
 
-                    <span
-                      className={`px-2 py-1 text-xs font-bold rounded-full ${statusClass}`}
-                    >
-                      {status}
-                    </span>
-                  </div>
+                      <span
+                        className={`px-2 py-1 text-xs font-bold rounded-full ${statusClass}`}
+                      >
+                        {status}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex flex-wrap items-end gap-3">
+                      <label className="flex flex-col text-xs font-bold text-zinc-700">
+                        Precio
+                        <input
+                          ref={priceInputRef}
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={draft.price}
+                          onChange={(e) =>
+                            setDraft((prev) => ({
+                              ...prev,
+                              price: e.target.value,
+                            }))
+                          }
+                          className="mt-1 w-32 px-3 py-2 rounded-lg border-2 border-amber-900 bg-white text-sm font-semibold"
+                          disabled={isSaving}
+                        />
+                      </label>
+
+                      <label className="flex flex-col text-xs font-bold text-zinc-700">
+                        Stock
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={draft.stock}
+                          onChange={(e) =>
+                            setDraft((prev) => ({
+                              ...prev,
+                              stock: e.target.value,
+                            }))
+                          }
+                          className="mt-1 w-24 px-3 py-2 rounded-lg border-2 border-amber-900 bg-white text-sm font-semibold"
+                          disabled={isSaving}
+                        />
+                      </label>
+
+                      <span
+                        className={`px-2 py-1 text-xs font-bold rounded-full ${statusClass}`}
+                      >
+                        {status}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                {/* <Link
-                  href="/dashboard/my-products"
-                  className="px-3 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shrink-0"
+                <div
+                  className="shrink-0 flex items-center gap-2 flex-wrap justify-end"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  Gestionar
-                </Link> */}
+                  {/* botones */}
+
+                  <div className="shrink-0 flex items-center gap-2 flex-wrap justify-end">
+                    {!isEditing ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          startEdit(p);
+                        }}
+                        className="px-3 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold"
+                      >
+                        Editar
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            saveEdit(p);
+                          }}
+                          disabled={isSaving}
+                          className="px-3 py-2 rounded-xl border-2 border-emerald-900 bg-emerald-200 text-emerald-900 font-extrabold disabled:opacity-60"
+                        >
+                          {isSaving ? "Guardando..." : "Guardar"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            cancelEdit();
+                          }}
+                          disabled={isSaving}
+                          className="px-3 py-2 rounded-xl border-2 border-zinc-800 bg-white text-zinc-800 font-extrabold disabled:opacity-60"
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </article>
             );
           })}

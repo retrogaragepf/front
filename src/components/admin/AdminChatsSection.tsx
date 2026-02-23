@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   adminChatService,
   type AdminChatConversation,
@@ -93,6 +93,38 @@ function persistReadMarkers(markers: ReadMarkers) {
   }
 }
 
+function loadHiddenConversationIds(storageKey: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map(String).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
+function areChatRowsEqual(prev: ChatRow[], next: ChatRow[]): boolean {
+  if (prev === next) return true;
+  if (prev.length !== next.length) return false;
+
+  for (let i = 0; i < prev.length; i += 1) {
+    const a = prev[i];
+    const b = next[i];
+    if (a.id !== b.id) return false;
+    if (a.unreadCount !== b.unreadCount) return false;
+    if (a.lastMessage !== b.lastMessage) return false;
+    if (a.timestamp !== b.timestamp) return false;
+    if (a.status !== b.status) return false;
+    if (a.isBanned !== b.isBanned) return false;
+    if (a.userName !== b.userName) return false;
+    if (a.userEmail !== b.userEmail) return false;
+  }
+
+  return true;
+}
+
 function mergeChatsWithUsers(
   chats: AdminChatConversation[],
   usersIndex: UsersIndex,
@@ -126,9 +158,9 @@ export default function AdminChatsSection() {
   const HIDDEN_CHATS_STORAGE_KEY = "admin_hidden_chats";
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<string>>(
-    new Set(),
+    () => loadHiddenConversationIds(HIDDEN_CHATS_STORAGE_KEY),
   );
-  const [readMarkers, setReadMarkers] = useState<ReadMarkers>({});
+  const [readMarkers, setReadMarkers] = useState<ReadMarkers>(() => loadReadMarkers());
   const [directChatConversationId, setDirectChatConversationId] = useState<string | null>(null);
   const [directChatUserName, setDirectChatUserName] = useState("Usuario");
 
@@ -138,11 +170,14 @@ export default function AdminChatsSection() {
   const [busyModerationConversationId, setBusyModerationConversationId] =
     useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hiddenConversationIdsRef = useRef(hiddenConversationIds);
+  const readMarkersRef = useRef(readMarkers);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = Boolean(options?.silent);
     try {
-      setLoadingList(true);
-      setError(null);
+      if (!silent) setLoadingList(true);
+      if (!silent) setError(null);
 
       const [rawChats, users] = await Promise.all([
         adminChatService.getConversations(),
@@ -150,9 +185,13 @@ export default function AdminChatsSection() {
       ]);
 
       const nextUsersIndex = buildUsersIndex(users);
-      const merged = mergeChatsWithUsers(rawChats, nextUsersIndex, hiddenConversationIds);
+      const merged = mergeChatsWithUsers(
+        rawChats,
+        nextUsersIndex,
+        hiddenConversationIdsRef.current,
+      );
       const normalized = merged.map((chat) => {
-        const readAt = readMarkers[chat.id];
+        const readAt = readMarkersRef.current[chat.id];
         if (!readAt) return chat;
         const timestamp = Date.parse(chat.timestamp || "");
         if (chat.unreadCount === 0 || (Number.isFinite(timestamp) && timestamp > readAt)) {
@@ -160,7 +199,7 @@ export default function AdminChatsSection() {
         }
         return { ...chat, unreadCount: 0 };
       });
-      setChats(normalized);
+      setChats((prev) => (areChatRowsEqual(prev, normalized) ? prev : normalized));
     } catch (e: unknown) {
       console.error("Admin chats load error:", e);
       const message =
@@ -168,28 +207,18 @@ export default function AdminChatsSection() {
           ? e.message
           : "No se pudieron cargar las conversaciones.";
       setError(message);
-      setChats([]);
     } finally {
-      setLoadingList(false);
-    }
-  }, [hiddenConversationIds, readMarkers]);
-
-  useEffect(() => {
-    // En Next, la carga inicial puede no tener window. Cargamos ocultos al montar.
-    try {
-      const raw = localStorage.getItem(HIDDEN_CHATS_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return;
-      setHiddenConversationIds(new Set(parsed.map(String)));
-    } catch {
-      // Silencioso: si hay dato inválido, seguimos con estado vacío.
+      if (!silent) setLoadingList(false);
     }
   }, []);
 
   useEffect(() => {
-    setReadMarkers(loadReadMarkers());
-  }, []);
+    hiddenConversationIdsRef.current = hiddenConversationIds;
+  }, [hiddenConversationIds]);
+
+  useEffect(() => {
+    readMarkersRef.current = readMarkers;
+  }, [readMarkers]);
 
   useEffect(() => {
     // Persistimos ocultos para evitar que reaparezcan al refrescar.
@@ -200,24 +229,7 @@ export default function AdminChatsSection() {
   }, [hiddenConversationIds]);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  useEffect(() => {
-    // Auto-refresh para que el admin reciba nuevos mensajes sin recargar manualmente.
-    const intervalId = window.setInterval(() => {
-      void loadData();
-    }, 10000);
-    return () => window.clearInterval(intervalId);
-  }, [loadData]);
-
-  useEffect(() => {
-    const onFocus = () => {
-      console.log("[AdminChatsSection] window focus -> reload chats");
-      void loadData();
-    };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    void loadData({ silent: false });
   }, [loadData]);
 
   const handleDeleteConversation = async (
@@ -237,27 +249,19 @@ export default function AdminChatsSection() {
       return next;
     });
 
-    const previous = chats;
     setChats((curr) => curr.filter((chat) => chat.id !== conversationId));
 
     try {
       // Debug: ayuda a validar qué ids exactos se envían al endpoint de borrado.
       console.log("[AdminChatsSection] delete ids:", [conversationId, ...deleteCandidates]);
       await adminChatService.deleteConversation(conversationId, deleteCandidates);
-      await loadData();
+      await loadData({ silent: true });
     } catch (e: unknown) {
       console.error("Delete conversation error:", e);
-      setHiddenConversationIds((prev) => {
-        const next = new Set(prev);
-        next.delete(conversationId);
-        deleteCandidates.forEach((id) => next.delete(id));
-        return next;
-      });
-      setChats(previous);
       setError(
         e instanceof Error
-          ? e.message
-          : "No se pudo borrar la conversación seleccionada.",
+          ? `${e.message} (se ocultó localmente para que no reaparezca).`
+          : "No se pudo borrar la conversación en backend (se ocultó localmente).",
       );
     } finally {
       setBusyConversationId(null);
@@ -287,7 +291,7 @@ export default function AdminChatsSection() {
 
     try {
       await adminChatService.blockConversation(conversationId, !isBanned);
-      await loadData();
+      await loadData({ silent: true });
     } catch (e: unknown) {
       console.error("Chat user ban toggle error:", e);
       setChats(previous);
@@ -332,9 +336,9 @@ export default function AdminChatsSection() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl text-amber-900 mb-2">
+      <h2 className="font-display text-2xl text-amber-900 mb-2">
         Gestión de Chats
-      </h1>
+      </h2>
 
       <p className="text-zinc-700 mb-6">
         Conversaciones controladas por administración. Usuarios, estado y
@@ -368,7 +372,7 @@ export default function AdminChatsSection() {
           </span>
 
           <button
-            onClick={loadData}
+            onClick={() => void loadData({ silent: false })}
             disabled={loadingList}
             className="px-4 py-2 rounded-xl border-2 border-amber-900 font-extrabold bg-white text-amber-900 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] disabled:opacity-60"
           >

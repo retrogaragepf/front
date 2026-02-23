@@ -144,6 +144,8 @@ const LoginForm = () => {
 
         router.push(isAdmin ? "/admin/dashboard" : "/dashboard");
       } catch (error) {
+        // DEBUG: log rápido para inspeccionar errores de login en desarrollo.
+        console.log("[LoginForm][debug] Error detectado:", error);
         console.error("Error en login:", error);
         showToast.error("Error en login", {
           duration: 3000,
@@ -170,24 +172,42 @@ const LoginForm = () => {
   });
 
   return (
-    <div className=" flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md">
-        <div className="bg-amber-100 rounded-3xl shadow-2xl p-8 space-y-6 relative overflow-hidden">
+    <div className="flex items-center justify-center min-h-screen px-4 py-10 sm:px-6 lg:px-8">
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <section className="p-2 sm:p-4 flex flex-col justify-center text-left lg:pr-10">
+          <h2 className="font-display text-4xl text-amber-900 mb-4 leading-tight">
+            Bienvenido a RetroGarage
+          </h2>
+          <p className="font-handwritten text-lg text-zinc-700 mb-6">
+            Qué bueno tenerte otra vez en RetroGarage. Vuelve a tu cuenta y
+            sigue disfrutando de la experiencia retro.
+          </p>
+          <ul className="space-y-3 text-sm sm:text-base list-disc pl-5 marker:text-emerald-700 text-amber-900">
+            <li>Recupera tu carrito y continúa tu compra en segundos.</li>
+            <li>Guarda favoritos y compara productos retro fácilmente.</li>
+            <li>Recibe alertas de novedades según tus intereses.</li>
+            <li>Accede a ofertas y oportunidades exclusivas para usuarios.</li>
+            <li>Contacta vendedores y resuelve dudas desde tu cuenta.</li>
+          </ul>
+        </section>
+
+        <div className="w-full max-w-md lg:max-w-none lg:justify-self-end lg:pl-10">
+          <div className="bg-amber-100 rounded-3xl shadow-2xl p-8 space-y-6 relative overflow-hidden">
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-800 rounded-full transform -translate-x-12 translate-y-24 opacity-70"></div>
             <div className="absolute bottom-8 left-1/4 w-32 h-32 bg-amber-200 rounded-full opacity-60"></div>
           </div>
 
-          <div className="relative z-10 ">
-            <div className="text-center space-y-2">
-              <h2 className="text-4xl  text-amber-800 font-display">
-                RetroGarage
-              </h2>
-              <p className="text-lg text-emerald-800 font-handwritten pb-2">
-                Inicia sesión para acceder a tu cuenta
-              </p>
-            </div>
+            <div className="relative z-10 ">
+              <div className="text-center space-y-2">
+                <h2 className="font-display text-3xl text-amber-900 font-bold">
+                  Login
+                </h2>
+                <p className="text-lg text-zinc-700 font-handwritten pb-2">
+                  Inicia sesión para volver a RetroGarage
+                </p>
+              </div>
 
             {/* ----------------------BOTÓN DE GOOGLE ----------------------------*/}
             <div className="p-1 rounded-xl bg-amber-100">
@@ -336,15 +356,16 @@ const LoginForm = () => {
               </button>
             </form>
 
-            <p className="text-center text-sm text-black pt-4 ">
+            <p className="text-center text-sm text-emerald-800 pt-4 ">
               ¿No tienes cuenta?{" "}
               <Link
                 href="/register"
-                className="font-semibold text-shadow-emerald-900 hover:text-gray-900 transition-colors"
+                className="font-bold text-amber-900 hover:text-amber-800 transition-colors"
               >
                 Regístrate
               </Link>
             </p>
+            </div>
           </div>
         </div>
       </div>

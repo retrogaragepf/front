@@ -31,9 +31,9 @@ export default function HelpPageLayout({
               <span className="font-display inline-block px-3 py-1 bg-amber-800 text-amber-50 uppercase tracking-widest text-xs -rotate-2">
                 Centro de Ayuda
               </span>
-              <h1 className="mt-4 text-3xl sm:text-5xl font-handwritten text-black">
+              <h2 className="mt-4 text-3xl sm:text-5xl font-handwritten text-black">
                 {title}
-              </h1>
+              </h2>
               <p className="mt-3 max-w-3xl leading-relaxed font-handwritten text-black/80">
                 {description}
               </p>

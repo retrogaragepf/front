@@ -10,8 +10,8 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/explicit-module-boundary-types": "error",
       "no-unused-expressions": "off",
-      "typescript-eslint/no-unused-expressions": "error",
-      "teypescript-eslint/no-unused-vars": [
+      "@typescript-eslint/no-unused-expressions": "error",
+      "@typescript-eslint/no-unused-vars": [
         "error",
         {
           "args": "all",

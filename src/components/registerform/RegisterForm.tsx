@@ -124,6 +124,8 @@ const RegisterForm = () => {
     },
 
     onError: (error: unknown) => {
+      // DEBUG: log rápido para inspeccionar errores de registro en desarrollo.
+      console.log("[RegisterForm][debug] Error detectado:", error);
       const msg = parseRegisterErrorMessage(error);
       showToast.error(String(msg), {
         duration: 2500,
@@ -142,9 +144,28 @@ const RegisterForm = () => {
     (passwordField.value ?? "") !== (confirmPasswordField.value ?? "");
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md">
-        <div className="bg-amber-100 rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
+    <div className="flex items-center justify-center min-h-screen px-4 py-10 sm:px-6 lg:px-8">
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <section className="p-2 sm:p-4 flex flex-col justify-center text-left lg:pr-10">
+          <h2 className="font-display text-4xl text-emerald-900 mb-4 leading-tight">
+            <span className="block">Bienvenido a</span>
+            <span className="block">RetroGarage</span>
+          </h2>
+          <p className="font-handwritten text-lg text-zinc-700 mb-6">
+            Crea tu cuenta y forma parte de una comunidad que valora lo clásico,
+            auténtico y con historia.
+          </p>
+          <ul className="space-y-3 text-sm sm:text-base list-disc pl-5 marker:text-emerald-600 text-zinc-800">
+            <li>Acceso a piezas únicas y coleccionables retro.</li>
+            <li>Compra y venta en un solo lugar, de forma simple.</li>
+            <li>Seguimiento de pedidos y estado de tus compras.</li>
+            <li>Perfil personalizado para guardar tu actividad.</li>
+            <li>Comunidad apasionada por el estilo vintage.</li>
+          </ul>
+        </section>
+
+        <div className="w-full max-w-md lg:max-w-none lg:justify-self-end lg:pl-10">
+          <div className="bg-amber-100 rounded-3xl shadow-lg p-8 space-y-6 relative overflow-hidden">
           {/* decor */}
           <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800 rounded-full transform translate-x-20 translate-y-20 opacity-80"></div>
@@ -152,7 +173,7 @@ const RegisterForm = () => {
             <div className="absolute bottom-8 left-1/4 w-32 h-32 bg-amber-200 rounded-full opacity-60"></div>
           </div>
 
-          <div className="relative z-10 space-y-6">
+            <div className="relative z-10 space-y-6">
             <div className="text-center space-y-2">
               <h1 className="font-bold text-amber-800 font-display text-4xl">
                 ¡Bienvenido!
@@ -409,15 +430,16 @@ const RegisterForm = () => {
               </button>
             </form>
 
-            <p className="text-center text-sm text-black pt-4">
+            <p className="text-center text-sm text-emerald-800 pt-4">
               ¿Ya tienes cuenta?{" "}
               <Link
                 href="/login"
-                className="font-semibold text-black hover:text-gray-900 transition-colors"
+                className="font-bold text-amber-900 hover:text-amber-800 transition-colors"
               >
                 Inicia sesión
               </Link>
             </p>
+            </div>
           </div>
         </div>
       </div>

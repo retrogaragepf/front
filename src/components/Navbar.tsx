@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
 import { useChat } from "@/src/context/ChatContext";
@@ -58,6 +58,16 @@ const Navbar = () => {
       return false;
     }
   };
+
+  const isAdminUser = useMemo(() => {
+    const userFlag =
+      Boolean((dataUser as any)?.user?.isAdmin) || Boolean((dataUser as any)?.isAdmin);
+    if (userFlag) return true;
+
+    const token =
+      (dataUser as any)?.token ?? (dataUser as any)?.user?.token ?? null;
+    return decodeIsAdminFromJwt(token);
+  }, [dataUser]);
 
   const launchAdminSupportChat = async () => {
     const normalizedSubject = adminSubject.trim();
@@ -211,7 +221,7 @@ const Navbar = () => {
         </nav>
 
         <div className="flex items-center gap-3">
-          {isLogged && (
+          {isLogged && !isAdminUser && hasUnreadMessages && (
             <button
               type="button"
               onClick={handleOpenUnreadChat}
@@ -220,12 +230,10 @@ const Navbar = () => {
               title="Mensajes"
             >
               <span className="text-lg">💬</span>
-              {hasUnreadMessages && (
-                <span
-                  className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
-                  aria-label={`${unreadTotal} mensajes nuevos`}
-                />
-              )}
+              <span
+                className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
+                aria-label={`${unreadTotal} mensajes nuevos`}
+              />
             </button>
           )}
 
@@ -338,7 +346,7 @@ const Navbar = () => {
               </li>
             )}
 
-            {isLogged && (
+            {isLogged && !isAdminUser && hasUnreadMessages && (
               <li>
                 <button
                   type="button"
@@ -346,9 +354,7 @@ const Navbar = () => {
                   className="relative hover:text-emerald-900 transition"
                 >
                   Chat
-                  {hasUnreadMessages && (
-                    <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
-                  )}
+                  <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
                 </button>
               </li>
             )}

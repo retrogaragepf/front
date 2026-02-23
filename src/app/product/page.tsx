@@ -71,9 +71,9 @@ export default function ProductPage() {
       <main className="max-w-6xl mx-auto px-4 py-10">
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-extrabold">Productos</h1>
+            <h2 className="text-3xl sm:text-4xl font-typewriter text-amber-900 font-bold">Productos</h2>
             {ready && (
-              <p className="text-sm text-zinc-700 mt-1">
+              <p className="text-lg text-zinc-700 mt-1">
                 Mostrando:{" "}
                 <span className="font-bold">{sortedApproved.length}</span>{" "}
                 publicados

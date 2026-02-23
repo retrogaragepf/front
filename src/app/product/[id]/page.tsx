@@ -123,23 +123,23 @@ const ProductDetailPage = () => {
               </div>
 
               <div className="mt-4 flex items-center gap-2">
-                <span className="inline-flex items-center px-3 py-1 rounded-full border border-amber-300 bg-amber-100 text-amber-900 text-xs font-extrabold tracking-widest uppercase">
+                <span className="inline-flex items-center px-3 py-1 rounded-full border border-amber-300 bg-amber-100 text-amber-900 text-sm font-extrabold tracking-widest uppercase">
                   Vintage Verified
                 </span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full border border-emerald-900/30 bg-emerald-800 text-amber-50 text-xs font-extrabold tracking-widest uppercase">
+                <span className="inline-flex items-center px-3 py-1 rounded-full border border-emerald-900/30 bg-emerald-800 text-amber-50 text- font-extrabold tracking-widest uppercase">
                   Stock: {(product as any).stock}
                 </span>
               </div>
             </div>
-
+                
             <div className="p-5 md:p-6">
-              <h1 className="text-3xl md:text-4xl font-extrabold tracking-wide text-amber-900">
+              <h2 className="text-2xl md:text-3xl font-extrabold tracking-wide text-amber-900">
                 {product.title}
-              </h1>
+              </h2>
 
               <p className="mt-2 text-lg md:text-xl font-extrabold text-zinc-900">
                 $ <span className="text-emerald-950">{priceFormatted}</span>{" "}
-                <span className="text-sm font-semibold text-zinc-600">COP</span>
+                <span className="text-lg font-semibold text-zinc-600">COP</span>
               </p>
 
               {product.description && (

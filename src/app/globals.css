@@ -27,7 +27,6 @@
 
 .retro-view {
   font-family: var(--font-typewriter);
-  color: rgb(24 24 27);
   line-height: 1.6;
 }
 
@@ -47,7 +46,6 @@
 .retro-view h5,
 .retro-view h6 {
   font-family: var(--font-typewriter);
-  color: rgb(24 24 27);
   letter-spacing: 0.01em;
   line-height: 1.2;
 }
@@ -55,7 +53,6 @@
 .retro-view p,
 .retro-view li {
   font-family: var(--font-typewriter);
-  color: rgb(39 39 42);
 }
 
 .retro-view h1 {
@@ -86,7 +83,6 @@
 
 .retro-view p,
 .retro-view li,
-.retro-view span,
 .retro-view label,
 .retro-view small,
 .retro-view input,

@@ -7,9 +7,9 @@ function Footer() {
       <div className="max-w-7xl mx-auto px-8 sm:px-10 lg:pl-8 lg:pr-12 pt-14 pb-10 grid grid-cols-1 md:grid-cols-5 gap-10 md:gap-x-14">
         {/* Marca */}
         <div className="w-full max-w-[220px] mx-auto md:mx-0 md:pr-8 space-y-5 text-center">
-          <h2 className="text-2xl font-extrabold tracking-wide text-amber-900">
+          <h3 className="text-1xl font-extrabold tracking-wide text-amber-900">
             RetroGarage™
-          </h2>
+          </h3>
 
           <p className="font-handwritten text-sm text-zinc-700 leading-relaxed max-w-[260px] mx-auto text-center">
             Objetos con alma que buscan un segundo hogar. No somos una tienda,
@@ -48,10 +48,10 @@ function Footer() {
 
         {/* Categorías */}
         <div className="w-full max-w-[220px] mx-auto md:pl-4 text-center">
-          <h3 className="text-sm font-extrabold tracking-widest uppercase text-amber-900 mb-5">
+          <h3 className="!text-base font-extrabold tracking-widest uppercase text-amber-900 mb-4">
             Categorías
           </h3>
-          <ul className="font-handwritten space-y-3 text-sm text-zinc-700">
+          <ul className="font-handwritten space-y-2.5 !text-xs text-zinc-700">
             <li>
               <Link
                 href="/categories/ropa-accesorios"
@@ -106,10 +106,10 @@ function Footer() {
 
         {/* Ayuda */}
         <div className="w-full max-w-[220px] mx-auto text-center">
-          <h3 className="text-sm font-extrabold tracking-widest uppercase text-amber-900 mb-5">
+          <h3 className="!text-base font-extrabold tracking-widest uppercase text-amber-900 mb-4">
             Ayuda
           </h3>
-          <ul className="space-y-3 text-sm text-zinc-700">
+          <ul className="space-y-2.5 !text-xs text-zinc-700">
             <li>
               <Link
                 href="/envios"
@@ -147,10 +147,10 @@ function Footer() {
 
         {/* Registro */}
         <div className="w-full max-w-[220px] mx-auto text-center">
-          <h3 className="text-sm font-extrabold tracking-widest uppercase text-amber-900 mb-5">
+          <h3 className="!text-base font-extrabold tracking-widest uppercase text-amber-900 mb-4">
             Registro
           </h3>
-          <ul className="space-y-3 text-sm text-zinc-700">
+          <ul className="space-y-2.5 !text-xs text-zinc-700">
             <li>
               <Link
                 href="/register"
@@ -172,13 +172,13 @@ function Footer() {
 
         {/* Visítanos */}
         <div className="w-full max-w-[220px] mx-auto text-center">
-          <h3 className="text-sm font-extrabold tracking-widest uppercase text-amber-900 mb-5">
+          <h3 className="!text-base font-extrabold tracking-widest uppercase text-amber-900 mb-4">
             Visítanos
           </h3>
-          <p className="font-handwritten text-sm text-zinc-700 leading-relaxed mb-4">
+          <p className="font-handwritten !text-xs text-zinc-700 leading-relaxed mb-3">
             www.retrogaragepf.com
           </p>
-          <p className="font-handwritten text-sm text-zinc-700 leading-relaxed">
+          <p className="font-handwritten !text-xs text-zinc-700 leading-relaxed">
             Calle de los Anticuarios 42 <br />
             Barrio Viejo, CP 28001
           </p>

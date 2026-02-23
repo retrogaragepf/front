@@ -26,9 +26,43 @@ const CHAT_READ_MARKERS_KEY = "chat_read_markers";
 const CHAT_HIDDEN_CONVERSATIONS_KEY = "chat_hidden_conversations";
 const CHAT_READ_MARKERS_TTL_MS = 1000 * 60 * 60 * 24;
 const CHAT_READ_MARKERS_MAX_ENTRIES = 200;
-const CHAT_UNREAD_FALLBACK_INTERVAL_MS = 30_000;
+const CHAT_FALLBACK_SYNC_INTERVAL_MS = 30_000;
+const CHAT_MESSAGES_FALLBACK_SYNC_INTERVAL_MS = 12_000;
 
 type ReadMarkers = Record<string, number>;
+
+function areConversationsEqual(
+  prev: ChatConversation[],
+  next: ChatConversation[],
+): boolean {
+  if (prev === next) return true;
+  if (prev.length !== next.length) return false;
+
+  for (let i = 0; i < prev.length; i += 1) {
+    const a = prev[i];
+    const b = next[i];
+    if (a.id !== b.id) return false;
+    if (a.unreadCount !== b.unreadCount) return false;
+    if (a.lastMessage !== b.lastMessage) return false;
+    if (a.timestamp !== b.timestamp) return false;
+    if (a.sellerName !== b.sellerName) return false;
+    if (a.product !== b.product) return false;
+  }
+
+  return true;
+}
+
+function areMessagesEqualById(
+  prev: { id: string }[],
+  next: { id: string }[],
+): boolean {
+  if (prev === next) return true;
+  if (prev.length !== next.length) return false;
+  for (let i = 0; i < prev.length; i += 1) {
+    if (prev[i].id !== next[i].id) return false;
+  }
+  return true;
+}
 
 function toTimestamp(value: string): number {
   if (!value) return 0;
@@ -101,7 +135,6 @@ export function useChatSync({
   setActiveConversationId,
 }: Params) {
   const localReadMarkersRef = useRef<ReadMarkers>({});
-  const lastUnreadFallbackAtRef = useRef(0);
 
   const applyLocalReadState = useCallback((conversation: ChatConversation) => {
     const readAt = localReadMarkersRef.current[conversation.id];
@@ -130,59 +163,29 @@ export function useChatSync({
       const hiddenConversationIds = loadHiddenConversationIds();
       const baseConversations = dedupeConversations(remoteConversations)
         .filter((conversation) => !hiddenConversationIds.has(conversation.id))
-        .map(applyLocalReadState);
-
-      const totalUnread = baseConversations.reduce(
-        (acc, conversation) => acc + (conversation.unreadCount || 0),
-        0,
-      );
-
-      let normalizedConversations = baseConversations;
-      const now = Date.now();
-      const shouldRunUnreadFallback =
-        Boolean(currentUserId) &&
-        totalUnread === 0 &&
-        now - lastUnreadFallbackAtRef.current >= CHAT_UNREAD_FALLBACK_INTERVAL_MS;
-
-      if (shouldRunUnreadFallback) {
-        lastUnreadFallbackAtRef.current = now;
-        normalizedConversations = await Promise.all(
-          baseConversations.map(async (conversation) => {
-            if (localReadMarkersRef.current[conversation.id]) return conversation;
-
-            try {
-              const messages = await chatService.getMessages(conversation.id);
-              let pending = 0;
-
-              for (let i = messages.length - 1; i >= 0; i -= 1) {
-                const message = messages[i];
-                if (message.senderId && message.senderId === currentUserId) break;
-                pending += 1;
-              }
-
-              return pending > 0 ? { ...conversation, unreadCount: pending } : conversation;
-            } catch {
-              return conversation;
-            }
-          }),
-        );
-      }
+        .map(applyLocalReadState)
+        .sort((a, b) => {
+          const byTimestamp = toTimestamp(b.timestamp) - toTimestamp(a.timestamp);
+          if (byTimestamp !== 0) return byTimestamp;
+          return a.id.localeCompare(b.id);
+        });
 
       setConversations((prev) => {
         const prevById = new Map(prev.map((conversation) => [conversation.id, conversation]));
-        return normalizedConversations.map((conversation) =>
+        const next = baseConversations.map((conversation) =>
           mergeConversationData(conversation, prevById.get(conversation.id)),
         );
+        return areConversationsEqual(prev, next) ? prev : next;
       });
 
       setActiveConversationId((prev) => {
         if (
           prev &&
-          normalizedConversations.some((conversation) => conversation.id === prev)
+          baseConversations.some((conversation) => conversation.id === prev)
         ) {
           return prev;
         }
-        return normalizedConversations[0]?.id ?? "";
+        return baseConversations[0]?.id ?? "";
       });
     } catch (error) {
       if ((error as Error).message === "NO_AUTH") return;
@@ -191,7 +194,6 @@ export function useChatSync({
   }, [
     applyLocalReadState,
     canUseChat,
-    currentUserId,
     setActiveConversationId,
     setConversations,
   ]);
@@ -201,10 +203,14 @@ export function useChatSync({
       if (!canUseChat || !conversationId) return;
       try {
         const remoteMessages = await chatService.getMessages(conversationId);
-        setMessagesByConversation((prev) => ({
-          ...prev,
-          [conversationId]: remoteMessages,
-        }));
+        setMessagesByConversation((prev) => {
+          const previousMessages = prev[conversationId] ?? [];
+          if (areMessagesEqualById(previousMessages, remoteMessages)) return prev;
+          return {
+            ...prev,
+            [conversationId]: remoteMessages,
+          };
+        });
 
         const latestMessage =
           remoteMessages.length > 0 ? remoteMessages[remoteMessages.length - 1] : null;
@@ -278,10 +284,12 @@ export function useChatSync({
   useEffect(() => {
     if (!canUseChat) return;
     const intervalId = window.setInterval(() => {
+      // Polling solo como respaldo cuando socket no está conectado.
+      if (socketRef.current?.connected) return;
       void syncConversations();
-    }, 12000);
+    }, CHAT_FALLBACK_SYNC_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [canUseChat, syncConversations]);
+  }, [canUseChat, socketRef, syncConversations]);
 
   useEffect(() => {
     if (!activeConversationId) return;
@@ -292,10 +300,11 @@ export function useChatSync({
   useEffect(() => {
     if (!isChatOpen || !activeConversationId) return;
     const intervalId = window.setInterval(() => {
+      if (socketRef.current?.connected) return;
       void syncMessages(activeConversationId);
-    }, 5000);
+    }, CHAT_MESSAGES_FALLBACK_SYNC_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [activeConversationId, isChatOpen, syncMessages]);
+  }, [activeConversationId, isChatOpen, socketRef, syncMessages]);
 
   return { clearUnreadLocal, joinConversationRoom };
 }

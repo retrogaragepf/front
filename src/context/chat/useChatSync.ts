@@ -133,7 +133,10 @@ export function useChatSync({
   setConversations,
   setMessagesByConversation,
   setActiveConversationId,
-}: Params) {
+}: Params): {
+  clearUnreadLocal: (conversationId: string) => void;
+  joinConversationRoom: (conversationId: string) => void;
+} {
   const localReadMarkersRef = useRef<ReadMarkers>({});
 
   const applyLocalReadState = useCallback((conversation: ChatConversation) => {
@@ -220,27 +223,44 @@ export function useChatSync({
           ) ?? latestMessage;
 
         if (latestMessage || otherMessage?.senderName) {
-          setConversations((prev) =>
-            prev.map((conversation) => {
+          setConversations((prev) => {
+            let changed = false;
+
+            const next = prev.map((conversation) => {
               if (conversation.id !== conversationId) return conversation;
+
+              const nextSellerName =
+                conversation.sellerName && conversation.sellerName !== "Usuario"
+                  ? conversation.sellerName
+                  : otherMessage?.senderName || conversation.sellerName || "Usuario";
+
+              const nextSellerNestedName =
+                conversation.seller?.name && conversation.seller.name !== "Usuario"
+                  ? conversation.seller.name
+                  : otherMessage?.senderName || conversation.seller?.name || "Usuario";
+
+              const nextTimestamp = latestMessage
+                ? new Date(latestMessage.createdAt).toISOString()
+                : conversation.timestamp;
+
+              const same =
+                conversation.sellerName === nextSellerName &&
+                (conversation.seller?.name || "") === nextSellerNestedName &&
+                conversation.timestamp === nextTimestamp;
+
+              if (same) return conversation;
+              changed = true;
+
               return {
                 ...conversation,
-                sellerName:
-                  conversation.sellerName && conversation.sellerName !== "Usuario"
-                    ? conversation.sellerName
-                    : otherMessage?.senderName || conversation.sellerName || "Usuario",
-                seller: {
-                  name:
-                    conversation.seller?.name && conversation.seller.name !== "Usuario"
-                      ? conversation.seller.name
-                      : otherMessage?.senderName || conversation.seller?.name || "Usuario",
-                },
-                timestamp: latestMessage
-                  ? new Date(latestMessage.createdAt).toISOString()
-                  : conversation.timestamp,
+                sellerName: nextSellerName,
+                seller: { name: nextSellerNestedName },
+                timestamp: nextTimestamp,
               };
-            }),
-          );
+            });
+
+            return changed ? next : prev;
+          });
         }
       } catch (error) {
         if ((error as Error).message === "NO_AUTH") return;

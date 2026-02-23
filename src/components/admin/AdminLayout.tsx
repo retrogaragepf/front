@@ -6,11 +6,15 @@ import { createDiscountCode } from "@/src/services/discounts.services";
 
 type Props = {
   children: ReactNode;
-  section: "users" | "products" | "chats";
-  setSection: (s: "users" | "products" | "chats") => void;
+  section: "users" | "products" | "chats" | "sales";
+  setSection: (s: "users" | "products" | "chats" | "sales") => void;
 };
 
-export default function AdminLayout({ children, section, setSection }: Props) {
+export default function AdminLayout({
+  children,
+  section,
+  setSection,
+}: Props): JSX.Element {
   const [isCreatingDiscount, setIsCreatingDiscount] = useState(false);
 
   // ✅ porcentaje seleccionable
@@ -55,8 +59,9 @@ export default function AdminLayout({ children, section, setSection }: Props) {
       } catch {
         // ignore
       }
-    } catch (e: any) {
-      showToast.error(e?.message || "Error generando el cupón", {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Error generando el cupón";
+      showToast.error(msg, {
         duration: 2500,
       });
     } finally {
@@ -104,6 +109,17 @@ export default function AdminLayout({ children, section, setSection }: Props) {
             }`}
           >
             Gestión de Chats
+          </button>
+
+          <button
+            onClick={() => setSection("sales")}
+            className={`px-4 py-3 rounded-xl border-2 border-amber-900 font-extrabold text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] transition ${
+              section === "sales"
+                ? "bg-amber-200 text-amber-900"
+                : "bg-white text-amber-900 hover:bg-amber-100"
+            }`}
+          >
+            Compras y Ventas
           </button>
 
           {/* ✅ Bloque cupón */}

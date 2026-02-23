@@ -52,12 +52,12 @@ export default function DashboardPage() {
 
         {!isLoadingUser && email ? (
           <section className="bg-amber-100 border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
-            <p className="text-zinc-800">
+            <h3 className="text-zinc-800">
               <span className="font-extrabold tracking-wide text-amber-900">
                 Email:
               </span>{" "}
               {email}
-            </p>
+            </h3>
             <div className="mt-4 h-0.5 w-full bg-amber-300" />
             <p className="mt-3 text-sm text-zinc-700">
               Panel de vendedor: métricas, reseñas y reputación.

@@ -84,7 +84,7 @@ export default function Product() {
 
             <h1 className="font-typewriter text-4xl sm:text-6xl md:text-7xl  leading-tight">
               Objetos con{" "}
-              <span className="text-emerald-900  decoration-amber-600 underline-offset-8">
+              <span className="text-emerald-900 text-2xl sm:text-xl md:text-5xl decoration-amber-600 underline underline-offset-8">
                 historia
               </span>
               ,<br />
@@ -127,9 +127,9 @@ export default function Product() {
             <h2 className="font-typewriter text-2xl sm:text-4xl font-extrabold mb-2">
               Destacados de la semana
             </h2>
-            <p className="font-typewriter text-amber-900 font-semibold">
+            <h4 className="font-typewriter text-amber-900 font-semibold">
               Recién llegados del ático
-            </p>
+            </h4>
           </div>
         </div>
 

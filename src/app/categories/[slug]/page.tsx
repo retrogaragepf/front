@@ -49,7 +49,7 @@ export default function CategoryProductsPage() {
         <div className="flex flex-wrap items-center gap-2 text-sm font-extrabold tracking-wide">
           <Link
             href="/categories"
-            className="text-amber-900 hover:text-emerald-900 transition"
+            className="text-amber-900 hover:text-emerald-900 transition text-xl font-extrabold tracking-wide"
           >
             Categorías
           </Link>

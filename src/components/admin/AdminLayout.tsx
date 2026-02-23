@@ -68,9 +68,9 @@ export default function AdminLayout({ children, section, setSection }: Props) {
     <div className="min-h-screen flex bg-amber-100]">
       {/* Sidebar */}
       <aside className="w-72 bg-amber-100 -r-2 border-amber-900 p-8 flex flex-col shadow-[6px_0px_0px_0px_rgba(0,0,0,0.85)]">
-        <h2 className="font-display text-2xl text-amber-900 font-extrabold mb-10">
+        <h3 className="font-display text-2xl text-amber-900 font-extrabold mb-10">
           Panel de Administración
-        </h2>
+        </h3>
 
         <nav className="flex flex-col gap-4">
           <button

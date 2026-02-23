@@ -40,14 +40,6 @@ export default function Sidebar() {
           Mis Compras
         </button>
 
-        {/* <button
-          onClick={() => router.push("/dashboard#estadisticas")}
-          className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
-        >
-          Estadísticas
-        </button> */}
-
-        {/* ✅ NUEVO LINK: Reseñas */}
         <button
           onClick={() => router.push("/dashboard/reviews")}
           className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
@@ -57,16 +49,6 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 border-t-2 border-dashed space-y-3">
-        {/* <button
-          onClick={() => router.push("/dashboard#modo")}
-          className="w-full px-4 py-2 rounded-lg hover:bg-amber-100 transition font-medium text-left"
-        >
-          Cambiar modo
-        </button> */}
-
-        {/* <button className="w-full px-4 py-2 rounded-lg hover:bg-amber-100 transition font-medium text-left text-red-600">
-          Cerrar sesión
-        </button> */}
       </div>
     </aside>
   );

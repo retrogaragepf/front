@@ -86,8 +86,6 @@ export default function ProfileHeader() {
                   setAvatarPublicId(publicId);
                   setAvatarUrl(secureUrl);
 
-                  // ✅ Aquí luego haces tu PATCH al backend:
-                  // await updateUserAvatar({ publicId, secureUrl })
                 }}
               />
             </div>

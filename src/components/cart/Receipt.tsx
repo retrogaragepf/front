@@ -334,12 +334,12 @@ export default function Receipt() {
           Código de descuento
         </label>
 
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <input
             value={couponInput}
             onChange={(e) => setCouponInput(e.target.value)}
-            placeholder="Pega aquí tu código (ej: CFB59C9E)"
-            className="flex-1 px-3 py-2 rounded-lg border-2 border-slate-900 text-sm outline-none"
+            placeholder="Código (ej: CFB59C9E)"
+            className="min-w-0 flex-1 px-2 py-2 rounded-lg border-2 border-slate-900 text-xs outline-none placeholder:text-[10px]"
             disabled={isPaying}
             autoComplete="off"
           />
@@ -348,7 +348,7 @@ export default function Receipt() {
             <button
               onClick={applyCoupon}
               disabled={isPaying || isValidatingCoupon || isEmpty}
-              className={`px-4 py-2 rounded-lg border-2 border-slate-900 font-bold transition ${
+              className={`w-24 shrink-0 px-2 py-2 rounded-lg border-2 border-slate-900 text-xs font-bold transition ${
                 isPaying || isValidatingCoupon || isEmpty
                   ? "bg-slate-200 text-slate-500 cursor-not-allowed"
                   : "bg-emerald-900 hover:bg-amber-900 text-amber-50"
@@ -361,7 +361,7 @@ export default function Receipt() {
             <button
               onClick={removeCoupon}
               disabled={isPaying}
-              className={`px-4 py-2 rounded-lg border-2 border-slate-900 font-bold transition ${
+              className={`w-24 shrink-0 px-2 py-2 rounded-lg border-2 border-slate-900 text-xs font-bold transition ${
                 isPaying
                   ? "bg-slate-200 text-slate-500 cursor-not-allowed"
                   : "bg-white hover:bg-red-600"

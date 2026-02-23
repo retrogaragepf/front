@@ -338,7 +338,7 @@ export default function Receipt() {
           <input
             value={couponInput}
             onChange={(e) => setCouponInput(e.target.value)}
-            placeholder="Código (ej: CFB59C9E)"
+            placeholder="Tu Código aqui(ej: CFB59C9E)"
             className="min-w-0 flex-1 px-2 py-2 rounded-lg border-2 border-slate-900 text-xs outline-none placeholder:text-[10px]"
             disabled={isPaying}
             autoComplete="off"

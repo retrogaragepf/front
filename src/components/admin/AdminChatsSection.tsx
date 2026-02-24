@@ -64,6 +64,13 @@ function hasPendingConversation(chat: ChatRow, readMarkers: ReadMarkers): boolea
   return chatTs > readAt;
 }
 
+function countPendingConversations(chats: ChatRow[], readMarkers: ReadMarkers): number {
+  return chats.reduce((total, chat) => {
+    if (hasPendingConversation(chat, readMarkers)) return total + 1;
+    return total;
+  }, 0);
+}
+
 type UsersIndex = {
   byId: Map<string, AdminUIUser>;
   byEmail: Map<string, AdminUIUser>;
@@ -243,6 +250,15 @@ export default function AdminChatsSection(): ReactElement {
             return { ...chat, unreadCount: 1 };
           }
 
+          const hasActivity = Boolean(
+            (chat.lastMessage || "").trim() || (chat.timestamp || "").trim(),
+          );
+          // Fallback aditivo: si la conversación aparece por primera vez con actividad,
+          // se marca como pendiente para activar estado visual.
+          if (!prevChat && hasActivity && readAt <= 0) {
+            return { ...chat, unreadCount: 1 };
+          }
+
           // Si ya estaba marcado como leído localmente y no hay novedad, lo mantenemos en 0.
           if (readAt > 0 && ts <= readAt) {
             return { ...chat, unreadCount: 0 };
@@ -388,7 +404,7 @@ export default function AdminChatsSection(): ReactElement {
 
   const totalUnread = useMemo(
     // El dashboard debe contar conversaciones pendientes, no cantidad de mensajes.
-    () => chats.filter((chat) => hasPendingConversation(chat, readMarkers)).length,
+    () => countPendingConversations(chats, readMarkers),
     [chats, readMarkers],
   );
   const hasUnread = totalUnread > 0;

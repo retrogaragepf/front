@@ -113,6 +113,7 @@ export const ChatProvider = ({
     isChatOpen,
     socketRef,
     activeConversationRef,
+    conversationsRef,
     setMessagesByConversation,
     setConversations,
   });
@@ -167,6 +168,15 @@ export const ChatProvider = ({
     }, 0);
   }, [conversations]);
 
+  const openFirstUnreadConversation = useCallback(() => {
+    const firstUnread = conversations.find((conversation) => conversation.unreadCount > 0);
+    if (firstUnread?.id) {
+      openChat({ conversationId: firstUnread.id });
+      return;
+    }
+    openChat();
+  }, [conversations, openChat]);
+
   const resetChatState = useCallback(() => {
     setConversations([]);
     setMessagesByConversation({});
@@ -191,6 +201,7 @@ export const ChatProvider = ({
     canUseChat,
     unreadTotal,
     unreadSignal,
+    onOpenUnreadChat: openFirstUnreadConversation,
     previousUnreadTotalRef,
     previousUnreadSignalRef,
     unreadReadyRef,

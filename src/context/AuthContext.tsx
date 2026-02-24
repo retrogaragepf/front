@@ -14,10 +14,12 @@ type User = {
   id?: string | number | null;
   name?: string;
   email?: string;
+  fullName?: string;
+  username?: string;
   isAdmin?: boolean;
   iat?: number;
   exp?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 export type UserSession = {
@@ -36,7 +38,11 @@ interface AuthContextProps {
 
 const AUTH_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
-function decodeJwtPayload(token: string): Record<string, any> | null {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
@@ -53,6 +59,15 @@ function decodeJwtPayload(token: string): Record<string, any> | null {
   } catch {
     return null;
   }
+}
+
+function getStringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function getOptionalId(value: unknown): string | number | null {
+  if (typeof value === "string" || typeof value === "number") return value;
+  return null;
 }
 
 // ✅ opcional pero muy útil: validar expiración del token
@@ -72,7 +87,11 @@ export const AuthContext = createContext<AuthContextProps>({
   logout: () => {},
 });
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AuthProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.JSX.Element => {
   const [dataUser, setDataUser] = useState<UserSession | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const router = useRouter();
@@ -106,7 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      let parsed: any = null;
+      let parsed: unknown = null;
       try {
         parsed = JSON.parse(raw);
       } catch {
@@ -115,9 +134,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Forma esperada: { user, token, email }
       if (
-        parsed &&
-        typeof parsed === "object" &&
-        typeof parsed?.token === "string"
+        isRecord(parsed) &&
+        typeof parsed.token === "string"
       ) {
         if (isTokenExpired(parsed.token)) {
           localStorage.removeItem(AUTH_KEY);
@@ -126,9 +144,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const normalized: UserSession = {
-          user: parsed.user ?? {},
+          user: isRecord(parsed.user) ? (parsed.user as User) : {},
           token: parsed.token,
-          email: parsed.email ?? parsed.user?.email ?? "",
+          email:
+            (typeof parsed.email === "string" ? parsed.email : "") ||
+            (isRecord(parsed.user) && typeof parsed.user.email === "string"
+              ? parsed.user.email
+              : ""),
         };
 
         setDataUser(normalized);
@@ -146,15 +168,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const payload = decodeJwtPayload(parsed);
         const normalized: UserSession = {
           user: {
-            id: payload?.id ?? null,
-            name: payload?.name ?? "",
-            email: payload?.email ?? "",
+            id: getOptionalId(payload?.id),
+            name: getStringValue(payload?.name),
+            email: getStringValue(payload?.email),
             isAdmin: Boolean(payload?.isAdmin),
-            iat: payload?.iat,
-            exp: payload?.exp,
+            iat: typeof payload?.iat === "number" ? payload.iat : undefined,
+            exp: typeof payload?.exp === "number" ? payload.exp : undefined,
           },
           token: parsed,
-          email: payload?.email ?? "",
+          email: getStringValue(payload?.email),
         };
 
         setDataUser(normalized);
@@ -208,4 +230,4 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = (): AuthContextProps => useContext(AuthContext);

@@ -21,6 +21,7 @@ type Params = {
   isChatOpen: boolean;
   socketRef: MutableRefObject<SocketLike | null>;
   activeConversationRef: MutableRefObject<string>;
+  conversationsRef: MutableRefObject<ChatConversation[]>;
   setMessagesByConversation: Dispatch<SetStateAction<ChatMessageMap>>;
   setConversations: Dispatch<SetStateAction<ChatConversation[]>>;
 };
@@ -30,9 +31,10 @@ export function useChatSocket({
   isChatOpen,
   socketRef,
   activeConversationRef,
+  conversationsRef,
   setMessagesByConversation,
   setConversations,
-}: Params) {
+}: Params): void {
   useEffect(() => {
     if (!canUseChat) return;
     const socketDisabled = process.env.NEXT_PUBLIC_ENABLE_CHAT_SOCKET === "false";
@@ -59,6 +61,17 @@ export function useChatSocket({
       });
 
       socket.on("connect", () => {
+        const conversationIds = Array.from(
+          new Set(
+            (conversationsRef.current || [])
+              .map((conversation) => conversation.id)
+              .filter(Boolean),
+          ),
+        );
+        if (conversationIds.length > 0) {
+          conversationIds.forEach((id) => socket.emit("joinConversation", id));
+          return;
+        }
         const activeId = activeConversationRef.current;
         if (activeId) socket.emit("joinConversation", activeId);
       });
@@ -183,6 +196,7 @@ export function useChatSocket({
   }, [
     activeConversationRef,
     canUseChat,
+    conversationsRef,
     isChatOpen,
     setConversations,
     setMessagesByConversation,

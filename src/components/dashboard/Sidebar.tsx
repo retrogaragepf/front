@@ -1,11 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import type { ReactElement } from "react";
 import { useChat } from "@/src/context/ChatContext";
 
-const Sidebar = () => {
+const Sidebar = (): ReactElement => {
   const router = useRouter();
-  const { openChat } = useChat();
+  const { openChat, conversations } = useChat();
+
+  const hasAnyMessage = conversations.some((conversation) =>
+    Boolean((conversation.lastMessage || "").trim()),
+  );
 
   const handleOpenChat = () => {
     openChat({ asParticipant: "customer" });
@@ -58,8 +63,9 @@ const Sidebar = () => {
 
         <button
           onClick={handleOpenChat}
+          disabled={!hasAnyMessage}
           className="
-            w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left
+            w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left disabled:opacity-50 disabled:cursor-not-allowed
           "
         >
           Chat con usuarios

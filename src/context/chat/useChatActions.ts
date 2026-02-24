@@ -245,7 +245,7 @@ export function useChatActions({
           const ensured = await ensureConversation(payload);
           const conversationId = ensured.conversationId;
           if (!conversationId) {
-            showToast.warning("No se pudo abrir la conversación.", {
+            showToast.warning("No hay chats nuevos.", {
               duration: 2200,
               progress: true,
               position: "top-center",
@@ -287,14 +287,21 @@ export function useChatActions({
           }
         } catch (error) {
           console.error("No se pudo abrir conversación:", error);
-          showToast.error("No se pudo abrir el chat. Intenta de nuevo.", {
+          const rawMessage = error instanceof Error ? error.message : "";
+          const isBlocked = rawMessage.toLowerCase().includes("bloque");
+          showToast.error(
+            isBlocked
+              ? "No puedes chatear: cuenta bloqueada por reglas de comunicación."
+              : "No se pudo abrir el chat. Intenta de nuevo.",
+            {
             duration: 2200,
             progress: true,
             position: "top-center",
             transition: "popUp",
             icon: "",
             sound: true,
-          });
+            },
+          );
         }
       })();
     },
@@ -495,6 +502,21 @@ export function useChatActions({
           ),
         }));
         console.error("No se pudo enviar mensaje al backend:", error);
+        const rawMessage = error instanceof Error ? error.message : "";
+        const isBlocked = rawMessage.toLowerCase().includes("bloque");
+        showToast.error(
+          isBlocked
+            ? "No puedes chatear: cuenta bloqueada por reglas de comunicación."
+            : "No se pudo enviar el mensaje.",
+          {
+            duration: 2200,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          },
+        );
       }
     },
     [canUseChat, activeConversationId, setConversations, setMessagesByConversation],

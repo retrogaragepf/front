@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
@@ -118,6 +118,8 @@ const Navbar = (): ReactElement => {
   const [adminDetail, setAdminDetail] = useState("");
   const [isLaunchingAdminChat, setIsLaunchingAdminChat] = useState(false);
   const [adminUnreadConversations, setAdminUnreadConversations] = useState(0);
+  const adminUnreadReadyRef = useRef(false);
+  const previousAdminSignalRef = useRef(0);
 
   const safeName =
     getStringField(userRecord, "name") ||
@@ -192,8 +194,30 @@ const Navbar = (): ReactElement => {
         const chats = await adminChatService.getConversations();
         if (canceled) return;
         const readMarkers = loadAdminReadMarkers();
-        const pending = chats.filter((chat) => hasPendingAdminChat(chat, readMarkers)).length;
+        const pendingChats = chats.filter((chat) => hasPendingAdminChat(chat, readMarkers));
+        const pending = pendingChats.length;
         setAdminUnreadConversations(pending);
+
+        const currentSignal = pendingChats.reduce((maxTs, chat) => {
+          const ts = Date.parse(chat.timestamp || "");
+          if (!Number.isFinite(ts)) return maxTs;
+          return ts > maxTs ? ts : maxTs;
+        }, 0);
+
+        if (!adminUnreadReadyRef.current) {
+          adminUnreadReadyRef.current = true;
+          previousAdminSignalRef.current = currentSignal;
+        } else if (currentSignal > previousAdminSignalRef.current) {
+          previousAdminSignalRef.current = currentSignal;
+          showToast.info("Mensaje nuevo recibido", {
+            duration: 2200,
+            progress: true,
+            position: "top-right",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          });
+        }
       } catch {
         if (!canceled) setAdminUnreadConversations(0);
       }
@@ -298,7 +322,18 @@ const Navbar = (): ReactElement => {
 
   const handleOpenUnreadChat = () => {
     if (isAdminUser) {
-      router.push("/admin/dashboard?section=chats");
+      if (adminUnreadConversations <= 0) {
+        showToast.info("No hay chats nuevos.", {
+          duration: 1800,
+          progress: true,
+          position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
+        });
+        return;
+      }
+      router.push("/admin/dashboard?section=chats&openChat=1");
       return;
     }
     // Abrimos primero una conversación con no leídos para limpiar la alerta al entrar.
@@ -309,7 +344,14 @@ const Navbar = (): ReactElement => {
       openChat({ conversationId: firstUnreadConversation.id });
       return;
     }
-    openChat();
+    showToast.info("No hay chats nuevos.", {
+      duration: 1800,
+      progress: true,
+      position: "top-center",
+      transition: "popUp",
+      icon: "",
+      sound: true,
+    });
   };
 
   return (

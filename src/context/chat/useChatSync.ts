@@ -138,6 +138,7 @@ export function useChatSync({
   joinConversationRoom: (conversationId: string) => void;
 } {
   const localReadMarkersRef = useRef<ReadMarkers>({});
+  const hasSyncedConversationsRef = useRef(false);
 
   const applyLocalReadState = useCallback((conversation: ChatConversation) => {
     const readAt = localReadMarkersRef.current[conversation.id];
@@ -182,6 +183,7 @@ export function useChatSync({
         });
 
       setConversations((prev) => {
+        const isInitialSync = !hasSyncedConversationsRef.current;
         const prevById = new Map(prev.map((conversation) => [conversation.id, conversation]));
         const next = baseConversations.map((conversation) => {
           const prevConversation = prevById.get(conversation.id);
@@ -215,12 +217,25 @@ export function useChatSync({
               });
               return { ...merged, unreadCount: 1 };
             }
+
+            const hasActivity = Boolean(
+              (merged.lastMessage || "").trim() || (merged.timestamp || "").trim(),
+            );
+            // Si aparece una conversación nueva después del primer sync (polling sin socket),
+            // la marcamos con no leído para activar alerta en navbar.
+            if (!isInitialSync && !prevConversation && hasActivity) {
+              console.log("[useChatSync] unread inferred:new conversation", {
+                conversationId: merged.id,
+              });
+              return { ...merged, unreadCount: 1 };
+            }
           }
 
           return merged;
         });
         return areConversationsEqual(prev, next) ? prev : next;
       });
+      hasSyncedConversationsRef.current = true;
       console.log("[useChatSync] syncConversations:ok", {
         remote: remoteConversations.length,
       });

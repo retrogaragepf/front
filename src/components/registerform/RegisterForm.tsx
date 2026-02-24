@@ -239,7 +239,7 @@ const RegisterForm = () => {
                   value={nameField.value}
                   onChange={nameField.handleChange}
                   onBlur={nameField.handleBlur}
-                  className={`w-full rounded-xl border-0 px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+                  className={`w-full rounded-xl border-0 px-4 py-3.5 text-red-800 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     nameField.error && nameField.touched
                       ? "bg-red-50 focus:ring-red-300"
                       : "bg-gray-100 focus:ring-gray-300"

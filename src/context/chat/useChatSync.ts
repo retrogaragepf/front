@@ -201,6 +201,7 @@ export function useChatSync({
             const remoteTs = toTimestamp(merged.timestamp);
             const prevTs = toTimestamp(prevConversation?.timestamp || "");
             const readAt = localReadMarkersRef.current[merged.id] ?? 0;
+            const prevUnread = prevConversation?.unreadCount ?? 0;
             const newerThanRead = readAt > 0 && remoteTs > readAt;
             const newerThanPrev = prevConversation ? remoteTs > prevTs : false;
             const messageChanged =
@@ -229,6 +230,17 @@ export function useChatSync({
                 conversationId: merged.id,
               });
               return { ...merged, unreadCount: 1 };
+            }
+
+            // Si ya teníamos no leído local y backend devuelve 0, lo conservamos
+            // hasta que exista evidencia de lectura local.
+            if (prevUnread > 0) {
+              if (readAt <= 0) {
+                return { ...merged, unreadCount: prevUnread };
+              }
+              if (remoteTs <= 0 || remoteTs > readAt) {
+                return { ...merged, unreadCount: prevUnread };
+              }
             }
           }
 

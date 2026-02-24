@@ -90,6 +90,15 @@ function removeHiddenConversationId(id: string) {
   logChatActions("hiddenConversation:removed", { id });
 }
 
+function addHiddenConversationId(id: string) {
+  if (!id) return;
+  const hiddenConversationIds = readHiddenConversationIds();
+  if (hiddenConversationIds.has(id)) return;
+  hiddenConversationIds.add(id);
+  writeHiddenConversationIds(hiddenConversationIds);
+  logChatActions("hiddenConversation:added", { id });
+}
+
 function isSupportConversation(conversation: ChatConversation): boolean {
   const sellerName = (conversation.sellerName || "").toLowerCase();
   const sellerNested = (conversation.seller?.name || "").toLowerCase();
@@ -397,6 +406,7 @@ export function useChatActions({
           // En backend actual, DELETE de conversación está restringido a admin.
           // Para usuario normal mantenemos borrado local (no persistente).
           if (!chatService.isAdminUser()) {
+            addHiddenConversationId(conversationId);
             showToast.success("Conversación eliminada de tu vista.", {
               duration: 2200,
               progress: true,
@@ -413,6 +423,7 @@ export function useChatActions({
           const status = Number((error as { status?: number })?.status ?? 0);
           if ([401, 403, 404, 405].includes(status)) {
             // Si el backend no permite borrar o no encuentra, dejamos oculto local.
+            addHiddenConversationId(conversationId);
             showToast.info("Conversación ocultada localmente.", {
               duration: 2200,
               progress: true,

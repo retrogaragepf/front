@@ -6,6 +6,7 @@ import {
   adminChatService,
   type AdminChatConversation,
 } from "@/src/services/adminChat.services";
+import { useAuth } from "@/src/context/AuthContext";
 import {
   getAllUsers,
   type AdminUIUser,
@@ -181,6 +182,7 @@ function mergeChatsWithUsers(
 }
 
 export default function AdminChatsSection(): ReactElement {
+  const { isAuth, isLoadingUser } = useAuth();
   const HIDDEN_CHATS_STORAGE_KEY = "admin_hidden_chats";
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<string>>(
@@ -200,6 +202,7 @@ export default function AdminChatsSection(): ReactElement {
   const readMarkersRef = useRef(readMarkers);
 
   const loadData = useCallback(async (options?: { silent?: boolean }) => {
+    if (isLoadingUser || !isAuth) return;
     const silent = Boolean(options?.silent);
     try {
       if (!silent) setLoadingList(true);
@@ -253,6 +256,9 @@ export default function AdminChatsSection(): ReactElement {
         chats: merged.length,
       });
     } catch (e: unknown) {
+      if (e instanceof Error && e.message === "NO_AUTH") {
+        return;
+      }
       console.error("[AdminChatsSection] loadData:error", e);
       const message =
         e instanceof Error
@@ -262,7 +268,7 @@ export default function AdminChatsSection(): ReactElement {
     } finally {
       if (!silent) setLoadingList(false);
     }
-  }, []);
+  }, [isAuth, isLoadingUser]);
 
   useEffect(() => {
     hiddenConversationIdsRef.current = hiddenConversationIds;
@@ -281,15 +287,17 @@ export default function AdminChatsSection(): ReactElement {
   }, [hiddenConversationIds]);
 
   useEffect(() => {
+    if (isLoadingUser || !isAuth) return;
     void loadData({ silent: false });
-  }, [loadData]);
+  }, [isAuth, isLoadingUser, loadData]);
 
   useEffect(() => {
+    if (isLoadingUser || !isAuth) return;
     const intervalId = window.setInterval(() => {
       void loadData({ silent: true });
     }, 2_000);
     return () => window.clearInterval(intervalId);
-  }, [loadData]);
+  }, [isAuth, isLoadingUser, loadData]);
 
   const handleDeleteConversation = async (
     conversationId: string,

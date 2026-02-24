@@ -175,9 +175,31 @@ export function useChatSync({
 
       setConversations((prev) => {
         const prevById = new Map(prev.map((conversation) => [conversation.id, conversation]));
-        const next = baseConversations.map((conversation) =>
-          mergeConversationData(conversation, prevById.get(conversation.id)),
-        );
+        const next = baseConversations.map((conversation) => {
+          const prevConversation = prevById.get(conversation.id);
+          const merged = mergeConversationData(conversation, prevConversation);
+
+          const isActiveOpen =
+            isChatOpen && activeConversationId === merged.id;
+          if (isActiveOpen) {
+            return merged.unreadCount === 0 ? merged : { ...merged, unreadCount: 0 };
+          }
+
+          // Fallback: algunos backends no devuelven unreadCount correcto.
+          if (merged.unreadCount <= 0) {
+            const remoteTs = toTimestamp(merged.timestamp);
+            const prevTs = toTimestamp(prevConversation?.timestamp || "");
+            const readAt = localReadMarkersRef.current[merged.id] ?? 0;
+            const newerThanRead = readAt > 0 && remoteTs > readAt;
+            const newerThanPrev = prevConversation ? remoteTs > prevTs : false;
+
+            if ((newerThanRead || newerThanPrev) && merged.lastMessage) {
+              return { ...merged, unreadCount: 1 };
+            }
+          }
+
+          return merged;
+        });
         return areConversationsEqual(prev, next) ? prev : next;
       });
 
@@ -196,7 +218,9 @@ export function useChatSync({
     }
   }, [
     applyLocalReadState,
+    activeConversationId,
     canUseChat,
+    isChatOpen,
     setActiveConversationId,
     setConversations,
   ]);

@@ -39,6 +39,8 @@ export type OrderDTO = {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
+type AnyRecord = Record<string, unknown>;
+
 function assertApiBaseUrl(): string {
   if (!API_BASE_URL) {
     throw new Error(
@@ -66,6 +68,101 @@ function getAuthToken(): string | null {
   return null;
 }
 
+function isRecord(value: unknown): value is AnyRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function asRecord(value: unknown): AnyRecord {
+  return isRecord(value) ? value : {};
+}
+
+function getString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function getNumber(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeItem(input: unknown, index: number): OrderItemDTO {
+  const row = asRecord(input);
+  const product = asRecord(row.product);
+
+  const quantity = Math.max(1, getNumber(row.quantity) || 1);
+  const unitPrice = getNumber(row.unitPrice ?? row.price);
+  const subtotal = getNumber(row.subtotal || unitPrice * quantity);
+  const id =
+    getString(row.id) ||
+    getString(row._id) ||
+    getString(product.id) ||
+    `${index}`;
+
+  return {
+    id,
+    title:
+      getString(row.title) || getString(product.title) || getString(product.name) || "Producto",
+    unitPrice,
+    quantity,
+    subtotal,
+    product: getString(product.id) || getString(product._id)
+      ? {
+          id: getString(product.id) || getString(product._id),
+          title: getString(product.title) || getString(product.name),
+          imgUrl: getString(product.imgUrl) || getString(product.image),
+        }
+      : undefined,
+  };
+}
+
+function normalizeOrder(input: unknown): OrderDTO {
+  const row = asRecord(input);
+  const rawItems = Array.isArray(row.items) ? row.items : [];
+
+  const id =
+    getString(row.id) ||
+    getString(row._id) ||
+    getString(row.orderId) ||
+    getString(row.uuid);
+  const createdAt =
+    getString(row.createdAt) ||
+    getString(row.date) ||
+    getString(row.created_at) ||
+    new Date().toISOString();
+  const status = getString(row.status) || "pending";
+
+  return {
+    id,
+    total: getNumber(row.total),
+    status,
+    trackingCode:
+      getString(row.trackingCode) || getString(row.trackingNumber) || null,
+    stripeSessionId:
+      getString(row.stripeSessionId) || getString(row.sessionId) || null,
+    stripePaymentIntentId:
+      getString(row.stripePaymentIntentId) || getString(row.paymentIntentId) || null,
+    createdAt,
+    updatedAt: getString(row.updatedAt) || undefined,
+    items: rawItems.map(normalizeItem),
+  };
+}
+
+function getOrdersArray(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  if (!isRecord(data)) return [];
+  if (Array.isArray(data.orders)) return data.orders;
+  if (Array.isArray(data.data)) return data.data;
+  if (Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+function extractErrorMessage(data: unknown): string {
+  const row = asRecord(data);
+  const message = row.message;
+  if (typeof message === "string" && message.trim()) return message;
+  return "";
+}
+
 export async function getMyOrders(
   tokenFromCaller?: string,
 ): Promise<OrderDTO[]> {
@@ -89,12 +186,14 @@ export async function getMyOrders(
 
   if (!res.ok) {
     const msg =
-      (data as any)?.message ||
+      extractErrorMessage(data) ||
       `No se pudieron cargar tus órdenes (HTTP ${res.status}).`;
     throw new Error(msg);
   }
 
-  return Array.isArray(data) ? (data as OrderDTO[]) : [];
+  return getOrdersArray(data)
+    .map(normalizeOrder)
+    .filter((order) => Boolean(order.id));
 }
 
 export async function getOrderById(
@@ -120,10 +219,10 @@ export async function getOrderById(
 
   if (!res.ok) {
     const msg =
-      (data as any)?.message ||
+      extractErrorMessage(data) ||
       `No se pudo cargar la orden (HTTP ${res.status}).`;
     throw new Error(msg);
   }
 
-  return data as OrderDTO;
+  return normalizeOrder(data);
 }

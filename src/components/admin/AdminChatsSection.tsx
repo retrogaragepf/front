@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactElement } from "react";
 import {
   adminChatService,
   type AdminChatConversation,
@@ -35,6 +36,11 @@ function formatTimestamp(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function toTimestamp(value: string): number {
+  const parsed = Date.parse(value || "");
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 type UsersIndex = {
@@ -154,7 +160,7 @@ function mergeChatsWithUsers(
     });
 }
 
-export default function AdminChatsSection() {
+export default function AdminChatsSection(): ReactElement {
   const HIDDEN_CHATS_STORAGE_KEY = "admin_hidden_chats";
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<string>>(
@@ -190,16 +196,33 @@ export default function AdminChatsSection() {
         nextUsersIndex,
         hiddenConversationIdsRef.current,
       );
-      const normalized = merged.map((chat) => {
-        const readAt = readMarkersRef.current[chat.id];
-        if (!readAt) return chat;
-        const timestamp = Date.parse(chat.timestamp || "");
-        if (chat.unreadCount === 0 || (Number.isFinite(timestamp) && timestamp > readAt)) {
+      setChats((prev) => {
+        const prevById = new Map(prev.map((chat) => [chat.id, chat]));
+        const normalized = merged.map((chat) => {
+          const prevChat = prevById.get(chat.id);
+          const readAt = readMarkersRef.current[chat.id] ?? 0;
+          const ts = toTimestamp(chat.timestamp);
+          const prevTs = toTimestamp(prevChat?.timestamp || "");
+
+          // Si el backend sí manda unreadCount, respetamos ese valor.
+          if (chat.unreadCount > 0) return chat;
+
+          // Si no hay unread en backend, inferimos "mensaje recibido" cuando hay actividad nueva.
+          const newerThanRead = readAt > 0 && ts > readAt;
+          const newerThanPrev = prevChat ? ts > prevTs : false;
+          if ((newerThanRead || newerThanPrev) && chat.lastMessage) {
+            return { ...chat, unreadCount: 1 };
+          }
+
+          // Si ya estaba marcado como leído localmente y no hay novedad, lo mantenemos en 0.
+          if (readAt > 0 && ts <= readAt) {
+            return { ...chat, unreadCount: 0 };
+          }
+
           return chat;
-        }
-        return { ...chat, unreadCount: 0 };
+        });
+        return areChatRowsEqual(prev, normalized) ? prev : normalized;
       });
-      setChats((prev) => (areChatRowsEqual(prev, normalized) ? prev : normalized));
     } catch (e: unknown) {
       console.error("Admin chats load error:", e);
       const message =

@@ -80,6 +80,11 @@ export const ChatProvider = ({
 }): ReactElement => {
   const { isAuth, isLoadingUser } = useAuth();
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const isChatOpenRef = useRef(false);
+
+  useEffect(() => {
+    isChatOpenRef.current = isChatOpen;
+  }, [isChatOpen]);
   const [isAdminDirectChat, setIsAdminDirectChat] = useState(false);
   const [adminChatWithName, setAdminChatWithName] = useState("");
   const [currentParticipant, setCurrentParticipant] =
@@ -123,7 +128,7 @@ export const ChatProvider = ({
 
   useChatSocket({
     canUseChat,
-    isChatOpen,
+    isChatOpenRef,
     socketRef,
     activeConversationRef,
     conversationsRef,

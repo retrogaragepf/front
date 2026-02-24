@@ -6,7 +6,9 @@ import { useChat } from "@/src/context/ChatContext";
 
 const Sidebar = (): ReactElement => {
   const router = useRouter();
-  const { openChat } = useChat();
+  const { openChat, conversations } = useChat();
+  const pendingChats = conversations.filter((conversation) => conversation.unreadCount > 0).length;
+  const hasPendingChats = pendingChats > 0;
 
   const handleOpenChat = () => {
     openChat({ asParticipant: "customer" });
@@ -59,11 +61,18 @@ const Sidebar = (): ReactElement => {
 
         <button
           onClick={handleOpenChat}
-          className="
-            w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left
-          "
+          className={`w-full px-4 py-3 rounded-lg border-2 transition text-left ${
+            hasPendingChats
+              ? "border-emerald-700 bg-emerald-100 text-emerald-900"
+              : "border-transparent hover:border-slate-900 hover:bg-amber-100"
+          }`}
         >
-          Chat con usuarios
+          <span className="inline-flex items-center gap-2">
+            Chat con usuarios
+            {hasPendingChats && (
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-700" />
+            )}
+          </span>
         </button>
       </nav>
 

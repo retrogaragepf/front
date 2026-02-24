@@ -8,12 +8,12 @@ import Card from "@/src/components/Card";
 import { getAllProducts } from "@/src/services/products.services";
 
 const CATEGORY_SLUG_TO_ID: Record<string, string> = {
-  "ropa-accesorios": "11c146c3-a99c-48d7-b04e-3068abcc7295",
-  "tecnologia-retro": "5a969f68-e239-485d-b281-d33692317e46",
-  "decoracion-hogar": "c4eee638-343b-42ea-9568-cd2f968e9bd4",
-  coleccionables: "d55fe09b-bb15-49a3-aeb9-99378c82fa38",
-  "autos-garaje": "cb35a1d8-aff0-4b39-a8de-0c2de3a4214b",
-  "muebles-antiguos": "d2b33220-7370-4102-86d3-d6b0a5a64828",
+  "ropa-accesorios": "d73a8f0d-703f-4890-bba1-cffecd40271c",
+  "tecnologia-retro": "130961b9-22f3-4fdf-93e2-9eed4a0d4dd5",
+  "decoracion-hogar": "6d281dc5-d83e-4c75-85c8-1fc7f755f450",
+  coleccionables: "3d4da119-a95c-41ce-b45c-e5f5fbafc7d8",
+  "autos-garaje": "1d23d8f1-8e80-4e18-92e3-b93dc77ceb73",
+  "muebles-antiguos": "297be8b6-431a-4938-880a-22f413ebe76d",
 };
 
 export default function CategoryProductsPage() {

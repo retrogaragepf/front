@@ -649,7 +649,9 @@ export const adminChatService = {
     const encodedId = encodeURIComponent(conversationId);
     const configured = getConfiguredPaths("NEXT_PUBLIC_ADMIN_CHAT_BLOCK_ENDPOINTS")
       .map((path) => path.replace(":id", encodedId));
-    const defaults = [`/chat/${encodedId}/block`];
+    const defaults = blocked
+      ? [`/chat/${encodedId}/block`]
+      : [`/chat/${encodedId}/unblock`, `/chat/${encodedId}/block`];
 
     // Swagger define PATCH /chat/{id}/block; soportamos body flexible.
     const bodyVariants: Record<string, unknown>[] = [

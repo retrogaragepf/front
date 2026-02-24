@@ -198,6 +198,7 @@ export const ChatProvider = ({
   }, [canUseChat, isLoadingUser, resetChatState]);
 
   useChatUnreadNotifications({
+    enabled: false,
     canUseChat,
     unreadTotal,
     unreadSignal,

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
 import { signOut } from "next-auth/react";
 import { adminChatService } from "@/src/services/adminChat.services";
+import { chatService } from "@/src/services/chat.services";
 import type { UserSession } from "@/src/context/AuthContext";
 
 const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
@@ -118,8 +119,12 @@ const Navbar = (): ReactElement => {
   const [adminDetail, setAdminDetail] = useState("");
   const [isLaunchingAdminChat, setIsLaunchingAdminChat] = useState(false);
   const [adminUnreadConversations, setAdminUnreadConversations] = useState(0);
+  const [userUnreadConversations, setUserUnreadConversations] = useState(0);
+  const [firstPendingUserConversationId, setFirstPendingUserConversationId] = useState<string | null>(null);
   const adminUnreadReadyRef = useRef(false);
   const previousAdminSignalRef = useRef(0);
+  const userUnreadReadyRef = useRef(false);
+  const previousUserSignalRef = useRef(0);
 
   const safeName =
     getStringField(userRecord, "name") ||
@@ -167,7 +172,7 @@ const Navbar = (): ReactElement => {
     return decodeIsAdminFromJwt(token);
   }, [session, userRecord]);
 
-  const unreadConversationsUser = useMemo(
+  const unreadConversationsUserFromContext = useMemo(
     () => {
       const readMarkers = loadUserReadMarkers();
       return conversations.filter((conversation) =>
@@ -179,7 +184,7 @@ const Navbar = (): ReactElement => {
 
   const navbarUnreadChats = isAdminUser
     ? adminUnreadConversations
-    : unreadConversationsUser;
+    : Math.max(userUnreadConversations, unreadConversationsUserFromContext);
   const hasNavbarUnread = navbarUnreadChats > 0;
 
   useEffect(() => {
@@ -226,6 +231,66 @@ const Navbar = (): ReactElement => {
     void loadAdminUnread();
     const intervalId = window.setInterval(() => {
       void loadAdminUnread();
+    }, 2_000);
+
+    return () => {
+      canceled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [isAdminUser, isLogged]);
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadUserUnread = async () => {
+      if (!isLogged || isAdminUser) {
+        if (!canceled) {
+          setUserUnreadConversations(0);
+          setFirstPendingUserConversationId(null);
+        }
+        return;
+      }
+
+      try {
+        const chats = await chatService.getConversations();
+        if (canceled) return;
+
+        const readMarkers = loadUserReadMarkers();
+        const pendingChats = chats.filter((chat) => hasPendingUserChat(chat, readMarkers));
+        setUserUnreadConversations(pendingChats.length);
+        setFirstPendingUserConversationId(pendingChats[0]?.id ?? null);
+
+        const currentSignal = pendingChats.reduce((maxTs, chat) => {
+          const ts = Date.parse(chat.timestamp || "");
+          if (!Number.isFinite(ts)) return maxTs;
+          return ts > maxTs ? ts : maxTs;
+        }, 0);
+
+        if (!userUnreadReadyRef.current) {
+          userUnreadReadyRef.current = true;
+          previousUserSignalRef.current = currentSignal;
+        } else if (currentSignal > previousUserSignalRef.current) {
+          previousUserSignalRef.current = currentSignal;
+          showToast.info("Mensaje nuevo recibido", {
+            duration: 2200,
+            progress: true,
+            position: "top-right",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          });
+        }
+      } catch {
+        if (!canceled) {
+          setUserUnreadConversations(0);
+          setFirstPendingUserConversationId(null);
+        }
+      }
+    };
+
+    void loadUserUnread();
+    const intervalId = window.setInterval(() => {
+      void loadUserUnread();
     }, 2_000);
 
     return () => {
@@ -340,6 +405,10 @@ const Navbar = (): ReactElement => {
     const firstUnreadConversation = conversations.find(
       (conversation) => conversation.unreadCount > 0,
     );
+    if (firstPendingUserConversationId) {
+      openChat({ conversationId: firstPendingUserConversationId });
+      return;
+    }
     if (firstUnreadConversation?.id) {
       openChat({ conversationId: firstUnreadConversation.id });
       return;

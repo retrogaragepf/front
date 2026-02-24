@@ -34,12 +34,11 @@ export default function AdminDashboard(): ReactElement {
 
   useEffect(() => {
     if (!sectionParam) return;
-    if (section === sectionParam) return;
     const rafId = window.requestAnimationFrame(() => {
       setSection(sectionParam);
     });
     return () => window.cancelAnimationFrame(rafId);
-  }, [section, sectionParam]);
+  }, [sectionParam]);
 
 
   return (

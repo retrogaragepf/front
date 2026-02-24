@@ -32,7 +32,7 @@ export default function AdminDirectChatModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const currentUserId = useMemo(() => chatService.getCurrentUserId(), []);
-  const POLL_INTERVAL_MS = 15_000;
+  const POLL_INTERVAL_MS = 2_000;
   const [socket, setSocket] = useState<SocketLike | null>(null);
 
   const areMessagesEqualById = (prev: ChatMessage[], next: ChatMessage[]) => {
@@ -89,6 +89,7 @@ export default function AdminDirectChatModal({
       });
 
       mountedSocket.on("connect", () => {
+        console.log("[AdminDirectChatModal] socket:connect", { conversationId });
         mountedSocket?.emit("joinConversation", conversationId);
       });
 
@@ -97,6 +98,11 @@ export default function AdminDirectChatModal({
         if (!isObjectRecord(payload)) return;
         const incoming = chatService.normalizeSocketMessage(payload, conversationId);
         if (!incoming) return;
+        console.log("[AdminDirectChatModal] socket:newMessage", {
+          conversationId: incoming.conversationId,
+          messageId: incoming.id,
+          senderId: incoming.senderId,
+        });
         setMessages((prev) => appendMessageSafe(prev, incoming));
       });
 
@@ -114,6 +120,7 @@ export default function AdminDirectChatModal({
         )) as { io?: (url: string, options?: Record<string, unknown>) => SocketLike };
         mountSocket(socketClientModule?.io);
       } catch {
+        console.warn("[AdminDirectChatModal] socket:unavailable, fallback polling");
         // Si no hay socket client, seguimos con polling/REST.
       }
     };
@@ -139,20 +146,16 @@ export default function AdminDirectChatModal({
     if (!conversationId) return;
     try {
       setError(null);
-
-      if (socket?.connected) {
-        socket.emit("sendMessage", { conversationId, content });
-        setTimeout(() => {
-          void loadMessages({ silent: true });
-        }, 900);
-        return;
-      }
-
+      console.log("[AdminDirectChatModal] send:rest", {
+        conversationId,
+        socketConnected: Boolean(socket?.connected),
+      });
       const sent = await chatService.sendMessage({ conversationId, content });
       setMessages((prev) => appendMessageSafe(prev, sent));
     } catch (e: unknown) {
       const message =
         e instanceof Error ? e.message : "No se pudo enviar el mensaje.";
+      console.error("[AdminDirectChatModal] send:error", { conversationId, error: e });
       setError(message);
     }
   };

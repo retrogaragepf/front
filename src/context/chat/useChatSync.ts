@@ -26,8 +26,8 @@ const CHAT_READ_MARKERS_KEY = "chat_read_markers";
 const CHAT_HIDDEN_CONVERSATIONS_KEY = "chat_hidden_conversations";
 const CHAT_READ_MARKERS_TTL_MS = 1000 * 60 * 60 * 24;
 const CHAT_READ_MARKERS_MAX_ENTRIES = 200;
-const CHAT_FALLBACK_SYNC_INTERVAL_MS = 30_000;
-const CHAT_MESSAGES_FALLBACK_SYNC_INTERVAL_MS = 12_000;
+const CHAT_FALLBACK_SYNC_INTERVAL_MS = 2_000;
+const CHAT_MESSAGES_FALLBACK_SYNC_INTERVAL_MS = 2_000;
 
 type ReadMarkers = Record<string, number>;
 
@@ -162,6 +162,10 @@ export function useChatSync({
   const syncConversations = useCallback(async () => {
     if (!canUseChat) return;
     try {
+      console.log("[useChatSync] syncConversations:start", {
+        activeConversationId,
+        isChatOpen,
+      });
       const remoteConversations = await chatService.getConversations();
       const hiddenConversationIds = loadHiddenConversationIds();
       const baseConversations = dedupeConversations(remoteConversations)
@@ -197,7 +201,14 @@ export function useChatSync({
               (prevConversation.lastMessage || "").trim() !==
                 (merged.lastMessage || "").trim();
 
-            if ((newerThanRead || newerThanPrev || messageChanged) && merged.lastMessage) {
+            if (newerThanRead || newerThanPrev || messageChanged) {
+              console.log("[useChatSync] unread inferred", {
+                conversationId: merged.id,
+                newerThanRead,
+                newerThanPrev,
+                messageChanged,
+                prevUnread: prevConversation?.unreadCount ?? 0,
+              });
               return { ...merged, unreadCount: 1 };
             }
           }
@@ -205,6 +216,9 @@ export function useChatSync({
           return merged;
         });
         return areConversationsEqual(prev, next) ? prev : next;
+      });
+      console.log("[useChatSync] syncConversations:ok", {
+        remote: remoteConversations.length,
       });
 
       setActiveConversationId((prev) => {
@@ -218,7 +232,7 @@ export function useChatSync({
       });
     } catch (error) {
       if ((error as Error).message === "NO_AUTH") return;
-      console.error("No se pudieron sincronizar conversaciones:", error);
+      console.error("[useChatSync] syncConversations:error", error);
     }
   }, [
     applyLocalReadState,
@@ -233,6 +247,7 @@ export function useChatSync({
     async (conversationId: string) => {
       if (!canUseChat || !conversationId) return;
       try {
+        console.log("[useChatSync] syncMessages:start", { conversationId });
         const remoteMessages = await chatService.getMessages(conversationId);
         setMessagesByConversation((prev) => {
           const previousMessages = prev[conversationId] ?? [];
@@ -292,7 +307,7 @@ export function useChatSync({
         }
       } catch (error) {
         if ((error as Error).message === "NO_AUTH") return;
-        console.error("No se pudieron sincronizar mensajes:", error);
+        console.error("[useChatSync] syncMessages:error", { conversationId, error });
       }
     },
     [canUseChat, currentUserId, setConversations, setMessagesByConversation],

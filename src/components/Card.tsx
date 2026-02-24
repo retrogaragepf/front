@@ -25,7 +25,7 @@ function notify(
 
   const showToastMaybe = mod?.showToast ?? mod?.default?.showToast;
 
-  // Caso A: showToast es un OBJETO con métodos (tu caso en Card)
+  // Caso A: showToast es un OBJETO con métodos
   if (showToastMaybe && typeof showToastMaybe === "object") {
     const fn = showToastMaybe?.[type];
     if (typeof fn === "function") return fn(msg, options);
@@ -33,7 +33,7 @@ function notify(
 
   // Caso B: showToast es una FUNCIÓN (msg, type)
   if (typeof showToastMaybe === "function") {
-    const mappedType = type === "info" ? "success" : type; // por si tu función no tiene "info"
+    const mappedType = type === "info" ? "success" : type;
     return showToastMaybe(msg, mappedType);
   }
 
@@ -51,7 +51,7 @@ function Card({ product, hideDescription = true }: CardProps) {
       (product as any)._id ??
       (product as any).productId ??
       "",
-  );
+  ).trim();
 
   // ✅ Normaliza imagen (imgUrl vs images[0])
   const imageUrl =
@@ -66,8 +66,29 @@ function Card({ product, hideDescription = true }: CardProps) {
     : String((product as any).price ?? "—");
 
   const isLogged = !!(dataUser as any)?.token;
+
+  // ✅ user actual (soporta dataUser.user.id o dataUser.id)
+  const currentUserId = String(
+    (dataUser as any)?.user?.id ?? (dataUser as any)?.id ?? "",
+  ).trim();
+
+  // ✅ seller del producto (soporta varias shapes de back)
+  const productOwnerId = String(
+    (product as any)?.user?.id ??
+      (product as any)?.seller?.id ??
+      (product as any)?.userId ??
+      (product as any)?.sellerId ??
+      (product as any)?.ownerId ??
+      "",
+  ).trim();
+
+  // ✅ Regla: no comprar publicación propia
+  const isOwnProduct =
+    !!currentUserId && !!productOwnerId && currentUserId === productOwnerId;
+
   const alreadyInCart = cartItems.some(
-    (it) => String((it as any).id) === safeId,
+    (it) =>
+      String((it as any).id ?? (it as any).productId ?? "").trim() === safeId,
   );
 
   // ✅ STOCK (solo UI + guard)
@@ -85,6 +106,16 @@ function Card({ product, hideDescription = true }: CardProps) {
 
   const handleAddToCart = () => {
     if (!isLogged) return;
+
+    // ✅ Guard: no permitir comprar lo propio
+    if (isOwnProduct) {
+      notify(
+        "warning",
+        "No puedes comprar tus propias publicaciones.",
+        toastOpts,
+      );
+      return;
+    }
 
     // ✅ Guard: no permitir agregar si está agotado
     if (isOutOfStock) {
@@ -119,7 +150,8 @@ function Card({ product, hideDescription = true }: CardProps) {
     notify("success", "Agregado al carrito", toastOpts);
   };
 
-  const addDisabled = alreadyInCart || isOutOfStock;
+  // ✅ Deshabilitar también si es producto propio
+  const addDisabled = alreadyInCart || isOutOfStock || isOwnProduct;
 
   return (
     <div className="group w-full flex flex-col">
@@ -138,7 +170,8 @@ function Card({ product, hideDescription = true }: CardProps) {
             Sin imagen
           </div>
         )}
-        ✅ SOLD OUT badge opcional dentro del card
+
+        {/* ✅ SOLD OUT badge opcional dentro del card */}
         {isOutOfStock && (
           <div className="absolute top-3 left-3 z-10">
             <div className="px-3 py-1.5 text-sm shadow-md bg-rose-100 text-rose-900 font-extrabold border-2 border-zinc-900 rounded-lg">
@@ -146,6 +179,16 @@ function Card({ product, hideDescription = true }: CardProps) {
             </div>
           </div>
         )}
+
+        {/* ✅ Badge de publicación propia */}
+        {!isOutOfStock && isOwnProduct && (
+          <div className="absolute top-3 left-3 z-10">
+            <div className="px-3 py-1.5 text-xs shadow-md bg-blue-100 text-blue-900 font-extrabold border-2 border-zinc-900 rounded-lg">
+              TU PUBLICACIÓN
+            </div>
+          </div>
+        )}
+
         <div className="absolute top-3 right-3 z-10">
           <div className="px-3 py-1.5 text-sm shadow-md bg-amber-800/95 text-amber-50 font-extrabold border border-amber-900/30 rounded-lg">
             $ {priceFormatted}
@@ -177,8 +220,8 @@ function Card({ product, hideDescription = true }: CardProps) {
         >
           <button
             className="w-full border-2 border-slate-900 bg-amber-400 px-4 py-2 text-sm
-          font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
-          hover:bg-amber-300 transition"
+            font-semibold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+            hover:bg-amber-300 transition"
           >
             Ver
           </button>
@@ -188,7 +231,7 @@ function Card({ product, hideDescription = true }: CardProps) {
           <button
             onClick={handleAddToCart}
             disabled={addDisabled}
-            className={`text-black border-2 border-slate-900 px-4 py-2 text-sm font-semibold
+            className={`border-2 border-slate-900 px-4 py-2 text-sm font-semibold
               shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] transition
               ${
                 addDisabled
@@ -196,18 +239,22 @@ function Card({ product, hideDescription = true }: CardProps) {
                   : "bg-emerald-800 text-white hover:bg-amber-900"
               }`}
             title={
-              isOutOfStock
-                ? "Producto agotado"
-                : alreadyInCart
-                  ? "Ya está en tu carrito"
-                  : "Agregar al carrito"
+              isOwnProduct
+                ? "No puedes comprar tu propia publicación"
+                : isOutOfStock
+                  ? "Producto agotado"
+                  : alreadyInCart
+                    ? "Ya está en tu carrito"
+                    : "Agregar al carrito"
             }
           >
-            {alreadyInCart
-              ? "Ya en el 🛒"
-              : isOutOfStock
-                ? "Agotado"
-                : "Agregar al 🛒"}
+            {isOwnProduct
+              ? "Tu publicación"
+              : alreadyInCart
+                ? "Ya en el 🛒"
+                : isOutOfStock
+                  ? "Agotado"
+                  : "Agregar al 🛒"}
           </button>
         )}
       </div>

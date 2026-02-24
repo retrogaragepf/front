@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { ReactElement } from "react";
 import { useChat } from "@/src/context/ChatContext";
+import { showToast } from "nextjs-toast-notify";
 
 const Sidebar = (): ReactElement => {
   const router = useRouter();
@@ -11,6 +12,17 @@ const Sidebar = (): ReactElement => {
   const hasPendingChats = pendingChats > 0;
 
   const handleOpenChat = () => {
+    if (!hasPendingChats && conversations.length === 0) {
+      showToast.info("No hay chats nuevos.", {
+        duration: 1800,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+      return;
+    }
     openChat({ asParticipant: "customer" });
   };
 

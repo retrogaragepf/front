@@ -2,6 +2,7 @@ import { MutableRefObject, useEffect } from "react";
 import { showToast } from "nextjs-toast-notify";
 
 type Params = {
+  enabled?: boolean;
   canUseChat: boolean;
   unreadTotal: number;
   unreadSignal: number;
@@ -12,6 +13,7 @@ type Params = {
 };
 
 export function useChatUnreadNotifications({
+  enabled = true,
   canUseChat,
   unreadTotal,
   unreadSignal,
@@ -25,6 +27,7 @@ export function useChatUnreadNotifications({
   };
 
   useEffect(() => {
+    if (!enabled) return;
     if (!unreadReadyRef.current) {
       unreadReadyRef.current = true;
       previousUnreadTotalRef.current = unreadTotal;
@@ -65,6 +68,7 @@ export function useChatUnreadNotifications({
     previousUnreadTotalRef.current = unreadTotal;
     previousUnreadSignalRef.current = unreadSignal;
   }, [
+    enabled,
     canUseChat,
     unreadSignal,
     unreadTotal,

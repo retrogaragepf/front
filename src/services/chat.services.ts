@@ -164,12 +164,26 @@ function normalizeConversation(raw: ApiRecord): ChatConversation {
     .filter(Boolean);
 
   const productLabel = getProductLabel(rowRecord) || getProductLabel(raw);
+  const supportHint = `${productLabel} ${getString(rowRecord.type)} ${getString(raw.type)}`
+    .toLowerCase();
+  const isSupportConversation =
+    supportHint.includes("support") ||
+    supportHint.includes("soporte") ||
+    supportHint.includes("ayuda") ||
+    supportHint.includes("admin");
+  const resolvedOtherName =
+    isSupportConversation &&
+    (!otherName ||
+      otherName.toLowerCase() === ownName.toLowerCase() ||
+      otherName.toLowerCase() === "usuario")
+      ? "Administrador"
+      : otherName || "Usuario";
 
   return {
     id: String(rowRecord.id ?? rowRecord._id ?? ""),
-    sellerName: String(otherName || "Usuario"),
+    sellerName: String(resolvedOtherName),
     sellerId: otherParticipant ? getParticipantId(otherParticipant) || undefined : undefined,
-    seller: { name: String(otherName || "Usuario") },
+    seller: { name: String(resolvedOtherName) },
     customer: String(ownName),
     customerId: ownParticipant ? getParticipantId(ownParticipant) || undefined : currentUserId ?? undefined,
     participantIds,

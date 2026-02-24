@@ -81,16 +81,16 @@ function Footer() {
                 href="/categories/coleccionables"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
-                  Coleccionables
+                Coleccionables
               </Link>
             </li>
-            
+
             <li>
               <Link
                 href="/categories/autos-garaje"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
-               Autos y Garaje
+                Autos y Garaje
               </Link>
             </li>
             <li>
@@ -148,7 +148,7 @@ function Footer() {
         {/* Registro */}
         <div className="w-full max-w-[220px] mx-auto text-center">
           <h3 className="!text-base font-extrabold tracking-widest uppercase text-amber-900 mb-4">
-            Registro
+            Acceso de Usuario
           </h3>
           <ul className="space-y-2.5 !text-xs text-zinc-700">
             <li>
@@ -164,7 +164,7 @@ function Footer() {
                 href="/login"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
-                Acceso
+                Ingreso
               </Link>
             </li>
           </ul>

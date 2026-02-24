@@ -12,14 +12,30 @@ import { signOut } from "next-auth/react";
 import { adminChatService } from "@/src/services/adminChat.services";
 import { chatService } from "@/src/services/chat.services";
 import type { UserSession } from "@/src/context/AuthContext";
+import type { SocketLike } from "@/src/context/chat/useChatSocket";
 
 const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
-const USER_READ_CHATS_STORAGE_KEY = "chat_read_markers";
+const CHAT_ALERT_DEBUG =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_CHAT_ALERT_DEBUG === "true";
+
+function logChatAlert(scope: string, payload?: unknown) {
+  if (!CHAT_ALERT_DEBUG) return;
+  if (typeof payload === "undefined") {
+    console.log(`[ChatAlert][Navbar] ${scope}`);
+    return;
+  }
+  console.log(`[ChatAlert][Navbar] ${scope}`, payload);
+}
 
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function getStringField(record: Record<string, unknown>, key: string): string {
@@ -49,38 +65,6 @@ function loadAdminReadMarkers(): Record<string, number> {
   } catch {
     return {};
   }
-}
-
-function loadUserReadMarkers(): Record<string, number> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = sessionStorage.getItem(USER_READ_CHATS_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return {};
-    return Object.entries(parsed).reduce<Record<string, number>>(
-      (acc, [id, value]) => {
-        const at = typeof value === "number" ? value : Number(value);
-        if (id && Number.isFinite(at) && at > 0) acc[id] = at;
-        return acc;
-      },
-      {},
-    );
-  } catch {
-    return {};
-  }
-}
-
-function hasPendingUserChat(
-  conversation: { id: string; unreadCount: number; timestamp: string },
-  readMarkers: Record<string, number>,
-): boolean {
-  if (conversation.unreadCount > 0) return true;
-  const readAt = readMarkers[conversation.id] ?? 0;
-  if (!readAt) return false;
-  const chatTs = Date.parse(conversation.timestamp || "");
-  if (!Number.isFinite(chatTs)) return false;
-  return chatTs > readAt;
 }
 
 function hasPendingAdminChat(
@@ -134,21 +118,20 @@ const Navbar = (): ReactElement => {
   const userRecord = asRecord(session?.user);
 
   const { cartItems } = useCart();
-  const { openChat, conversations, isChatOpen } = useChat();
+  const { openChat, conversations, activeConversation, isChatOpen } = useChat();
   const itemsCart = cartItems.length;
   const [isAdminSupportOpen, setIsAdminSupportOpen] = useState(false);
   const [adminSubject, setAdminSubject] = useState("");
   const [adminDetail, setAdminDetail] = useState("");
   const [isLaunchingAdminChat, setIsLaunchingAdminChat] = useState(false);
   const [adminUnreadConversations, setAdminUnreadConversations] = useState(0);
-  const [userUnreadConversations, setUserUnreadConversations] = useState(0);
-  const [firstPendingUserConversationId, setFirstPendingUserConversationId] = useState<string | null>(null);
+  const [userRealtimePendingCount, setUserRealtimePendingCount] = useState(0);
   const adminUnreadReadyRef = useRef(false);
   const previousAdminPendingSignatureRef = useRef("");
   const previousAdminPendingCountRef = useRef(0);
-  const userUnreadReadyRef = useRef(false);
-  const previousUserPendingSignatureRef = useRef("");
-  const previousUserPendingCountRef = useRef(0);
+  const adminRealtimePendingIdsRef = useRef<Set<string>>(new Set());
+  const userRealtimePendingIdsRef = useRef<Set<string>>(new Set());
+  const socketRef = useRef<SocketLike | null>(null);
 
   const safeName =
     getStringField(userRecord, "name") ||
@@ -197,19 +180,36 @@ const Navbar = (): ReactElement => {
   }, [session, userRecord]);
 
   const unreadConversationsUserFromContext = useMemo(
-    () => {
-      const readMarkers = loadUserReadMarkers();
-      return conversations.filter((conversation) =>
-        hasPendingUserChat(conversation, readMarkers),
-      ).length;
-    },
+    () => conversations.filter((conversation) => conversation.unreadCount > 0).length,
     [conversations],
   );
+  const firstPendingUserConversationId = useMemo(() => {
+    const unreadConversations = conversations.filter(
+      (conversation) => conversation.unreadCount > 0,
+    );
+    unreadConversations.sort(
+      (a, b) => toTimestamp(b.timestamp) - toTimestamp(a.timestamp),
+    );
+    return unreadConversations[0]?.id ?? null;
+  }, [conversations]);
 
+  const adminRealtimePendingCount = adminRealtimePendingIdsRef.current.size;
   const navbarUnreadChats = isAdminUser
-    ? adminUnreadConversations
-    : Math.max(userUnreadConversations, unreadConversationsUserFromContext);
+    ? Math.max(adminUnreadConversations, adminRealtimePendingCount)
+    : Math.max(unreadConversationsUserFromContext, userRealtimePendingCount);
   const hasNavbarUnread = navbarUnreadChats > 0;
+
+  const notifyNewMessage = () => {
+    logChatAlert("notifyNewMessage:toast");
+    showToast.info("Mensaje nuevo recibido", {
+      duration: 2200,
+      progress: true,
+      position: "top-right",
+      transition: "popUp",
+      icon: "",
+      sound: true,
+    });
+  };
 
   useEffect(() => {
     let canceled = false;
@@ -217,6 +217,7 @@ const Navbar = (): ReactElement => {
     const loadAdminUnread = async () => {
       if (!isLogged || !isAdminUser) {
         if (!canceled) setAdminUnreadConversations(0);
+        logChatAlert("adminPoll:skip", { isLogged, isAdminUser });
         return;
       }
       try {
@@ -226,6 +227,20 @@ const Navbar = (): ReactElement => {
         const pendingChats = chats.filter((chat) => hasPendingAdminChat(chat, readMarkers));
         const pending = pendingChats.length;
         setAdminUnreadConversations(pending);
+        logChatAlert("adminPoll:data", {
+          totalChats: chats.length,
+          pending,
+          pendingIds: pendingChats.map((chat) => chat.id),
+        });
+        if (socketRef.current?.connected) {
+          chats.forEach((chat) => {
+            if (chat.id) socketRef.current?.emit("joinConversation", chat.id);
+          });
+          logChatAlert("adminPoll:rejoinRooms", {
+            socketConnected: socketRef.current.connected,
+            rooms: chats.map((chat) => chat.id).filter(Boolean),
+          });
+        }
 
         const currentSignature = buildPendingSignature(pendingChats);
 
@@ -241,18 +256,9 @@ const Navbar = (): ReactElement => {
           previousAdminPendingSignatureRef.current = currentSignature;
           previousAdminPendingCountRef.current = pending;
           if (!hasNewOrChangedPending) return;
-
-          showToast.info("Mensaje nuevo recibido", {
-            duration: 2200,
-            progress: true,
-            position: "top-right",
-            transition: "popUp",
-            icon: "",
-            sound: true,
-          });
         }
       } catch (error) {
-        console.log("[Navbar] admin unread poll error", error);
+        logChatAlert("adminPoll:error", error);
       }
     };
 
@@ -269,89 +275,200 @@ const Navbar = (): ReactElement => {
 
   useEffect(() => {
     let canceled = false;
+    if (!isLogged) {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      adminRealtimePendingIdsRef.current.clear();
+      userRealtimePendingIdsRef.current.clear();
+      setUserRealtimePendingCount(0);
+      logChatAlert("socket:skip:notLogged");
+      return;
+    }
+    if (process.env.NEXT_PUBLIC_ENABLE_CHAT_SOCKET === "false") {
+      logChatAlert("socket:disabledByEnv");
+      return;
+    }
 
-    const loadUserUnread = async () => {
-      if (!isLogged || isAdminUser) {
-        if (!canceled) {
-          setUserUnreadConversations(0);
-          setFirstPendingUserConversationId(null);
-        }
-        return;
-      }
-
+    const resolveConversationIds = async (): Promise<string[]> => {
       try {
-        const chats = await chatService.getConversations();
-        if (canceled) return;
-
-        const readMarkers = loadUserReadMarkers();
-        const apiPendingChats = chats.filter((chat) => hasPendingUserChat(chat, readMarkers));
-        const contextPendingChats = conversations.filter((chat) =>
-          hasPendingUserChat(chat, readMarkers),
-        );
-
-        const mergedPendingById = new Map<string, PendingChatLike>();
-        apiPendingChats.forEach((chat) => {
-          mergedPendingById.set(chat.id, chat);
-        });
-        contextPendingChats.forEach((chat) => {
-          const existing = mergedPendingById.get(chat.id);
-          if (!existing) {
-            mergedPendingById.set(chat.id, chat);
-            return;
-          }
-          const nextTs = toTimestamp(chat.timestamp);
-          const prevTs = toTimestamp(existing.timestamp);
-          if (nextTs > prevTs || chat.unreadCount > existing.unreadCount) {
-            mergedPendingById.set(chat.id, chat);
-          }
-        });
-
-        const pendingChats = Array.from(mergedPendingById.values()).sort(
-          (a, b) => toTimestamp(b.timestamp) - toTimestamp(a.timestamp),
-        );
-        const pendingCount = pendingChats.length;
-        setUserUnreadConversations(pendingCount);
-        setFirstPendingUserConversationId(pendingChats[0]?.id ?? null);
-
-        const currentSignature = buildPendingSignature(pendingChats);
-
-        if (!userUnreadReadyRef.current) {
-          userUnreadReadyRef.current = true;
-          previousUserPendingSignatureRef.current = currentSignature;
-          previousUserPendingCountRef.current = pendingCount;
-        } else {
-          const hasNewOrChangedPending =
-            pendingCount > 0 &&
-            (currentSignature !== previousUserPendingSignatureRef.current ||
-              pendingCount > previousUserPendingCountRef.current);
-          previousUserPendingSignatureRef.current = currentSignature;
-          previousUserPendingCountRef.current = pendingCount;
-          if (!hasNewOrChangedPending || isChatOpen) return;
-
-          showToast.info("Mensaje nuevo recibido", {
-            duration: 2200,
-            progress: true,
-            position: "top-right",
-            transition: "popUp",
-            icon: "",
-            sound: true,
+        if (isAdminUser) {
+          const chats = await adminChatService.getConversations();
+          logChatAlert("resolveConversationIds:admin", {
+            count: chats.length,
+            ids: chats.map((chat) => chat.id),
           });
+          return chats.map((chat) => chat.id).filter(Boolean);
         }
+        const chats = await chatService.getConversations();
+        logChatAlert("resolveConversationIds:user", {
+          count: chats.length,
+          ids: chats.map((chat) => chat.id),
+        });
+        return chats.map((chat) => chat.id).filter(Boolean);
       } catch (error) {
-        console.log("[Navbar] user unread poll error", error);
+        if (error instanceof Error && error.message === "NO_AUTH") return [];
+        logChatAlert("resolveConversationIds:error", error);
+        return [];
       }
     };
 
-    void loadUserUnread();
-    const intervalId = window.setInterval(() => {
-      void loadUserUnread();
+    const connectSocket = async () => {
+      try {
+        if (socketRef.current || canceled) return;
+        const token = chatService.getSocketToken();
+        if (!token) {
+          logChatAlert("socket:skip:noToken");
+          return;
+        }
+
+        const dynamicImport = new Function(
+          "specifier",
+          "return import(specifier)",
+        ) as (specifier: string) => Promise<unknown>;
+        const socketClientModule = (await dynamicImport("socket.io-client")) as {
+          io?: (url: string, options?: Record<string, unknown>) => SocketLike;
+        };
+        const ioFactory = socketClientModule?.io;
+        if (!ioFactory || canceled) {
+          logChatAlert("socket:skip:noFactoryOrCanceled", { hasFactory: Boolean(ioFactory), canceled });
+          return;
+        }
+
+        const socket = ioFactory(chatService.getSocketUrl(), {
+          auth: { token },
+          transports: ["websocket", "polling"],
+          reconnection: true,
+        });
+
+        socket.on("connect", async () => {
+          logChatAlert("socket:connect", {
+            isAdminUser,
+            socketConnected: socket.connected,
+          });
+          try {
+            const ids = await resolveConversationIds();
+            if (canceled) return;
+            ids.forEach((id) => {
+              socket.emit("joinConversation", id);
+            });
+            logChatAlert("socket:joinRooms", { ids });
+          } catch {
+            // noop
+          }
+        });
+        socket.on("disconnect", (reason: unknown) => {
+          logChatAlert("socket:disconnect", { reason });
+        });
+        socket.on("connect_error", (error: unknown) => {
+          logChatAlert("socket:connect_error", error);
+        });
+
+        socket.on("newMessage", (...args: unknown[]) => {
+          const payload = args[0];
+          if (!isRecord(payload)) return;
+          const conversationId = String(payload.conversationId ?? "");
+          if (!conversationId) return;
+
+          const sender = isRecord(payload.sender) ? payload.sender : null;
+          const senderId = String(
+            sender?.id ?? payload.senderId ?? payload.userId ?? "",
+          );
+          const currentUserId = chatService.getCurrentUserId();
+          logChatAlert("socket:newMessage:raw", {
+            isAdminUser,
+            conversationId,
+            senderId,
+            currentUserId,
+            activeConversationId: activeConversation?.id ?? null,
+            isChatOpen,
+            payload,
+          });
+          if (senderId && senderId === currentUserId) {
+            logChatAlert("socket:newMessage:ignoredOwnMessage", {
+              conversationId,
+              senderId,
+            });
+            return;
+          }
+
+          if (isAdminUser) {
+            adminRealtimePendingIdsRef.current.add(conversationId);
+            setAdminUnreadConversations((prev) =>
+              Math.max(prev, adminRealtimePendingIdsRef.current.size),
+            );
+            logChatAlert("socket:newMessage:adminPendingUpdated", {
+              conversationId,
+              pendingCount: adminRealtimePendingIdsRef.current.size,
+            });
+          } else {
+            userRealtimePendingIdsRef.current.add(conversationId);
+            setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+            logChatAlert("socket:newMessage:userPendingUpdated", {
+              conversationId,
+              pendingCount: userRealtimePendingIdsRef.current.size,
+            });
+          }
+
+          // Requisito: alertar en cada mensaje nuevo recibido.
+          notifyNewMessage();
+        });
+
+        socketRef.current = socket;
+        logChatAlert("socket:mounted");
+      } catch (error) {
+        logChatAlert("socket:connectError", error);
+      }
+    };
+
+    void connectSocket();
+    const joinIntervalId = window.setInterval(async () => {
+      if (canceled || !socketRef.current?.connected) return;
+      const ids = await resolveConversationIds();
+      ids.forEach((id) => socketRef.current?.emit("joinConversation", id));
+      logChatAlert("socket:joinRooms:interval", { ids });
     }, 2_000);
 
     return () => {
       canceled = true;
-      window.clearInterval(intervalId);
+      window.clearInterval(joinIntervalId);
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      logChatAlert("socket:cleanup");
     };
-  }, [conversations, isAdminUser, isChatOpen, isLogged]);
+  }, [activeConversation?.id, isAdminUser, isChatOpen, isLogged]);
+
+  useEffect(() => {
+    if (isAdminUser) return;
+    if (!isChatOpen || !activeConversation?.id) return;
+    if (!userRealtimePendingIdsRef.current.has(activeConversation.id)) return;
+    userRealtimePendingIdsRef.current.delete(activeConversation.id);
+    setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+    logChatAlert("userPending:clearedByOpenConversation", {
+      conversationId: activeConversation.id,
+      pendingCount: userRealtimePendingIdsRef.current.size,
+    });
+  }, [activeConversation?.id, isAdminUser, isChatOpen]);
+
+  useEffect(() => {
+    logChatAlert("navbarUnread:state", {
+      isAdminUser,
+      adminUnreadConversations,
+      adminRealtimePendingCount: adminRealtimePendingIdsRef.current.size,
+      unreadConversationsUserFromContext,
+      userRealtimePendingCount,
+      navbarUnreadChats,
+      hasNavbarUnread,
+      firstPendingUserConversationId,
+    });
+  }, [
+    adminUnreadConversations,
+    firstPendingUserConversationId,
+    hasNavbarUnread,
+    isAdminUser,
+    navbarUnreadChats,
+    unreadConversationsUserFromContext,
+    userRealtimePendingCount,
+  ]);
 
   const launchAdminSupportChat = async () => {
     const normalizedSubject = adminSubject.trim();
@@ -440,6 +557,12 @@ const Navbar = (): ReactElement => {
   };
 
   const handleOpenUnreadChat = () => {
+    logChatAlert("handleOpenUnreadChat:click", {
+      isAdminUser,
+      adminUnreadConversations,
+      firstPendingUserConversationId,
+      unreadConversationsUserFromContext,
+    });
     if (isAdminUser) {
       if (adminUnreadConversations <= 0) {
         showToast.info("No hay chats nuevos.", {
@@ -452,6 +575,8 @@ const Navbar = (): ReactElement => {
         });
         return;
       }
+      adminRealtimePendingIdsRef.current.clear();
+      setAdminUnreadConversations(0);
       router.push("/admin/dashboard?section=chats&openChat=1");
       return;
     }
@@ -460,10 +585,18 @@ const Navbar = (): ReactElement => {
       (conversation) => conversation.unreadCount > 0,
     );
     if (firstPendingUserConversationId) {
+      if (userRealtimePendingIdsRef.current.has(firstPendingUserConversationId)) {
+        userRealtimePendingIdsRef.current.delete(firstPendingUserConversationId);
+        setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+      }
       openChat({ conversationId: firstPendingUserConversationId });
       return;
     }
     if (firstUnreadConversation?.id) {
+      if (userRealtimePendingIdsRef.current.has(firstUnreadConversation.id)) {
+        userRealtimePendingIdsRef.current.delete(firstUnreadConversation.id);
+        setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+      }
       openChat({ conversationId: firstUnreadConversation.id });
       return;
     }

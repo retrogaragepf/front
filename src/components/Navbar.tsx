@@ -43,7 +43,10 @@ function getStringField(record: Record<string, unknown>, key: string): string {
   return typeof value === "string" ? value : "";
 }
 
-function getBooleanField(record: Record<string, unknown>, key: string): boolean {
+function getBooleanField(
+  record: Record<string, unknown>,
+  key: string,
+): boolean {
   return Boolean(record[key]);
 }
 
@@ -68,10 +71,17 @@ function loadAdminReadMarkers(): Record<string, number> {
 }
 
 function hasPendingAdminChat(
-  chat: { id: string; unreadCount: number; timestamp: string; lastMessage: string },
+  chat: {
+    id: string;
+    unreadCount: number;
+    timestamp: string;
+    lastMessage: string;
+  },
   readMarkers: Record<string, number>,
 ): boolean {
-  const hasActivity = Boolean((chat.lastMessage || "").trim() || (chat.timestamp || "").trim());
+  const hasActivity = Boolean(
+    (chat.lastMessage || "").trim() || (chat.timestamp || "").trim(),
+  );
   if (!hasActivity) return false;
 
   const readAt = readMarkers[chat.id] ?? 0;
@@ -180,7 +190,9 @@ const Navbar = (): ReactElement => {
   }, [session, userRecord]);
 
   const unreadConversationsUserFromContext = useMemo(
-    () => conversations.filter((conversation) => conversation.unreadCount > 0).length,
+    () =>
+      conversations.filter((conversation) => conversation.unreadCount > 0)
+        .length,
     [conversations],
   );
   const firstPendingUserConversationId = useMemo(() => {
@@ -224,7 +236,9 @@ const Navbar = (): ReactElement => {
         const chats = await adminChatService.getConversations();
         if (canceled) return;
         const readMarkers = loadAdminReadMarkers();
-        const pendingChats = chats.filter((chat) => hasPendingAdminChat(chat, readMarkers));
+        const pendingChats = chats.filter((chat) =>
+          hasPendingAdminChat(chat, readMarkers),
+        );
         const pending = pendingChats.length;
         setAdminUnreadConversations(pending);
         logChatAlert("adminPoll:data", {
@@ -325,12 +339,17 @@ const Navbar = (): ReactElement => {
           "specifier",
           "return import(specifier)",
         ) as (specifier: string) => Promise<unknown>;
-        const socketClientModule = (await dynamicImport("socket.io-client")) as {
+        const socketClientModule = (await dynamicImport(
+          "socket.io-client",
+        )) as {
           io?: (url: string, options?: Record<string, unknown>) => SocketLike;
         };
         const ioFactory = socketClientModule?.io;
         if (!ioFactory || canceled) {
-          logChatAlert("socket:skip:noFactoryOrCanceled", { hasFactory: Boolean(ioFactory), canceled });
+          logChatAlert("socket:skip:noFactoryOrCanceled", {
+            hasFactory: Boolean(ioFactory),
+            canceled,
+          });
           return;
         }
 
@@ -585,8 +604,12 @@ const Navbar = (): ReactElement => {
       (conversation) => conversation.unreadCount > 0,
     );
     if (firstPendingUserConversationId) {
-      if (userRealtimePendingIdsRef.current.has(firstPendingUserConversationId)) {
-        userRealtimePendingIdsRef.current.delete(firstPendingUserConversationId);
+      if (
+        userRealtimePendingIdsRef.current.has(firstPendingUserConversationId)
+      ) {
+        userRealtimePendingIdsRef.current.delete(
+          firstPendingUserConversationId,
+        );
         setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
       }
       openChat({ conversationId: firstPendingUserConversationId });
@@ -776,35 +799,12 @@ const Navbar = (): ReactElement => {
               </Link>
             </li>
 
-            {isLogged && (
-              <li>
-                {/* ✅ decide al click */}
-                <button
-                  type="button"
-                  onClick={goToProfile}
-                  className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-                >
-                  Mi Perfil
-                </button>
-              </li>
-            )}
-
-            {isLogged && hasNavbarUnread && (
-              <li>
-                <button
-                  type="button"
-                  onClick={handleOpenUnreadChat}
-                  className="relative hover:text-emerald-900 transition"
-                >
-                  Chat
-                  <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
-                </button>
-              </li>
-            )}
-
             <li>
-              <Link href="/cart" className="hover:text-emerald-900 transition">
-                Carrito
+              <Link
+                href="/categories"
+                className="hover:text-emerald-900 transition"
+              >
+                Categorias
               </Link>
             </li>
 
@@ -825,7 +825,7 @@ const Navbar = (): ReactElement => {
 
       {isAdminSupportOpen && (
         <div
-          className="fixed inset-0 z-[95] flex items-center justify-center bg-zinc-900/60 p-4"
+          className="fixed inset-0 z-95 flex items-center justify-center bg-zinc-900/60 p-4"
           onClick={(event) => {
             if (event.target === event.currentTarget)
               setIsAdminSupportOpen(false);

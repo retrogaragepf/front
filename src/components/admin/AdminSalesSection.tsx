@@ -30,13 +30,7 @@ function formatCOP(value: number): string {
   });
 }
 
-function nextStatusLabel(status: SimpleSaleStatus): string {
-  if (status === "comprado") return "Confirmar envío";
-  if (status === "enviado") return "Confirmar recibido";
-  return "Recibido";
-}
-
-function badgeClass(status: SimpleSaleStatus): string {
+function statusButtonClass(status: SimpleSaleStatus): string {
   if (status === "comprado") {
     return "border-zinc-500 text-zinc-800 bg-zinc-100";
   }
@@ -57,11 +51,11 @@ export default function AdminSalesSection(): ReactElement {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFilter>("all");
-  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    setError(null);
+  const load = async (options?: { silent?: boolean }) => {
+    const silent = Boolean(options?.silent);
+    if (!silent) setLoading(true);
+    if (!silent) setError(null);
     try {
       const data = await adminSalesService.getSalesRecords();
       setRows(data);
@@ -69,41 +63,25 @@ export default function AdminSalesSection(): ReactElement {
       setRows([]);
       setError(e instanceof Error ? e.message : "No se pudieron cargar los datos.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    void load();
+    void load({ silent: false });
+  }, []);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void load({ silent: true });
+    }, 5_000);
+    return () => window.clearInterval(intervalId);
   }, []);
 
   const filtered = useMemo(() => {
     if (filter === "all") return rows;
     return rows.filter((row) => row.statusSimple === filter);
   }, [filter, rows]);
-
-  const handleAdvance = async (row: AdminSaleRecord) => {
-    if (row.statusSimple === "recibido") return;
-
-    setError(null);
-    setBusyId(row.id);
-    try {
-      const next = await adminSalesService.advanceStatus(row);
-      setRows((prev) =>
-        prev.map((current) =>
-          current.id === row.id
-            ? { ...current, statusSimple: next, statusRaw: next }
-            : current,
-        ),
-      );
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "No se pudo actualizar el estado.",
-      );
-    } finally {
-      setBusyId(null);
-    }
-  };
 
   return (
     <div>
@@ -163,7 +141,7 @@ export default function AdminSalesSection(): ReactElement {
         </button>
 
         <button
-          onClick={load}
+          onClick={() => void load({ silent: false })}
           className="ml-auto px-4 py-2 rounded-xl border-2 border-amber-900 font-extrabold bg-white text-amber-900 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] disabled:opacity-60"
           disabled={loading}
         >
@@ -187,14 +165,13 @@ export default function AdminSalesSection(): ReactElement {
               <th className="p-4">Producto</th>
               <th className="p-4">Total</th>
               <th className="p-4">Estado</th>
-              <th className="p-4">Acción</th>
             </tr>
           </thead>
 
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td className="p-5 text-zinc-600" colSpan={7}>
+                <td className="p-5 text-zinc-600" colSpan={6}>
                   {loading
                     ? "Cargando registros..."
                     : "No hay compras/ventas para mostrar."}
@@ -231,23 +208,14 @@ export default function AdminSalesSection(): ReactElement {
                     ${formatCOP(row.total)}
                   </td>
                   <td className="p-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-extrabold border-2 ${badgeClass(
+                    <button
+                      className={`px-3 py-1 rounded-full text-xs font-extrabold border-2 transition ${statusButtonClass(
                         row.statusSimple,
-                      )}`}
+                      )} disabled:opacity-70 disabled:cursor-not-allowed`}
+                      disabled
+                      title="Estado informado automáticamente por vendedor/comprador"
                     >
                       {statusLabel(row.statusSimple)}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <button
-                      onClick={() => handleAdvance(row)}
-                      className="px-3 py-1 rounded-lg font-extrabold border-2 bg-amber-200 text-amber-900 border-amber-900 disabled:opacity-60"
-                      disabled={busyId === row.id || row.statusSimple === "recibido"}
-                    >
-                      {busyId === row.id
-                        ? "Guardando..."
-                        : nextStatusLabel(row.statusSimple)}
                     </button>
                   </td>
                 </tr>

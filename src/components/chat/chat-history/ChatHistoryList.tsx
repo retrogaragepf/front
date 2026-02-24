@@ -11,14 +11,27 @@ interface ChatHistoryListProps {
 
 const formatShortDateTime = (value: string): string => {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value || "Ahora";
+  if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString("es-CO", {
     day: "2-digit",
     month: "2-digit",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   });
+};
+
+const isSupportConversation = (conversation: ChatConversation): boolean => {
+  const sellerName = (conversation.sellerName || "").toLowerCase();
+  const sellerNested = (conversation.seller?.name || "").toLowerCase();
+  const product = (conversation.product || "").toLowerCase();
+  return (
+    sellerName.includes("admin") ||
+    sellerNested.includes("admin") ||
+    product.includes("soporte") ||
+    product.includes("ayuda")
+  );
 };
 
 const ChatHistoryList = ({
@@ -38,6 +51,7 @@ const ChatHistoryList = ({
       <ul className="max-h-[70vh] space-y-2 overflow-y-auto p-3">
         {conversations.map((conversation) => {
           const isActive = conversation.id === activeConversationId;
+          const isSupport = isSupportConversation(conversation);
           return (
             <li key={conversation.id}>
               <div
@@ -73,14 +87,13 @@ const ChatHistoryList = ({
                     X
                   </button>
                 </div>
-                <p className="mt-1 truncate text-xs text-amber-900/80 italic">
-                  Producto: {conversation.product || ""}
-                </p>
-                <p className="mt-2 line-clamp-2 text-sm text-zinc-800">
-                  {conversation.lastMessage || ""}
-                </p>
-                <p className="mt-1 text-[10px] text-zinc-600">
-                  {conversation.lastMessage ? formatShortDateTime(conversation.timestamp) : ""}
+                {!isSupport && (
+                  <p className="mt-1 truncate text-xs text-amber-900/80 italic">
+                    Producto: {conversation.product || ""}
+                  </p>
+                )}
+                <p className="mt-2 text-[10px] text-zinc-600">
+                  Último mensaje: {formatShortDateTime(conversation.timestamp)}
                 </p>
 
                 {conversation.unreadCount > 0 && (

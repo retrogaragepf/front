@@ -33,6 +33,28 @@ function loadAdminReadMarkers(): Record<string, number> {
   }
 }
 
+function hasPendingAdminChat(
+  chat: { id: string; unreadCount: number; timestamp: string; lastMessage: string },
+  readMarkers: Record<string, number>,
+): boolean {
+  const hasActivity = Boolean((chat.lastMessage || "").trim() || (chat.timestamp || "").trim());
+  if (!hasActivity) return false;
+
+  const readAt = readMarkers[chat.id] ?? 0;
+  const chatTs = Date.parse(chat.timestamp || "");
+  const hasValidTs = Number.isFinite(chatTs);
+
+  if (!readAt) return true;
+
+  if (chat.unreadCount > 0) {
+    if (!hasValidTs) return true;
+    return chatTs > readAt;
+  }
+
+  if (!hasValidTs) return false;
+  return chatTs > readAt;
+}
+
 const Navbar = (): ReactElement => {
   const { dataUser, logout } = useAuth();
   const router = useRouter();
@@ -116,14 +138,7 @@ const Navbar = (): ReactElement => {
         const chats = await adminChatService.getConversations();
         if (canceled) return;
         const readMarkers = loadAdminReadMarkers();
-        const pending = chats.filter((chat) => {
-          const readAt = readMarkers[chat.id] ?? 0;
-          const chatTs = Date.parse(chat.timestamp || "");
-          if (chat.unreadCount <= 0) return false;
-          if (!readAt) return true;
-          if (!Number.isFinite(chatTs)) return true;
-          return chatTs > readAt;
-        }).length;
+        const pending = chats.filter((chat) => hasPendingAdminChat(chat, readMarkers)).length;
         setAdminUnreadConversations(pending);
       } catch {
         if (!canceled) setAdminUnreadConversations(0);

@@ -103,7 +103,7 @@ export default function ProfileHeader() {
               {userName ? userName : "Vendedor & Comprador"}
             </p>
 
-            <div className="mt-4 h-[2px] w-full bg-amber-300" />
+            <div className="mt-4 h-0.5 w-full bg-amber-300" />
 
             <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-300 bg-amber-100 px-3 py-1">
               <span className="text-[10px] font-extrabold tracking-widest uppercase text-amber-900">

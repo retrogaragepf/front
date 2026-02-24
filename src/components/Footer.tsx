@@ -6,12 +6,12 @@ function Footer() {
       {/* BLOQUE GRANDE */}
       <div className="max-w-7xl mx-auto px-8 sm:px-10 lg:pl-8 lg:pr-12 pt-14 pb-10 grid grid-cols-1 md:grid-cols-5 gap-10 md:gap-x-14">
         {/* Marca */}
-        <div className="w-full max-w-[220px] mx-auto md:mx-0 md:pr-8 space-y-5 text-center">
+        <div className="w-full max-w-55 mx-auto md:mx-0 md:pr-8 space-y-5 text-center">
           <h3 className="text-1xl font-extrabold tracking-wide text-amber-900">
             RetroGarage™
           </h3>
 
-          <p className="font-handwritten text-sm text-zinc-700 leading-relaxed max-w-[260px] mx-auto text-center">
+          <p className="font-handwritten text-sm text-zinc-700 leading-relaxed max-w-65 mx-auto text-center">
             Objetos con alma que buscan un segundo hogar. No somos una tienda,
             somos un portal al pasado.
           </p>
@@ -47,7 +47,7 @@ function Footer() {
         </div>
 
         {/* Categorías */}
-        <div className="w-full max-w-[220px] mx-auto md:pl-4 text-center">
+        <div className="w-full max-w-55 mx-auto md:pl-4 text-center">
           <h3 className="!text-base font-extrabold tracking-widest uppercase text-amber-900 mb-4">
             Categorías
           </h3>

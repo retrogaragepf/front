@@ -62,9 +62,7 @@ const ProductDetailPage = () => {
     (dataUser as any)?.fullName ??
     "Cliente";
   const customerId =
-    (dataUser as any)?.user?.id ??
-    (dataUser as any)?.id ??
-    null;
+    (dataUser as any)?.user?.id ?? (dataUser as any)?.id ?? null;
 
   const productRecord = product as unknown as Record<string, unknown>;
   const sellerRecord =
@@ -73,6 +71,7 @@ const ProductDetailPage = () => {
     (productRecord.user as Record<string, unknown> | undefined) ?? undefined;
   const fallbackOwnerRecord =
     (productRecord.owner as Record<string, unknown> | undefined) ?? undefined;
+
   const resolvedSellerId =
     (productUserRecord?.id ? String(productUserRecord.id) : "") ||
     (productUserRecord?.userId ? String(productUserRecord.userId) : "") ||
@@ -86,14 +85,23 @@ const ProductDetailPage = () => {
     (productRecord.ownerId ? String(productRecord.ownerId) : "") ||
     (fallbackOwnerRecord?.id ? String(fallbackOwnerRecord.id) : "") ||
     (fallbackOwnerRecord?.userId ? String(fallbackOwnerRecord.userId) : "");
+
   const resolvedSellerName =
     (productUserRecord?.name ? String(productUserRecord.name) : "") ||
     (productUserRecord?.fullName ? String(productUserRecord.fullName) : "") ||
     (sellerRecord?.fullName ? String(sellerRecord.fullName) : "") ||
     (sellerRecord?.name ? String(sellerRecord.name) : "") ||
-    (fallbackOwnerRecord?.fullName ? String(fallbackOwnerRecord.fullName) : "") ||
+    (fallbackOwnerRecord?.fullName
+      ? String(fallbackOwnerRecord.fullName)
+      : "") ||
     (fallbackOwnerRecord?.name ? String(fallbackOwnerRecord.name) : "") ||
     "Vendedor";
+
+  // ✅ NUEVO: bloquear compra de publicación propia (solo UI en esta vista)
+  const isOwnProduct =
+    !!customerId &&
+    !!resolvedSellerId &&
+    String(customerId).trim() === String(resolvedSellerId).trim();
 
   return (
     <div className="w-full bg-amber-100 text-zinc-900">
@@ -122,16 +130,23 @@ const ProductDetailPage = () => {
                 )}
               </div>
 
-              <div className="mt-4 flex items-center gap-2">
+              <div className="mt-4 flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center px-3 py-1 rounded-full border border-amber-300 bg-amber-100 text-amber-900 text-sm font-extrabold tracking-widest uppercase">
                   Vintage Verified
                 </span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full border border-emerald-900/30 bg-emerald-800 text-amber-50 text- font-extrabold tracking-widest uppercase">
+
+                <span className="inline-flex items-center px-3 py-1 rounded-full border border-emerald-900/30 bg-emerald-800 text-amber-50 text-sm font-extrabold tracking-widest uppercase">
                   Stock: {(product as any).stock}
                 </span>
+
+                {isOwnProduct && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-blue-300 bg-blue-100 text-blue-900 text-sm font-extrabold tracking-widest uppercase">
+                    Tu publicación
+                  </span>
+                )}
               </div>
             </div>
-                
+
             <div className="p-5 md:p-6">
               <h2 className="text-2xl md:text-3xl font-extrabold tracking-wide text-amber-900">
                 {product.title}
@@ -151,7 +166,26 @@ const ProductDetailPage = () => {
               <div className="my-6 h-0.5 w-full bg-amber-300" />
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <AddToCartButton product={product} />  
+                {isOwnProduct ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="
+                      w-full sm:w-auto text-center
+                      font-handwritten px-4 py-3 rounded-xl
+                      border-2 border-zinc-400
+                      bg-zinc-200 text-zinc-600 font-extrabold tracking-wide text-sm
+                      cursor-not-allowed opacity-90
+                      shadow-none
+                    "
+                    title="No puedes comprar tu propia publicación"
+                  >
+                    Tu publicación
+                  </button>
+                ) : (
+                  <AddToCartButton product={product} />
+                )}
+
                 <Link
                   href="/cart"
                   className="
@@ -245,5 +279,6 @@ const ProductDetailPage = () => {
       </main>
     </div>
   );
-}
+};
+
 export default ProductDetailPage;

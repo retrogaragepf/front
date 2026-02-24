@@ -210,7 +210,11 @@ export default function AdminChatsSection(): ReactElement {
           // Si no hay unread en backend, inferimos "mensaje recibido" cuando hay actividad nueva.
           const newerThanRead = readAt > 0 && ts > readAt;
           const newerThanPrev = prevChat ? ts > prevTs : false;
-          if ((newerThanRead || newerThanPrev) && chat.lastMessage) {
+          const messageChanged =
+            prevChat &&
+            (prevChat.lastMessage || "").trim() !==
+              (chat.lastMessage || "").trim();
+          if ((newerThanRead || newerThanPrev || messageChanged) && chat.lastMessage) {
             return { ...chat, unreadCount: 1 };
           }
 
@@ -253,6 +257,13 @@ export default function AdminChatsSection(): ReactElement {
 
   useEffect(() => {
     void loadData({ silent: false });
+  }, [loadData]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void loadData({ silent: true });
+    }, 8_000);
+    return () => window.clearInterval(intervalId);
   }, [loadData]);
 
   const handleDeleteConversation = async (
@@ -348,14 +359,6 @@ export default function AdminChatsSection(): ReactElement {
     [chats],
   );
   const hasUnread = totalUnread > 0;
-
-  useEffect(() => {
-    // Debug: valida cálculo de no respondidos en dashboard admin.
-    console.log("[AdminChatsSection] unread summary:", {
-      totalUnread,
-      conversations: chats.length,
-    });
-  }, [chats.length, totalUnread]);
 
   return (
     <div>

@@ -158,11 +158,16 @@ function getOrdersArray(data: unknown): AnyRecord[] {
   if (Array.isArray(data)) return data.map(asRecord);
   if (isRecord(data) && Array.isArray(data.orders)) return data.orders.map(asRecord);
   if (isRecord(data) && Array.isArray(data.data)) return data.data.map(asRecord);
+  if (isRecord(data) && Array.isArray(data.results)) return data.results.map(asRecord);
+  if (isRecord(data) && Array.isArray(data.sales)) return data.sales.map(asRecord);
+  if (isRecord(data) && Array.isArray(data.ventas)) return data.ventas.map(asRecord);
   return [];
 }
 
 function normalizeOrder(orderInput: unknown): AdminSaleRecord {
-  const order = asRecord(orderInput);
+  const wrapper = asRecord(orderInput);
+  const orderCandidate = asRecord(wrapper.order);
+  const order = Object.keys(orderCandidate).length > 0 ? orderCandidate : wrapper;
   const item = extractFirstItem(order);
   const product = asRecord(item.product);
 
@@ -200,7 +205,15 @@ function normalizeOrder(orderInput: unknown): AdminSaleRecord {
     getString(order.trackingCode) || getString(order.trackingNumber) || "";
 
   return {
-    id: String(order.id ?? order._id ?? ""),
+    id: String(
+      order.id ??
+        order._id ??
+        order.orderId ??
+        wrapper.id ??
+        wrapper._id ??
+        wrapper.saleId ??
+        "",
+    ),
     createdAt,
     buyerName: buyer.name,
     buyerEmail: buyer.email,
@@ -248,34 +261,43 @@ function getOrdersPathCandidates(): string[] {
 
   if (configured && configured.length > 0) return configured;
 
-  return ["/orders", "/admin/orders", "/orders/all", "/orders/me"];
+  return [
+    "/ventas/mis-ventas",
+    "/ventas",
+    "/orders/me",
+    "/orders/all",
+    "/orders",
+    "/admin/orders",
+  ];
 }
 
 export const adminSalesService = {
   async getSalesRecords(): Promise<AdminSaleRecord[]> {
     const paths = getOrdersPathCandidates();
-    let lastError = "No se pudieron cargar las compras/ventas.";
+    const errorTrail: string[] = [];
 
     for (const path of paths) {
       const result = await request(path, { method: "GET" });
       if (result.ok) {
         const list = getOrdersArray(result.data);
-        return list.map(normalizeOrder).filter((row) => Boolean(row.id));
+        const normalized = list.map(normalizeOrder).filter((row) => Boolean(row.id));
+        if (normalized.length > 0) return normalized;
+        // Si responde 200 pero vacío, seguimos probando otros endpoints por compatibilidad.
+        errorTrail.push(`${path}: vacío`);
+        continue;
       }
 
-      if ([401, 403].includes(result.status)) {
-        throw new Error("No autorizado para ver órdenes de administración.");
-      }
-
-      if (![404, 405].includes(result.status)) {
-        lastError = extractMessage(
-          result.data,
-          `Error consultando órdenes (HTTP ${result.status}).`,
-        );
-      }
+      const msg = extractMessage(
+        result.data,
+        `HTTP ${result.status}`,
+      );
+      errorTrail.push(`${path}: ${msg}`);
     }
 
-    throw new Error(lastError);
+    const details = errorTrail.slice(0, 3).join(" | ");
+    throw new Error(
+      `No se pudieron cargar las compras/ventas. ${details || "Sin respuesta útil del backend."}`,
+    );
   },
 
   async advanceStatus(record: AdminSaleRecord): Promise<SimpleSaleStatus> {

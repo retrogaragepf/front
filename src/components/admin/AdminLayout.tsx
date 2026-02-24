@@ -377,7 +377,7 @@ Gracias por comprar en RetroGarage™ 🛍️`;
               <textarea
                 readOnly
                 value={couponMessage}
-                className="w-full min-h-[280px] rounded-xl border-2 border-amber-900 bg-amber-50 p-4 text-sm text-zinc-800 outline-none resize-y"
+                className="w-full min-h-70 rounded-xl border-2 border-amber-900 bg-amber-50 p-4 text-sm text-zinc-800 outline-none resize-y"
               />
             </div>
 

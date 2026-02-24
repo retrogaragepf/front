@@ -18,6 +18,9 @@ type ChatFilter = "all" | "active" | "banned";
 type ChatRow = AdminChatConversation & {
   isBanned: boolean;
 };
+type AdminChatsSectionProps = {
+  autoOpenPending?: boolean;
+};
 
 const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
 const ADMIN_READ_CHATS_TTL_MS = 1000 * 60 * 60 * 24 * 7;
@@ -183,12 +186,14 @@ function mergeChatsWithUsers(
         userName: user?.name || chat.userName || "Usuario",
         userEmail: user?.email || chat.userEmail || "Email no disponible",
         userId: user?.id ? String(user.id) : chat.userId,
-        isBanned: Boolean(user?.isBanned ?? fallbackBlocked),
+        isBanned: Boolean((user?.isBanned ?? false) || fallbackBlocked),
       };
     });
 }
 
-export default function AdminChatsSection(): ReactElement {
+export default function AdminChatsSection({
+  autoOpenPending = false,
+}: AdminChatsSectionProps): ReactElement {
   const { isAuth, isLoadingUser } = useAuth();
   const HIDDEN_CHATS_STORAGE_KEY = "admin_hidden_chats";
   const [chats, setChats] = useState<ChatRow[]>([]);
@@ -207,6 +212,7 @@ export default function AdminChatsSection(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const hiddenConversationIdsRef = useRef(hiddenConversationIds);
   const readMarkersRef = useRef(readMarkers);
+  const autoOpenedRef = useRef(false);
 
   const loadData = useCallback(async (options?: { silent?: boolean }) => {
     if (isLoadingUser || !isAuth) return;
@@ -408,6 +414,28 @@ export default function AdminChatsSection(): ReactElement {
     [chats, readMarkers],
   );
   const hasUnread = totalUnread > 0;
+
+  useEffect(() => {
+    if (!autoOpenPending || autoOpenedRef.current) return;
+    if (chats.length === 0) return;
+    const firstPending = chats.find((chat) => hasPendingConversation(chat, readMarkers));
+    if (!firstPending) return;
+
+    autoOpenedRef.current = true;
+    const nextReadAt = Date.now();
+    setReadMarkers((prev) => {
+      const next = { ...prev, [firstPending.id]: nextReadAt };
+      persistReadMarkers(next);
+      return next;
+    });
+    setChats((curr) =>
+      curr.map((row) =>
+        row.id === firstPending.id ? { ...row, unreadCount: 0 } : row,
+      ),
+    );
+    setDirectChatConversationId(firstPending.id);
+    setDirectChatUserName(firstPending.userName || "Usuario");
+  }, [autoOpenPending, chats, readMarkers]);
 
   return (
     <div>

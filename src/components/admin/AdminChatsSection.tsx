@@ -215,6 +215,7 @@ export default function AdminChatsSection(): ReactElement {
             prevChat &&
             (prevChat.lastMessage || "").trim() !==
               (chat.lastMessage || "").trim();
+
           if (newerThanRead || newerThanPrev || messageChanged) {
             return { ...chat, unreadCount: 1 };
           }
@@ -438,16 +439,17 @@ export default function AdminChatsSection(): ReactElement {
             {filteredChats.map((chat) => {
               const busyDelete = busyConversationId === chat.id;
               const busyBanToggle = busyModerationConversationId === chat.id;
+              const hasMessage = Boolean((chat.lastMessage || "").trim());
+              const hasTimestamp = Boolean((chat.timestamp || "").trim());
+              const canOpenChat = hasMessage || hasTimestamp;
 
               return (
                 <tr key={chat.id} className="border-t border-amber-200 align-top">
                   <td className="p-4 font-bold text-zinc-800">
                     <div>{chat.userName || "Usuario"}</div>
                     <div className="text-xs text-zinc-500 font-semibold mt-1">
-                      Último mensaje: {chat.lastMessage || "Sin mensajes"}
-                    </div>
-                    <div className="text-xs text-zinc-500 font-semibold mt-1">
-                      Fecha: {formatTimestamp(chat.timestamp)}
+                      Último mensaje ({formatTimestamp(chat.timestamp)}):{" "}
+                      {chat.lastMessage || "Sin mensajes"}
                     </div>
                     {chat.unreadCount > 0 && (
                       <div className="inline-block mt-2 px-2 py-1 text-[11px] font-extrabold rounded-lg border-2 border-emerald-600 text-emerald-700 bg-white">
@@ -475,6 +477,7 @@ export default function AdminChatsSection(): ReactElement {
                   <td className="pt-4 pr-4">
                     <button
                       type="button"
+                      disabled={!canOpenChat}
                       onClick={() => {
                         const nextReadAt = Date.now();
                         setReadMarkers((prev) => {
@@ -491,7 +494,7 @@ export default function AdminChatsSection(): ReactElement {
                         setDirectChatConversationId(chat.id);
                         setDirectChatUserName(chat.userName || "Usuario");
                       }}
-                      className="px-3 py-1 rounded-lg font-extrabold border-2 bg-amber-200 text-amber-900 border-amber-900"
+                      className="px-3 py-1 rounded-lg font-extrabold border-2 bg-amber-200 text-amber-900 border-amber-900 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Ir al chat
                     </button>

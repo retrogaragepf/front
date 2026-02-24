@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { ReactElement } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
 import { useChat } from "@/src/context/ChatContext";
@@ -8,18 +9,42 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
 import { signOut } from "next-auth/react";
+import { adminChatService } from "@/src/services/adminChat.services";
 
-const Navbar = () => {
+const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
+
+function loadAdminReadMarkers(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(ADMIN_READ_CHATS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.entries(parsed).reduce<Record<string, number>>(
+      (acc, [id, value]) => {
+        const at = typeof value === "number" ? value : Number(value);
+        if (id && Number.isFinite(at) && at > 0) acc[id] = at;
+        return acc;
+      },
+      {},
+    );
+  } catch {
+    return {};
+  }
+}
+
+const Navbar = (): ReactElement => {
   const { dataUser, logout } = useAuth();
   const router = useRouter();
 
   const { cartItems } = useCart();
-  const { openChat, hasUnreadMessages, unreadTotal, conversations } = useChat();
+  const { openChat, conversations } = useChat();
   const itemsCart = cartItems.length;
   const [isAdminSupportOpen, setIsAdminSupportOpen] = useState(false);
   const [adminSubject, setAdminSubject] = useState("");
   const [adminDetail, setAdminDetail] = useState("");
   const [isLaunchingAdminChat, setIsLaunchingAdminChat] = useState(false);
+  const [adminUnreadConversations, setAdminUnreadConversations] = useState(0);
 
   const safeName =
     (dataUser as any)?.user?.name ??
@@ -68,6 +93,53 @@ const Navbar = () => {
       (dataUser as any)?.token ?? (dataUser as any)?.user?.token ?? null;
     return decodeIsAdminFromJwt(token);
   }, [dataUser]);
+
+  const unreadConversationsUser = useMemo(
+    () => conversations.filter((conversation) => conversation.unreadCount > 0).length,
+    [conversations],
+  );
+
+  const navbarUnreadChats = isAdminUser
+    ? adminUnreadConversations
+    : unreadConversationsUser;
+  const hasNavbarUnread = navbarUnreadChats > 0;
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadAdminUnread = async () => {
+      if (!isLogged || !isAdminUser) {
+        if (!canceled) setAdminUnreadConversations(0);
+        return;
+      }
+      try {
+        const chats = await adminChatService.getConversations();
+        if (canceled) return;
+        const readMarkers = loadAdminReadMarkers();
+        const pending = chats.filter((chat) => {
+          const readAt = readMarkers[chat.id] ?? 0;
+          const chatTs = Date.parse(chat.timestamp || "");
+          if (chat.unreadCount <= 0) return false;
+          if (!readAt) return true;
+          if (!Number.isFinite(chatTs)) return true;
+          return chatTs > readAt;
+        }).length;
+        setAdminUnreadConversations(pending);
+      } catch {
+        if (!canceled) setAdminUnreadConversations(0);
+      }
+    };
+
+    void loadAdminUnread();
+    const intervalId = window.setInterval(() => {
+      void loadAdminUnread();
+    }, 2_000);
+
+    return () => {
+      canceled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [isAdminUser, isLogged]);
 
   const launchAdminSupportChat = async () => {
     const normalizedSubject = adminSubject.trim();
@@ -156,6 +228,10 @@ const Navbar = () => {
   };
 
   const handleOpenUnreadChat = () => {
+    if (isAdminUser) {
+      router.push("/admin/dashboard?section=chats");
+      return;
+    }
     // Abrimos primero una conversación con no leídos para limpiar la alerta al entrar.
     const firstUnreadConversation = conversations.find(
       (conversation) => conversation.unreadCount > 0,
@@ -221,7 +297,7 @@ const Navbar = () => {
         </nav>
 
         <div className="flex items-center gap-3">
-          {isLogged && !isAdminUser && hasUnreadMessages && (
+          {isLogged && hasNavbarUnread && (
             <button
               type="button"
               onClick={handleOpenUnreadChat}
@@ -232,7 +308,7 @@ const Navbar = () => {
               <span className="text-lg">💬</span>
               <span
                 className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
-                aria-label={`${unreadTotal} mensajes nuevos`}
+                aria-label={`${navbarUnreadChats} chats con mensajes nuevos`}
               />
             </button>
           )}
@@ -346,7 +422,7 @@ const Navbar = () => {
               </li>
             )}
 
-            {isLogged && !isAdminUser && hasUnreadMessages && (
+            {isLogged && hasNavbarUnread && (
               <li>
                 <button
                   type="button"

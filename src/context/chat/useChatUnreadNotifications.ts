@@ -4,28 +4,38 @@ import { showToast } from "nextjs-toast-notify";
 type Params = {
   canUseChat: boolean;
   unreadTotal: number;
-  previousUnreadRef: MutableRefObject<number>;
+  unreadSignal: number;
+  previousUnreadTotalRef: MutableRefObject<number>;
+  previousUnreadSignalRef: MutableRefObject<number>;
   unreadReadyRef: MutableRefObject<boolean>;
 };
 
 export function useChatUnreadNotifications({
   canUseChat,
   unreadTotal,
-  previousUnreadRef,
+  unreadSignal,
+  previousUnreadTotalRef,
+  previousUnreadSignalRef,
   unreadReadyRef,
 }: Params): void {
   useEffect(() => {
     if (!unreadReadyRef.current) {
       unreadReadyRef.current = true;
-      previousUnreadRef.current = unreadTotal;
-      console.log("[useChatUnreadNotifications] init", { unreadTotal });
+      previousUnreadTotalRef.current = unreadTotal;
+      previousUnreadSignalRef.current = unreadSignal;
+      console.log("[useChatUnreadNotifications] init", { unreadTotal, unreadSignal });
       return;
     }
 
-    if (canUseChat && unreadTotal > previousUnreadRef.current) {
+    const totalIncreased = unreadTotal > previousUnreadTotalRef.current;
+    const signalIncreased = unreadSignal > previousUnreadSignalRef.current;
+
+    if (canUseChat && (totalIncreased || signalIncreased)) {
       console.log("[useChatUnreadNotifications] toast:trigger", {
-        previousUnread: previousUnreadRef.current,
+        previousUnread: previousUnreadTotalRef.current,
         unreadTotal,
+        previousSignal: previousUnreadSignalRef.current,
+        unreadSignal,
       });
       showToast.info("Mensaje nuevo recibido", {
         duration: 2200,
@@ -39,9 +49,19 @@ export function useChatUnreadNotifications({
 
     console.log("[useChatUnreadNotifications] tick", {
       canUseChat,
-      previousUnread: previousUnreadRef.current,
+      previousUnread: previousUnreadTotalRef.current,
       unreadTotal,
+      previousSignal: previousUnreadSignalRef.current,
+      unreadSignal,
     });
-    previousUnreadRef.current = unreadTotal;
-  }, [canUseChat, unreadTotal, previousUnreadRef, unreadReadyRef]);
+    previousUnreadTotalRef.current = unreadTotal;
+    previousUnreadSignalRef.current = unreadSignal;
+  }, [
+    canUseChat,
+    unreadSignal,
+    unreadTotal,
+    previousUnreadSignalRef,
+    previousUnreadTotalRef,
+    unreadReadyRef,
+  ]);
 }

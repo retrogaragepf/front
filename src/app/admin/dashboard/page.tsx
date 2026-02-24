@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ReactElement } from "react";
+import { useSearchParams } from "next/navigation";
 import AdminLayout from "@/src/components/admin/AdminLayout";
 import UsersSection from "@/src/components/admin/UsersSection";
 import ProductRequestsSection from "@/src/components/admin/ProductRequestsSection";
@@ -9,10 +10,20 @@ import AdminChatsSection from "@/src/components/admin/AdminChatsSection";
 import AdminSalesSection from "@/src/components/admin/AdminSalesSection";
 
 export default function AdminDashboard(): ReactElement {
+  const searchParams = useSearchParams();
+  const sectionParam = searchParams.get("section");
+  const initialSection =
+    sectionParam === "users" ||
+    sectionParam === "products" ||
+    sectionParam === "chats" ||
+    sectionParam === "sales"
+      ? sectionParam
+      : "users";
+
   const [section, setSection] = useState<
     "users" | "products" | "chats" | "sales"
   >(
-    "users",
+    initialSection,
   );
 
 

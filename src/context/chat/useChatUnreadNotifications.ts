@@ -1,14 +1,27 @@
 import { MutableRefObject, useEffect } from "react";
 import { showToast } from "nextjs-toast-notify";
 
+const CHAT_ALERT_DEBUG =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_CHAT_ALERT_DEBUG === "true";
+
+function logUnreadHook(scope: string, payload?: unknown) {
+  if (!CHAT_ALERT_DEBUG) return;
+  if (typeof payload === "undefined") {
+    console.log(`[ChatAlert][useChatUnreadNotifications] ${scope}`);
+    return;
+  }
+  console.log(`[ChatAlert][useChatUnreadNotifications] ${scope}`, payload);
+}
+
 type Params = {
   enabled?: boolean;
   canUseChat: boolean;
   unreadTotal: number;
-  unreadSignal: number;
+  unreadSignal: string;
   onOpenUnreadChat?: () => void;
   previousUnreadTotalRef: MutableRefObject<number>;
-  previousUnreadSignalRef: MutableRefObject<number>;
+  previousUnreadSignalRef: MutableRefObject<string>;
   unreadReadyRef: MutableRefObject<boolean>;
 };
 
@@ -32,15 +45,15 @@ export function useChatUnreadNotifications({
       unreadReadyRef.current = true;
       previousUnreadTotalRef.current = unreadTotal;
       previousUnreadSignalRef.current = unreadSignal;
-      console.log("[useChatUnreadNotifications] init", { unreadTotal, unreadSignal });
+      logUnreadHook("init", { unreadTotal, unreadSignal, canUseChat });
       return;
     }
 
     const totalIncreased = unreadTotal > previousUnreadTotalRef.current;
-    const signalIncreased = unreadSignal > previousUnreadSignalRef.current;
+    const signalChanged = unreadSignal !== previousUnreadSignalRef.current;
 
-    if (canUseChat && (totalIncreased || signalIncreased)) {
-      console.log("[useChatUnreadNotifications] toast:trigger", {
+    if (canUseChat && (totalIncreased || signalChanged)) {
+      logUnreadHook("toast:trigger", {
         previousUnread: previousUnreadTotalRef.current,
         unreadTotal,
         previousSignal: previousUnreadSignalRef.current,
@@ -58,7 +71,7 @@ export function useChatUnreadNotifications({
       showToast.info("Mensaje nuevo recibido", toastOptions);
     }
 
-    console.log("[useChatUnreadNotifications] tick", {
+    logUnreadHook("tick", {
       canUseChat,
       previousUnread: previousUnreadTotalRef.current,
       unreadTotal,

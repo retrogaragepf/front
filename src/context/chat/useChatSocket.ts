@@ -10,6 +10,26 @@ export type SocketLike = {
   disconnect: () => void;
 };
 
+type NewChatMessageEventDetail = {
+  conversationId: string;
+  senderId?: string;
+  createdAt: number;
+};
+
+const CHAT_NEW_MESSAGE_EVENT = "retrogarage:chat-new-message";
+const CHAT_ALERT_DEBUG =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_CHAT_ALERT_DEBUG === "true";
+
+function logChatSocket(scope: string, payload?: unknown) {
+  if (!CHAT_ALERT_DEBUG) return;
+  if (typeof payload === "undefined") {
+    console.log(`[ChatAlert][useChatSocket] ${scope}`);
+    return;
+  }
+  console.log(`[ChatAlert][useChatSocket] ${scope}`, payload);
+}
+
 declare global {
   interface Window {
     io?: (url: string, options?: Record<string, unknown>) => SocketLike;
@@ -39,6 +59,7 @@ export function useChatSocket({
     if (!canUseChat) return;
     const socketDisabled = process.env.NEXT_PUBLIC_ENABLE_CHAT_SOCKET === "false";
     if (socketDisabled) {
+      logChatSocket("socket:disabledByEnv");
       return;
     }
 
@@ -50,7 +71,10 @@ export function useChatSocket({
     ) => {
       if (canceled || !ioFactory || socketRef.current) return;
       const token = chatService.getSocketToken();
-      if (!token) return;
+      if (!token) {
+        logChatSocket("mount:skip:noToken");
+        return;
+      }
 
       const socket = ioFactory(chatService.getSocketUrl(), {
         auth: { token },
@@ -61,6 +85,7 @@ export function useChatSocket({
       });
 
       socket.on("connect", () => {
+        logChatSocket("socket:connect");
         const conversationIds = Array.from(
           new Set(
             (conversationsRef.current || [])
@@ -70,14 +95,21 @@ export function useChatSocket({
         );
         if (conversationIds.length > 0) {
           conversationIds.forEach((id) => socket.emit("joinConversation", id));
+          logChatSocket("socket:joinRooms", { conversationIds });
           return;
         }
         const activeId = activeConversationRef.current;
-        if (activeId) socket.emit("joinConversation", activeId);
+        if (activeId) {
+          socket.emit("joinConversation", activeId);
+          logChatSocket("socket:joinActive", { activeId });
+        }
       });
 
       socket.on("connect_error", (error: unknown) => {
-        console.error("Error conectando socket chat:", error);
+        logChatSocket("socket:connect_error", error);
+      });
+      socket.on("disconnect", (reason: unknown) => {
+        logChatSocket("socket:disconnect", { reason });
       });
 
       socket.on("newMessage", (...args: unknown[]) => {
@@ -92,7 +124,19 @@ export function useChatSocket({
         if (!incoming) return;
 
         const liveUserId = chatService.getCurrentUserId();
-        if (liveUserId && incoming.senderId === liveUserId) return;
+        if (liveUserId && incoming.senderId === liveUserId) {
+          logChatSocket("socket:newMessage:ignoredOwn", {
+            conversationId: incoming.conversationId,
+            senderId: incoming.senderId,
+            liveUserId,
+          });
+          return;
+        }
+        logChatSocket("socket:newMessage:accepted", {
+          conversationId: incoming.conversationId,
+          senderId: incoming.senderId,
+          messageId: incoming.id,
+        });
 
         setMessagesByConversation((prev) => ({
           ...prev,
@@ -138,9 +182,26 @@ export function useChatSocket({
             };
           });
         });
+
+        if (typeof window !== "undefined") {
+          logChatSocket("event:dispatchNavbar", {
+            conversationId: incoming.conversationId,
+            senderId: incoming.senderId,
+          });
+          window.dispatchEvent(
+            new CustomEvent<NewChatMessageEventDetail>(CHAT_NEW_MESSAGE_EVENT, {
+              detail: {
+                conversationId: incoming.conversationId,
+                senderId: incoming.senderId,
+                createdAt: incoming.createdAt,
+              },
+            }),
+          );
+        }
       });
 
       socketRef.current = socket;
+      logChatSocket("socket:mounted");
     };
 
     const connect = async () => {
@@ -160,6 +221,7 @@ export function useChatSocket({
         if (socketRef.current) return;
       } catch {
         // Si no está instalado, caemos al fallback por CDN.
+        logChatSocket("socket:dynamicImportFailed:fallbackCDN");
       }
 
       if (window.io) {
@@ -174,9 +236,7 @@ export function useChatSocket({
         script.async = true;
         script.onload = () => mountSocketWithFactory(window.io);
         script.onerror = () => {
-          console.warn(
-            "[ChatContext] socket.io bloqueado por navegador/extensión. Chat seguirá por REST.",
-          );
+          logChatSocket("socket:cdnBlocked");
         };
         document.body.appendChild(script);
       } else {
@@ -192,6 +252,7 @@ export function useChatSocket({
       canceled = true;
       socketRef.current?.disconnect();
       socketRef.current = null;
+      logChatSocket("socket:cleanup");
     };
   }, [
     activeConversationRef,

@@ -43,6 +43,18 @@ type UseChatActionsResult = {
 };
 
 const CHAT_HIDDEN_CONVERSATIONS_KEY = "chat_hidden_conversations";
+const CHAT_ALERT_DEBUG =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_CHAT_ALERT_DEBUG === "true";
+
+function logChatActions(scope: string, payload?: unknown) {
+  if (!CHAT_ALERT_DEBUG) return;
+  if (typeof payload === "undefined") {
+    console.log(`[ChatAlert][useChatActions] ${scope}`);
+    return;
+  }
+  console.log(`[ChatAlert][useChatActions] ${scope}`, payload);
+}
 
 function readHiddenConversationIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -67,6 +79,15 @@ function writeHiddenConversationIds(ids: Set<string>) {
   } catch {
     // Ignore storage quota/private mode errors.
   }
+}
+
+function removeHiddenConversationId(id: string) {
+  if (!id) return;
+  const hiddenConversationIds = readHiddenConversationIds();
+  if (!hiddenConversationIds.has(id)) return;
+  hiddenConversationIds.delete(id);
+  writeHiddenConversationIds(hiddenConversationIds);
+  logChatActions("hiddenConversation:removed", { id });
 }
 
 function isSupportConversation(conversation: ChatConversation): boolean {
@@ -256,6 +277,13 @@ export function useChatActions({
             return;
           }
 
+          // Si la conversación estaba oculta por un borrado local previo,
+          // la restauramos para permitir reabrir chat con el mismo usuario.
+          removeHiddenConversationId(conversationId);
+          logChatActions("openChat:conversationEnsured", {
+            conversationId,
+            isSupport: Boolean(payload.isSupportRequest),
+          });
           setActiveConversationId(conversationId);
 
           const initialMessage = payload.initialMessage?.trim();
@@ -349,6 +377,13 @@ export function useChatActions({
         previousActiveId === conversationId
           ? (nextConversations[0]?.id ?? "")
           : previousActiveId;
+      logChatActions("deleteConversation:localRemove", {
+        conversationId,
+        previousCount: previousConversations.length,
+        nextCount: nextConversations.length,
+        previousActiveId,
+        nextActiveId,
+      });
 
       setConversations(nextConversations);
       setMessagesByConversation((prev) => {
@@ -356,14 +391,11 @@ export function useChatActions({
         return rest;
       });
       setActiveConversationId(nextActiveId);
-      const hiddenConversationIds = readHiddenConversationIds();
-      hiddenConversationIds.add(conversationId);
-      writeHiddenConversationIds(hiddenConversationIds);
 
       void (async () => {
         try {
           // En backend actual, DELETE de conversación está restringido a admin.
-          // Para usuario normal mantenemos borrado local persistente.
+          // Para usuario normal mantenemos borrado local (no persistente).
           if (!chatService.isAdminUser()) {
             showToast.success("Conversación eliminada de tu vista.", {
               duration: 2200,
@@ -393,9 +425,6 @@ export function useChatActions({
           }
 
           console.error("No se pudo borrar conversación:", error);
-          const restoredHiddenConversationIds = readHiddenConversationIds();
-          restoredHiddenConversationIds.delete(conversationId);
-          writeHiddenConversationIds(restoredHiddenConversationIds);
           setConversations(previousConversations);
           setMessagesByConversation(previousMessages);
           setActiveConversationId(previousActiveId);

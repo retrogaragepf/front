@@ -23,6 +23,7 @@ const ENDPOINTS = {
   // ⚠️ dejo block/unblock alineados a /users para no volver a /admin (que 404)
   block: (id: string) => `/users/${id}/block`,
   unblock: (id: string) => `/users/${id}/unblock`,
+  delete: (id: string) => `/users/${id}`,
 };
 
 function getToken(): string | null {
@@ -140,4 +141,11 @@ export async function unblockUser(
   );
   const user: AdminUser = (data?.user ?? data) as AdminUser;
   return normalizeUser(user);
+}
+
+export async function deleteUser(
+  id: string,
+  token?: string | null,
+): Promise<void> {
+  await request<unknown>(ENDPOINTS.delete(id), { method: "DELETE" }, token);
 }

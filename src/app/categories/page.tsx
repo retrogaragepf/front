@@ -11,7 +11,7 @@ type Category = {
 const CATEGORIES: Category[] = [
   {
     slug: "ropa-accesorios",
-    id: "11c146c3-a99c-48d7-b04e-3068abcc7295",
+    id: "d73a8f0d-703f-4890-bba1-cffecd40271c",
     name: "Ropa & Accesorios",
     description:
       "Chaquetas vintage, camisetas retro, gorras, cinturones y más.",
@@ -19,35 +19,35 @@ const CATEGORIES: Category[] = [
   },
   {
     slug: "tecnologia-retro",
-    id: "5a969f68-e239-485d-b281-d33692317e46",
+    id: "130961b9-22f3-4fdf-93e2-9eed4a0d4dd5",
     name: "Tecnología Retro",
     description: "Consolas, radios, cámaras, walkman y tesoros electrónicos.",
     emoji: "📼",
   },
   {
     slug: "decoracion-hogar",
-    id: "c4eee638-343b-42ea-9568-cd2f968e9bd4",
+    id: "6d281dc5-d83e-4c75-85c8-1fc7f755f450",
     name: "Decoración & Hogar",
     description: "Lámparas, cuadros, vajillas, pósters y piezas con historia.",
     emoji: "🛋️",
   },
   {
     slug: "coleccionables",
-    id: "d55fe09b-bb15-49a3-aeb9-99378c82fa38",
+    id: "3d4da119-a95c-41ce-b45c-e5f5fbafc7d8",
     name: "Coleccionables",
     description: "Figuras, vinilos, cómics, cards y objetos de colección.",
     emoji: "🧸",
   },
   {
     slug: "autos-garaje",
-    id: "cb35a1d8-aff0-4b39-a8de-0c2de3a4214b",
+    id: "1d23d8f1-8e80-4e18-92e3-b93dc77ceb73",
     name: "Autos & Garaje",
     description: "Accesorios, herramientas clásicas y memorabilia automotriz.",
     emoji: "🏁",
   },
   {
     slug: "muebles-antiguos",
-    id: "d2b33220-7370-4102-86d3-d6b0a5a64828",
+    id: "297be8b6-431a-4938-880a-22f413ebe76d",
     name: "Muebles Antiguos",
     description: "Muebles restaurables, madera clásica y diseño atemporal.",
     emoji: "🪑",

@@ -184,6 +184,7 @@ export default function AdminChatsSection(): ReactElement {
     try {
       if (!silent) setLoadingList(true);
       if (!silent) setError(null);
+      console.log("[AdminChatsSection] loadData:start", { silent });
 
       const [rawChats, users] = await Promise.all([
         adminChatService.getConversations(),
@@ -214,7 +215,7 @@ export default function AdminChatsSection(): ReactElement {
             prevChat &&
             (prevChat.lastMessage || "").trim() !==
               (chat.lastMessage || "").trim();
-          if ((newerThanRead || newerThanPrev || messageChanged) && chat.lastMessage) {
+          if (newerThanRead || newerThanPrev || messageChanged) {
             return { ...chat, unreadCount: 1 };
           }
 
@@ -227,8 +228,11 @@ export default function AdminChatsSection(): ReactElement {
         });
         return areChatRowsEqual(prev, normalized) ? prev : normalized;
       });
+      console.log("[AdminChatsSection] loadData:ok", {
+        chats: merged.length,
+      });
     } catch (e: unknown) {
-      console.error("Admin chats load error:", e);
+      console.error("[AdminChatsSection] loadData:error", e);
       const message =
         e instanceof Error
           ? e.message
@@ -262,7 +266,7 @@ export default function AdminChatsSection(): ReactElement {
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       void loadData({ silent: true });
-    }, 8_000);
+    }, 2_000);
     return () => window.clearInterval(intervalId);
   }, [loadData]);
 

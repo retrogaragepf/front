@@ -415,25 +415,21 @@ const Navbar = (): ReactElement => {
             return;
           }
 
-          if (isAdminUser) {
-            adminRealtimePendingIdsRef.current.add(conversationId);
-            setAdminUnreadConversations((prev) =>
-              Math.max(prev, adminRealtimePendingIdsRef.current.size),
-            );
-            logChatAlert("socket:newMessage:adminPendingUpdated", {
-              conversationId,
-              pendingCount: adminRealtimePendingIdsRef.current.size,
-            });
-          } else {
-            userRealtimePendingIdsRef.current.add(conversationId);
-            setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
-            logChatAlert("socket:newMessage:userPendingUpdated", {
-              conversationId,
-              pendingCount: userRealtimePendingIdsRef.current.size,
-            });
-          }
+          // Usuarios: notificados vía custom event (retrogarage:chat-new-message)
+          // que despacha useChatSocket del ChatContext. El socket del Navbar
+          // solo procesa la lógica de admin aquí.
+          if (!isAdminUser) return;
 
-          // Requisito: alertar en cada mensaje nuevo recibido.
+          adminRealtimePendingIdsRef.current.add(conversationId);
+          setAdminUnreadConversations((prev) =>
+            Math.max(prev, adminRealtimePendingIdsRef.current.size),
+          );
+          logChatAlert("socket:newMessage:adminPendingUpdated", {
+            conversationId,
+            pendingCount: adminRealtimePendingIdsRef.current.size,
+          });
+
+          // Requisito: alertar en cada mensaje nuevo recibido (admin).
           notifyNewMessage();
         });
 
@@ -472,6 +468,34 @@ const Navbar = (): ReactElement => {
       pendingCount: userRealtimePendingIdsRef.current.size,
     });
   }, [activeConversation?.id, isAdminUser, isChatOpen]);
+
+  // Notificaciones para usuarios vía custom event despachado por ChatContext.useChatSocket.
+  // Este path es más confiable que el socket propio del Navbar para usuarios,
+  // porque ChatContext siempre está conectado y en las salas correctas.
+  useEffect(() => {
+    if (isAdminUser || !isLogged) return;
+
+    const handleChatNewMessage = (event: Event) => {
+      const customEvent = event as CustomEvent<{ conversationId?: string; senderId?: string }>;
+      const conversationId = customEvent.detail?.conversationId ?? "";
+      if (!conversationId) return;
+
+      const currentUserId = chatService.getCurrentUserId();
+      const senderId = customEvent.detail?.senderId ?? "";
+      if (senderId && senderId === currentUserId) return;
+
+      logChatAlert("user:customEvent:newMessage", { conversationId, senderId });
+      userRealtimePendingIdsRef.current.add(conversationId);
+      setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+      // El toast lo dispara useChatUnreadNotifications en ChatContext
+      // para evitar toasts duplicados.
+    };
+
+    window.addEventListener("retrogarage:chat-new-message", handleChatNewMessage);
+    return () => {
+      window.removeEventListener("retrogarage:chat-new-message", handleChatNewMessage);
+    };
+  }, [isAdminUser, isLogged]);
 
   useEffect(() => {
     logChatAlert("navbarUnread:state", {

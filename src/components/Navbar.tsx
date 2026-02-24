@@ -105,6 +105,28 @@ function hasPendingAdminChat(
   return chatTs > readAt;
 }
 
+function toTimestamp(value: string): number {
+  const parsed = Date.parse(value || "");
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+type PendingChatLike = {
+  id: string;
+  unreadCount: number;
+  timestamp: string;
+  lastMessage?: string;
+};
+
+function buildPendingSignature(chats: PendingChatLike[]): string {
+  return chats
+    .map((chat) => {
+      const normalizedMessage = (chat.lastMessage || "").trim();
+      return `${chat.id}|${chat.unreadCount}|${chat.timestamp}|${normalizedMessage}`;
+    })
+    .sort()
+    .join("::");
+}
+
 const Navbar = (): ReactElement => {
   const { dataUser, logout } = useAuth();
   const router = useRouter();
@@ -112,7 +134,7 @@ const Navbar = (): ReactElement => {
   const userRecord = asRecord(session?.user);
 
   const { cartItems } = useCart();
-  const { openChat, conversations } = useChat();
+  const { openChat, conversations, isChatOpen } = useChat();
   const itemsCart = cartItems.length;
   const [isAdminSupportOpen, setIsAdminSupportOpen] = useState(false);
   const [adminSubject, setAdminSubject] = useState("");
@@ -122,9 +144,11 @@ const Navbar = (): ReactElement => {
   const [userUnreadConversations, setUserUnreadConversations] = useState(0);
   const [firstPendingUserConversationId, setFirstPendingUserConversationId] = useState<string | null>(null);
   const adminUnreadReadyRef = useRef(false);
-  const previousAdminSignalRef = useRef(0);
+  const previousAdminPendingSignatureRef = useRef("");
+  const previousAdminPendingCountRef = useRef(0);
   const userUnreadReadyRef = useRef(false);
-  const previousUserSignalRef = useRef(0);
+  const previousUserPendingSignatureRef = useRef("");
+  const previousUserPendingCountRef = useRef(0);
 
   const safeName =
     getStringField(userRecord, "name") ||
@@ -203,17 +227,21 @@ const Navbar = (): ReactElement => {
         const pending = pendingChats.length;
         setAdminUnreadConversations(pending);
 
-        const currentSignal = pendingChats.reduce((maxTs, chat) => {
-          const ts = Date.parse(chat.timestamp || "");
-          if (!Number.isFinite(ts)) return maxTs;
-          return ts > maxTs ? ts : maxTs;
-        }, 0);
+        const currentSignature = buildPendingSignature(pendingChats);
 
         if (!adminUnreadReadyRef.current) {
           adminUnreadReadyRef.current = true;
-          previousAdminSignalRef.current = currentSignal;
-        } else if (currentSignal > previousAdminSignalRef.current) {
-          previousAdminSignalRef.current = currentSignal;
+          previousAdminPendingSignatureRef.current = currentSignature;
+          previousAdminPendingCountRef.current = pending;
+        } else {
+          const hasNewOrChangedPending =
+            pending > 0 &&
+            (currentSignature !== previousAdminPendingSignatureRef.current ||
+              pending > previousAdminPendingCountRef.current);
+          previousAdminPendingSignatureRef.current = currentSignature;
+          previousAdminPendingCountRef.current = pending;
+          if (!hasNewOrChangedPending) return;
+
           showToast.info("Mensaje nuevo recibido", {
             duration: 2200,
             progress: true,
@@ -223,8 +251,8 @@ const Navbar = (): ReactElement => {
             sound: true,
           });
         }
-      } catch {
-        if (!canceled) setAdminUnreadConversations(0);
+      } catch (error) {
+        console.log("[Navbar] admin unread poll error", error);
       }
     };
 
@@ -256,21 +284,50 @@ const Navbar = (): ReactElement => {
         if (canceled) return;
 
         const readMarkers = loadUserReadMarkers();
-        const pendingChats = chats.filter((chat) => hasPendingUserChat(chat, readMarkers));
-        setUserUnreadConversations(pendingChats.length);
+        const apiPendingChats = chats.filter((chat) => hasPendingUserChat(chat, readMarkers));
+        const contextPendingChats = conversations.filter((chat) =>
+          hasPendingUserChat(chat, readMarkers),
+        );
+
+        const mergedPendingById = new Map<string, PendingChatLike>();
+        apiPendingChats.forEach((chat) => {
+          mergedPendingById.set(chat.id, chat);
+        });
+        contextPendingChats.forEach((chat) => {
+          const existing = mergedPendingById.get(chat.id);
+          if (!existing) {
+            mergedPendingById.set(chat.id, chat);
+            return;
+          }
+          const nextTs = toTimestamp(chat.timestamp);
+          const prevTs = toTimestamp(existing.timestamp);
+          if (nextTs > prevTs || chat.unreadCount > existing.unreadCount) {
+            mergedPendingById.set(chat.id, chat);
+          }
+        });
+
+        const pendingChats = Array.from(mergedPendingById.values()).sort(
+          (a, b) => toTimestamp(b.timestamp) - toTimestamp(a.timestamp),
+        );
+        const pendingCount = pendingChats.length;
+        setUserUnreadConversations(pendingCount);
         setFirstPendingUserConversationId(pendingChats[0]?.id ?? null);
 
-        const currentSignal = pendingChats.reduce((maxTs, chat) => {
-          const ts = Date.parse(chat.timestamp || "");
-          if (!Number.isFinite(ts)) return maxTs;
-          return ts > maxTs ? ts : maxTs;
-        }, 0);
+        const currentSignature = buildPendingSignature(pendingChats);
 
         if (!userUnreadReadyRef.current) {
           userUnreadReadyRef.current = true;
-          previousUserSignalRef.current = currentSignal;
-        } else if (currentSignal > previousUserSignalRef.current) {
-          previousUserSignalRef.current = currentSignal;
+          previousUserPendingSignatureRef.current = currentSignature;
+          previousUserPendingCountRef.current = pendingCount;
+        } else {
+          const hasNewOrChangedPending =
+            pendingCount > 0 &&
+            (currentSignature !== previousUserPendingSignatureRef.current ||
+              pendingCount > previousUserPendingCountRef.current);
+          previousUserPendingSignatureRef.current = currentSignature;
+          previousUserPendingCountRef.current = pendingCount;
+          if (!hasNewOrChangedPending || isChatOpen) return;
+
           showToast.info("Mensaje nuevo recibido", {
             duration: 2200,
             progress: true,
@@ -280,11 +337,8 @@ const Navbar = (): ReactElement => {
             sound: true,
           });
         }
-      } catch {
-        if (!canceled) {
-          setUserUnreadConversations(0);
-          setFirstPendingUserConversationId(null);
-        }
+      } catch (error) {
+        console.log("[Navbar] user unread poll error", error);
       }
     };
 
@@ -297,7 +351,7 @@ const Navbar = (): ReactElement => {
       canceled = true;
       window.clearInterval(intervalId);
     };
-  }, [isAdminUser, isLogged]);
+  }, [conversations, isAdminUser, isChatOpen, isLogged]);
 
   const launchAdminSupportChat = async () => {
     const normalizedSubject = adminSubject.trim();

@@ -24,6 +24,19 @@ import { useChatSync } from "@/src/context/chat/useChatSync";
 import { useChatActions } from "@/src/context/chat/useChatActions";
 import { useChatUnreadNotifications } from "@/src/context/chat/useChatUnreadNotifications";
 
+const CHAT_ALERT_DEBUG =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_CHAT_ALERT_DEBUG === "true";
+
+function logChatContext(scope: string, payload?: unknown) {
+  if (!CHAT_ALERT_DEBUG) return;
+  if (typeof payload === "undefined") {
+    console.log(`[ChatAlert][ChatContext] ${scope}`);
+    return;
+  }
+  console.log(`[ChatAlert][ChatContext] ${scope}`, payload);
+}
+
 interface ChatContextValue {
   isChatOpen: boolean;
   isAdminDirectChat: boolean;
@@ -86,7 +99,7 @@ export const ChatProvider = ({
   const activeConversationRef = useRef<string>("");
   const socketRef = useRef<SocketLike | null>(null);
   const previousUnreadTotalRef = useRef(0);
-  const previousUnreadSignalRef = useRef(0);
+  const previousUnreadSignalRef = useRef("");
   const unreadReadyRef = useRef(false);
 
   useEffect(() => {
@@ -160,13 +173,33 @@ export const ChatProvider = ({
   );
 
   const unreadSignal = useMemo(() => {
-    return conversations.reduce((maxTs, conversation) => {
-      if (conversation.unreadCount <= 0) return maxTs;
-      const ts = Date.parse(conversation.timestamp || "");
-      if (Number.isNaN(ts)) return maxTs;
-      return ts > maxTs ? ts : maxTs;
-    }, 0);
+    return conversations
+      .filter((conversation) => conversation.unreadCount > 0)
+      .map((conversation) => {
+        const normalizedMessage = (conversation.lastMessage || "").trim();
+        return `${conversation.id}|${conversation.unreadCount}|${conversation.timestamp}|${normalizedMessage}`;
+      })
+      .sort()
+      .join("::");
   }, [conversations]);
+
+  useEffect(() => {
+    logChatContext("unread:state", {
+      canUseChat,
+      isChatOpen,
+      conversations: conversations.length,
+      unreadTotal,
+      unreadSignal,
+      activeConversationId,
+    });
+  }, [
+    activeConversationId,
+    canUseChat,
+    conversations.length,
+    isChatOpen,
+    unreadSignal,
+    unreadTotal,
+  ]);
 
   const openFirstUnreadConversation = useCallback(() => {
     const firstUnread = conversations.find((conversation) => conversation.unreadCount > 0);
@@ -198,7 +231,7 @@ export const ChatProvider = ({
   }, [canUseChat, isLoadingUser, resetChatState]);
 
   useChatUnreadNotifications({
-    enabled: false,
+    enabled: true,
     canUseChat,
     unreadTotal,
     unreadSignal,

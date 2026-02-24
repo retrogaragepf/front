@@ -12,6 +12,7 @@ import { signOut } from "next-auth/react";
 import { adminChatService } from "@/src/services/adminChat.services";
 
 const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
+const USER_READ_CHATS_STORAGE_KEY = "chat_read_markers";
 
 function loadAdminReadMarkers(): Record<string, number> {
   if (typeof window === "undefined") return {};
@@ -31,6 +32,38 @@ function loadAdminReadMarkers(): Record<string, number> {
   } catch {
     return {};
   }
+}
+
+function loadUserReadMarkers(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = sessionStorage.getItem(USER_READ_CHATS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.entries(parsed).reduce<Record<string, number>>(
+      (acc, [id, value]) => {
+        const at = typeof value === "number" ? value : Number(value);
+        if (id && Number.isFinite(at) && at > 0) acc[id] = at;
+        return acc;
+      },
+      {},
+    );
+  } catch {
+    return {};
+  }
+}
+
+function hasPendingUserChat(
+  conversation: { id: string; unreadCount: number; timestamp: string },
+  readMarkers: Record<string, number>,
+): boolean {
+  if (conversation.unreadCount > 0) return true;
+  const readAt = readMarkers[conversation.id] ?? 0;
+  if (!readAt) return false;
+  const chatTs = Date.parse(conversation.timestamp || "");
+  if (!Number.isFinite(chatTs)) return false;
+  return chatTs > readAt;
 }
 
 function hasPendingAdminChat(
@@ -117,7 +150,12 @@ const Navbar = (): ReactElement => {
   }, [dataUser]);
 
   const unreadConversationsUser = useMemo(
-    () => conversations.filter((conversation) => conversation.unreadCount > 0).length,
+    () => {
+      const readMarkers = loadUserReadMarkers();
+      return conversations.filter((conversation) =>
+        hasPendingUserChat(conversation, readMarkers),
+      ).length;
+    },
     [conversations],
   );
 

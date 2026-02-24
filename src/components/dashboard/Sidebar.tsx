@@ -6,11 +6,7 @@ import { useChat } from "@/src/context/ChatContext";
 
 const Sidebar = (): ReactElement => {
   const router = useRouter();
-  const { openChat, conversations } = useChat();
-
-  const hasAnyMessage = conversations.some((conversation) =>
-    Boolean((conversation.lastMessage || "").trim()),
-  );
+  const { openChat } = useChat();
 
   const handleOpenChat = () => {
     openChat({ asParticipant: "customer" });
@@ -63,9 +59,8 @@ const Sidebar = (): ReactElement => {
 
         <button
           onClick={handleOpenChat}
-          disabled={!hasAnyMessage}
           className="
-            w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left disabled:opacity-50 disabled:cursor-not-allowed
+            w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left
           "
         >
           Chat con usuarios

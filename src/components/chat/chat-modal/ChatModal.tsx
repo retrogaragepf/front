@@ -49,13 +49,22 @@ const ChatModal = () => {
       (activeConversation.sellerName || "").toLowerCase().includes("admin"),
   );
 
+  const extractSubject = (): string => {
+    const direct = activeConversation?.product?.trim() || "";
+    if (direct) return direct;
+
+    const fromLastMessage = activeConversation?.lastMessage || "";
+    const match = fromLastMessage.match(/asunto\s*:\s*([^\n\r]+)/i);
+    return match?.[1]?.trim() || "";
+  };
+
   const isAdminDirectView = isAdminDirectChat || currentParticipant === "seller";
 
   const resolvedChatTitle = isAdminDirectView
     ? `Chat con ${adminChatWithName || activeConversation?.sellerName || "Usuario"}`
     : isAdminSupportConversation
       ? "Chat Administrador"
-      : "Chat comprador-vendedor";
+      : "Chat";
 
   useEffect(() => {
     if (!isChatOpen) return;
@@ -121,9 +130,11 @@ const ChatModal = () => {
                     Usuario: {activeConversation.sellerName || "Usuario"}
                   </p>
                   <p className="text-sm text-zinc-800">
-                    Producto:{" "}
+                    {isAdminSupportConversation ? "Asunto" : "Producto"}:{" "}
                     <span className="font-semibold">
-                      {activeConversation.product || ""}
+                      {isAdminSupportConversation
+                        ? extractSubject() || "Sin asunto"
+                        : activeConversation.product || ""}
                     </span>
                   </p>
                   <p className="text-xs text-zinc-700">

@@ -352,12 +352,7 @@ export default function MyProductsPanel() {
                   </div>
                 </div>
 
-                {/* <Link
-                  href="/dashboard/my-products"
-                  className="px-3 py-2 rounded-xl border-2 border-amber-900 bg-amber-200 text-amber-900 font-extrabold shrink-0"
-                >
-                  Gestionar
-                </Link> */}
+              
               </article>
             );
           })}

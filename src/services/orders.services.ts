@@ -48,20 +48,29 @@ function assertApiBaseUrl(): string {
   return API_BASE_URL;
 }
 
+/* 🔥 ÚNICO CAMBIO REAL ESTÁ ACÁ */
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
 
-  const raw = localStorage.getItem(TOKEN_KEY);
-  if (!raw) return null;
+  // 1️⃣ Intentar con la key principal (retrogarage_auth)
+  const rawMain = localStorage.getItem(TOKEN_KEY);
+  if (rawMain) {
+    if (rawMain.startsWith("eyJ")) return rawMain;
 
-  // JWT pelado
-  if (raw.startsWith("eyJ")) return raw;
+    try {
+      const parsed = JSON.parse(rawMain);
+      if (typeof parsed?.token === "string") return parsed.token;
+    } catch {}
+  }
 
-  // JSON { user, token }
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed?.token === "string") return parsed.token;
-  } catch {}
+  // 2️⃣ Compatibilidad con la key que ya estás usando: userSesion
+  const rawLegacy = localStorage.getItem("userSesion");
+  if (rawLegacy) {
+    try {
+      const parsed = JSON.parse(rawLegacy);
+      if (typeof parsed?.token === "string") return parsed.token;
+    } catch {}
+  }
 
   return null;
 }
@@ -71,7 +80,6 @@ export async function getMyOrders(): Promise<OrderDTO[]> {
   const token = getAuthToken();
 
   if (!token) {
-    // En UI puedes redirigir a login si llega vacío
     throw new Error("No hay token. Inicia sesión para ver tus órdenes.");
   }
 

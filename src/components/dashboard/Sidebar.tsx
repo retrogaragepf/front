@@ -34,7 +34,7 @@ const Sidebar = () => {
         </button>
 
         <button
-          onClick={() => router.push("/dashboard#mis-ventas")}
+          onClick={() => router.push("/dashboard/sales")}
           className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
         >
           ¬ Mis Ventas

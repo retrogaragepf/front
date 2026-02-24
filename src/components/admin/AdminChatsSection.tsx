@@ -43,6 +43,26 @@ function toTimestamp(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function hasPendingConversation(chat: ChatRow, readMarkers: ReadMarkers): boolean {
+  const hasActivity = Boolean((chat.lastMessage || "").trim() || (chat.timestamp || "").trim());
+  if (!hasActivity) return false;
+
+  const readAt = readMarkers[chat.id] ?? 0;
+  const chatTs = toTimestamp(chat.timestamp);
+
+  // Si nunca se abrió la conversación y ya hay actividad, la marcamos como pendiente.
+  if (!readAt) return true;
+
+  if (chat.unreadCount > 0) {
+    if (!Number.isFinite(chatTs) || chatTs <= 0) return true;
+    return chatTs > readAt;
+  }
+
+  // Fallback para backends que no mandan unreadCount correctamente.
+  if (!Number.isFinite(chatTs) || chatTs <= 0) return false;
+  return chatTs > readAt;
+}
+
 type UsersIndex = {
   byId: Map<string, AdminUIUser>;
   byEmail: Map<string, AdminUIUser>;
@@ -360,8 +380,8 @@ export default function AdminChatsSection(): ReactElement {
 
   const totalUnread = useMemo(
     // El dashboard debe contar conversaciones pendientes, no cantidad de mensajes.
-    () => chats.filter((chat) => chat.unreadCount > 0).length,
-    [chats],
+    () => chats.filter((chat) => hasPendingConversation(chat, readMarkers)).length,
+    [chats, readMarkers],
   );
   const hasUnread = totalUnread > 0;
 
@@ -439,6 +459,7 @@ export default function AdminChatsSection(): ReactElement {
             {filteredChats.map((chat) => {
               const busyDelete = busyConversationId === chat.id;
               const busyBanToggle = busyModerationConversationId === chat.id;
+              const isPending = hasPendingConversation(chat, readMarkers);
               const hasMessage = Boolean((chat.lastMessage || "").trim());
               const hasTimestamp = Boolean((chat.timestamp || "").trim());
               const canOpenChat = hasMessage || hasTimestamp;
@@ -448,10 +469,9 @@ export default function AdminChatsSection(): ReactElement {
                   <td className="p-4 font-bold text-zinc-800">
                     <div>{chat.userName || "Usuario"}</div>
                     <div className="text-xs text-zinc-500 font-semibold mt-1">
-                      Último mensaje ({formatTimestamp(chat.timestamp)}):{" "}
-                      {chat.lastMessage || "Sin mensajes"}
+                      Último mensaje: {formatTimestamp(chat.timestamp)}
                     </div>
-                    {chat.unreadCount > 0 && (
+                    {isPending && (
                       <div className="inline-block mt-2 px-2 py-1 text-[11px] font-extrabold rounded-lg border-2 border-emerald-600 text-emerald-700 bg-white">
                         Mensaje recibido
                       </div>

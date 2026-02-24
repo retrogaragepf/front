@@ -150,6 +150,10 @@ export function useChatSync({
     }
 
     const remoteTimestamp = toTimestamp(conversation.timestamp);
+    if (remoteTimestamp <= 0) {
+      // Si backend no manda timestamp válido, no forzamos lectura local.
+      return conversation;
+    }
     if (remoteTimestamp > readAt) {
       delete localReadMarkersRef.current[conversation.id];
       persistReadMarkers(localReadMarkersRef.current);
@@ -272,15 +276,32 @@ export function useChatSync({
             const next = prev.map((conversation) => {
               if (conversation.id !== conversationId) return conversation;
 
+              const normalizedCurrentName = (conversation.sellerName || "").trim().toLowerCase();
+              const normalizedCustomerName = (conversation.customer || "").trim().toLowerCase();
+              const looksLikeOwnName =
+                Boolean(normalizedCurrentName) &&
+                (normalizedCurrentName === normalizedCustomerName ||
+                  normalizedCurrentName === "tú" ||
+                  normalizedCurrentName === "tu");
+              const shouldPreferOtherSenderName =
+                Boolean(otherMessage?.senderName) &&
+                (conversation.sellerId === currentUserId ||
+                  conversation.sellerName === "Usuario" ||
+                  looksLikeOwnName);
+
               const nextSellerName =
-                conversation.sellerName && conversation.sellerName !== "Usuario"
-                  ? conversation.sellerName
-                  : otherMessage?.senderName || conversation.sellerName || "Usuario";
+                shouldPreferOtherSenderName
+                  ? (otherMessage?.senderName as string)
+                  : conversation.sellerName && conversation.sellerName !== "Usuario"
+                    ? conversation.sellerName
+                    : otherMessage?.senderName || conversation.sellerName || "Usuario";
 
               const nextSellerNestedName =
-                conversation.seller?.name && conversation.seller.name !== "Usuario"
-                  ? conversation.seller.name
-                  : otherMessage?.senderName || conversation.seller?.name || "Usuario";
+                shouldPreferOtherSenderName
+                  ? (otherMessage?.senderName as string)
+                  : conversation.seller?.name && conversation.seller.name !== "Usuario"
+                    ? conversation.seller.name
+                  : otherMessage?.senderName || conversation.sellerName || "Usuario";
 
               const nextTimestamp = latestMessage
                 ? new Date(latestMessage.createdAt).toISOString()

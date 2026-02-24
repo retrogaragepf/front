@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactElement } from "react";
 import {
   adminChatService,
   type AdminChatConversation,
 } from "@/src/services/adminChat.services";
+import { useAuth } from "@/src/context/AuthContext";
 import {
   getAllUsers,
   type AdminUIUser,
@@ -15,6 +17,9 @@ type ChatFilter = "all" | "active" | "banned";
 
 type ChatRow = AdminChatConversation & {
   isBanned: boolean;
+};
+type AdminChatsSectionProps = {
+  autoOpenPending?: boolean;
 };
 
 const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
@@ -35,6 +40,38 @@ function formatTimestamp(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function toTimestamp(value: string): number {
+  const parsed = Date.parse(value || "");
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function hasPendingConversation(chat: ChatRow, readMarkers: ReadMarkers): boolean {
+  const hasActivity = Boolean((chat.lastMessage || "").trim() || (chat.timestamp || "").trim());
+  if (!hasActivity) return false;
+
+  const readAt = readMarkers[chat.id] ?? 0;
+  const chatTs = toTimestamp(chat.timestamp);
+
+  // Si nunca se abrió la conversación y ya hay actividad, la marcamos como pendiente.
+  if (!readAt) return true;
+
+  if (chat.unreadCount > 0) {
+    if (!Number.isFinite(chatTs) || chatTs <= 0) return true;
+    return chatTs > readAt;
+  }
+
+  // Fallback para backends que no mandan unreadCount correctamente.
+  if (!Number.isFinite(chatTs) || chatTs <= 0) return false;
+  return chatTs > readAt;
+}
+
+function countPendingConversations(chats: ChatRow[], readMarkers: ReadMarkers): number {
+  return chats.reduce((total, chat) => {
+    if (hasPendingConversation(chat, readMarkers)) return total + 1;
+    return total;
+  }, 0);
 }
 
 type UsersIndex = {
@@ -149,12 +186,15 @@ function mergeChatsWithUsers(
         userName: user?.name || chat.userName || "Usuario",
         userEmail: user?.email || chat.userEmail || "Email no disponible",
         userId: user?.id ? String(user.id) : chat.userId,
-        isBanned: Boolean(user?.isBanned ?? fallbackBlocked),
+        isBanned: Boolean((user?.isBanned ?? false) || fallbackBlocked),
       };
     });
 }
 
-export default function AdminChatsSection() {
+export default function AdminChatsSection({
+  autoOpenPending = false,
+}: AdminChatsSectionProps): ReactElement {
+  const { isAuth, isLoadingUser } = useAuth();
   const HIDDEN_CHATS_STORAGE_KEY = "admin_hidden_chats";
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<string>>(
@@ -172,12 +212,15 @@ export default function AdminChatsSection() {
   const [error, setError] = useState<string | null>(null);
   const hiddenConversationIdsRef = useRef(hiddenConversationIds);
   const readMarkersRef = useRef(readMarkers);
+  const autoOpenedRef = useRef(false);
 
   const loadData = useCallback(async (options?: { silent?: boolean }) => {
+    if (isLoadingUser || !isAuth) return;
     const silent = Boolean(options?.silent);
     try {
       if (!silent) setLoadingList(true);
       if (!silent) setError(null);
+      console.log("[AdminChatsSection] loadData:start", { silent });
 
       const [rawChats, users] = await Promise.all([
         adminChatService.getConversations(),
@@ -190,18 +233,55 @@ export default function AdminChatsSection() {
         nextUsersIndex,
         hiddenConversationIdsRef.current,
       );
-      const normalized = merged.map((chat) => {
-        const readAt = readMarkersRef.current[chat.id];
-        if (!readAt) return chat;
-        const timestamp = Date.parse(chat.timestamp || "");
-        if (chat.unreadCount === 0 || (Number.isFinite(timestamp) && timestamp > readAt)) {
+      setChats((prev) => {
+        const prevById = new Map(prev.map((chat) => [chat.id, chat]));
+        const normalized = merged.map((chat) => {
+          const prevChat = prevById.get(chat.id);
+          const readAt = readMarkersRef.current[chat.id] ?? 0;
+          const ts = toTimestamp(chat.timestamp);
+          const prevTs = toTimestamp(prevChat?.timestamp || "");
+
+          // Si el backend sí manda unreadCount, respetamos ese valor.
+          if (chat.unreadCount > 0) return chat;
+
+          // Si no hay unread en backend, inferimos "mensaje recibido" cuando hay actividad nueva.
+          const newerThanRead = readAt > 0 && ts > readAt;
+          const newerThanPrev = prevChat ? ts > prevTs : false;
+          const messageChanged =
+            prevChat &&
+            (prevChat.lastMessage || "").trim() !==
+              (chat.lastMessage || "").trim();
+
+          if (newerThanRead || newerThanPrev || messageChanged) {
+            return { ...chat, unreadCount: 1 };
+          }
+
+          const hasActivity = Boolean(
+            (chat.lastMessage || "").trim() || (chat.timestamp || "").trim(),
+          );
+          // Fallback aditivo: si la conversación aparece por primera vez con actividad,
+          // se marca como pendiente para activar estado visual.
+          if (!prevChat && hasActivity && readAt <= 0) {
+            return { ...chat, unreadCount: 1 };
+          }
+
+          // Si ya estaba marcado como leído localmente y no hay novedad, lo mantenemos en 0.
+          if (readAt > 0 && ts <= readAt) {
+            return { ...chat, unreadCount: 0 };
+          }
+
           return chat;
-        }
-        return { ...chat, unreadCount: 0 };
+        });
+        return areChatRowsEqual(prev, normalized) ? prev : normalized;
       });
-      setChats((prev) => (areChatRowsEqual(prev, normalized) ? prev : normalized));
+      console.log("[AdminChatsSection] loadData:ok", {
+        chats: merged.length,
+      });
     } catch (e: unknown) {
-      console.error("Admin chats load error:", e);
+      if (e instanceof Error && e.message === "NO_AUTH") {
+        return;
+      }
+      console.error("[AdminChatsSection] loadData:error", e);
       const message =
         e instanceof Error
           ? e.message
@@ -210,7 +290,7 @@ export default function AdminChatsSection() {
     } finally {
       if (!silent) setLoadingList(false);
     }
-  }, []);
+  }, [isAuth, isLoadingUser]);
 
   useEffect(() => {
     hiddenConversationIdsRef.current = hiddenConversationIds;
@@ -229,8 +309,17 @@ export default function AdminChatsSection() {
   }, [hiddenConversationIds]);
 
   useEffect(() => {
+    if (isLoadingUser || !isAuth) return;
     void loadData({ silent: false });
-  }, [loadData]);
+  }, [isAuth, isLoadingUser, loadData]);
+
+  useEffect(() => {
+    if (isLoadingUser || !isAuth) return;
+    const intervalId = window.setInterval(() => {
+      void loadData({ silent: true });
+    }, 2_000);
+    return () => window.clearInterval(intervalId);
+  }, [isAuth, isLoadingUser, loadData]);
 
   const handleDeleteConversation = async (
     conversationId: string,
@@ -321,18 +410,32 @@ export default function AdminChatsSection() {
 
   const totalUnread = useMemo(
     // El dashboard debe contar conversaciones pendientes, no cantidad de mensajes.
-    () => chats.filter((chat) => chat.unreadCount > 0).length,
-    [chats],
+    () => countPendingConversations(chats, readMarkers),
+    [chats, readMarkers],
   );
   const hasUnread = totalUnread > 0;
 
   useEffect(() => {
-    // Debug: valida cálculo de no respondidos en dashboard admin.
-    console.log("[AdminChatsSection] unread summary:", {
-      totalUnread,
-      conversations: chats.length,
+    if (!autoOpenPending || autoOpenedRef.current) return;
+    if (chats.length === 0) return;
+    const firstPending = chats.find((chat) => hasPendingConversation(chat, readMarkers));
+    if (!firstPending) return;
+
+    autoOpenedRef.current = true;
+    const nextReadAt = Date.now();
+    setReadMarkers((prev) => {
+      const next = { ...prev, [firstPending.id]: nextReadAt };
+      persistReadMarkers(next);
+      return next;
     });
-  }, [chats.length, totalUnread]);
+    setChats((curr) =>
+      curr.map((row) =>
+        row.id === firstPending.id ? { ...row, unreadCount: 0 } : row,
+      ),
+    );
+    setDirectChatConversationId(firstPending.id);
+    setDirectChatUserName(firstPending.userName || "Usuario");
+  }, [autoOpenPending, chats, readMarkers]);
 
   return (
     <div>
@@ -408,18 +511,19 @@ export default function AdminChatsSection() {
             {filteredChats.map((chat) => {
               const busyDelete = busyConversationId === chat.id;
               const busyBanToggle = busyModerationConversationId === chat.id;
+              const isPending = hasPendingConversation(chat, readMarkers);
+              const hasMessage = Boolean((chat.lastMessage || "").trim());
+              const hasTimestamp = Boolean((chat.timestamp || "").trim());
+              const canOpenChat = hasMessage || hasTimestamp;
 
               return (
                 <tr key={chat.id} className="border-t border-amber-200 align-top">
                   <td className="p-4 font-bold text-zinc-800">
                     <div>{chat.userName || "Usuario"}</div>
                     <div className="text-xs text-zinc-500 font-semibold mt-1">
-                      Último mensaje: {chat.lastMessage || "Sin mensajes"}
+                      Último mensaje: {formatTimestamp(chat.timestamp)}
                     </div>
-                    <div className="text-xs text-zinc-500 font-semibold mt-1">
-                      Fecha: {formatTimestamp(chat.timestamp)}
-                    </div>
-                    {chat.unreadCount > 0 && (
+                    {isPending && (
                       <div className="inline-block mt-2 px-2 py-1 text-[11px] font-extrabold rounded-lg border-2 border-emerald-600 text-emerald-700 bg-white">
                         Mensaje recibido
                       </div>
@@ -445,6 +549,7 @@ export default function AdminChatsSection() {
                   <td className="pt-4 pr-4">
                     <button
                       type="button"
+                      disabled={!canOpenChat}
                       onClick={() => {
                         const nextReadAt = Date.now();
                         setReadMarkers((prev) => {
@@ -461,7 +566,7 @@ export default function AdminChatsSection() {
                         setDirectChatConversationId(chat.id);
                         setDirectChatUserName(chat.userName || "Usuario");
                       }}
-                      className="px-3 py-1 rounded-lg font-extrabold border-2 bg-amber-200 text-amber-900 border-amber-900"
+                      className="px-3 py-1 rounded-lg font-extrabold border-2 bg-amber-200 text-amber-900 border-amber-900 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Ir al chat
                     </button>

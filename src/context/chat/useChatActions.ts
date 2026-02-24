@@ -18,6 +18,7 @@ import {
 
 type Params = {
   canUseChat: boolean;
+  isAuthLoading: boolean;
   messagesByConversation: ChatMessageMap;
   conversationsRef: MutableRefObject<ChatConversation[]>;
   activeConversationRef: MutableRefObject<string>;
@@ -33,7 +34,27 @@ type Params = {
   activeConversationId: string;
 };
 
+type UseChatActionsResult = {
+  openChat: (payload?: OpenChatPayload) => void;
+  closeChat: () => void;
+  selectConversation: (conversationId: string) => void;
+  deleteConversation: (conversationId: string) => void;
+  sendMessage: (content: string) => Promise<void>;
+};
+
 const CHAT_HIDDEN_CONVERSATIONS_KEY = "chat_hidden_conversations";
+const CHAT_ALERT_DEBUG =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_CHAT_ALERT_DEBUG === "true";
+
+function logChatActions(scope: string, payload?: unknown) {
+  if (!CHAT_ALERT_DEBUG) return;
+  if (typeof payload === "undefined") {
+    console.log(`[ChatAlert][useChatActions] ${scope}`);
+    return;
+  }
+  console.log(`[ChatAlert][useChatActions] ${scope}`, payload);
+}
 
 function readHiddenConversationIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -60,6 +81,15 @@ function writeHiddenConversationIds(ids: Set<string>) {
   }
 }
 
+function removeHiddenConversationId(id: string) {
+  if (!id) return;
+  const hiddenConversationIds = readHiddenConversationIds();
+  if (!hiddenConversationIds.has(id)) return;
+  hiddenConversationIds.delete(id);
+  writeHiddenConversationIds(hiddenConversationIds);
+  logChatActions("hiddenConversation:removed", { id });
+}
+
 function isSupportConversation(conversation: ChatConversation): boolean {
   const sellerName = (conversation.sellerName || "").toLowerCase();
   const sellerNested = (conversation.seller?.name || "").toLowerCase();
@@ -74,6 +104,7 @@ function isSupportConversation(conversation: ChatConversation): boolean {
 
 export function useChatActions({
   canUseChat,
+  isAuthLoading,
   messagesByConversation,
   conversationsRef,
   activeConversationRef,
@@ -87,7 +118,7 @@ export function useChatActions({
   clearUnreadLocal,
   joinConversationRoom,
   activeConversationId,
-}: Params) {
+}: Params): UseChatActionsResult {
   const ensureConversation = useCallback(
     async (
       payload: OpenChatPayload,
@@ -216,6 +247,7 @@ export function useChatActions({
       if (nextParticipant) setCurrentParticipant(nextParticipant);
 
       if (!canUseChat) {
+        if (isAuthLoading) return;
         showToast.warning("Debes iniciar sesión para usar el chat.", {
           duration: 2200,
           progress: true,
@@ -234,7 +266,7 @@ export function useChatActions({
           const ensured = await ensureConversation(payload);
           const conversationId = ensured.conversationId;
           if (!conversationId) {
-            showToast.warning("No se pudo abrir la conversación.", {
+            showToast.warning("No hay chats nuevos.", {
               duration: 2200,
               progress: true,
               position: "top-center",
@@ -245,6 +277,13 @@ export function useChatActions({
             return;
           }
 
+          // Si la conversación estaba oculta por un borrado local previo,
+          // la restauramos para permitir reabrir chat con el mismo usuario.
+          removeHiddenConversationId(conversationId);
+          logChatActions("openChat:conversationEnsured", {
+            conversationId,
+            isSupport: Boolean(payload.isSupportRequest),
+          });
           setActiveConversationId(conversationId);
 
           const initialMessage = payload.initialMessage?.trim();
@@ -276,20 +315,28 @@ export function useChatActions({
           }
         } catch (error) {
           console.error("No se pudo abrir conversación:", error);
-          showToast.error("No se pudo abrir el chat. Intenta de nuevo.", {
+          const rawMessage = error instanceof Error ? error.message : "";
+          const isBlocked = rawMessage.toLowerCase().includes("bloque");
+          showToast.error(
+            isBlocked
+              ? "No puedes chatear: cuenta bloqueada por reglas de comunicación."
+              : "No se pudo abrir el chat. Intenta de nuevo.",
+            {
             duration: 2200,
             progress: true,
             position: "top-center",
             transition: "popUp",
             icon: "",
             sound: true,
-          });
+            },
+          );
         }
       })();
     },
     [
       canUseChat,
       ensureConversation,
+      isAuthLoading,
       setActiveConversationId,
       setAdminChatWithName,
       setConversations,
@@ -330,6 +377,13 @@ export function useChatActions({
         previousActiveId === conversationId
           ? (nextConversations[0]?.id ?? "")
           : previousActiveId;
+      logChatActions("deleteConversation:localRemove", {
+        conversationId,
+        previousCount: previousConversations.length,
+        nextCount: nextConversations.length,
+        previousActiveId,
+        nextActiveId,
+      });
 
       setConversations(nextConversations);
       setMessagesByConversation((prev) => {
@@ -337,18 +391,40 @@ export function useChatActions({
         return rest;
       });
       setActiveConversationId(nextActiveId);
-      const hiddenConversationIds = readHiddenConversationIds();
-      hiddenConversationIds.add(conversationId);
-      writeHiddenConversationIds(hiddenConversationIds);
 
       void (async () => {
         try {
+          // En backend actual, DELETE de conversación está restringido a admin.
+          // Para usuario normal mantenemos borrado local (no persistente).
+          if (!chatService.isAdminUser()) {
+            showToast.success("Conversación eliminada de tu vista.", {
+              duration: 2200,
+              progress: true,
+              position: "top-center",
+              transition: "popUp",
+              icon: "",
+              sound: true,
+            });
+            return;
+          }
+
           await chatService.deleteConversation(conversationId);
         } catch (error) {
+          const status = Number((error as { status?: number })?.status ?? 0);
+          if ([401, 403, 404, 405].includes(status)) {
+            // Si el backend no permite borrar o no encuentra, dejamos oculto local.
+            showToast.info("Conversación ocultada localmente.", {
+              duration: 2200,
+              progress: true,
+              position: "top-center",
+              transition: "popUp",
+              icon: "",
+              sound: true,
+            });
+            return;
+          }
+
           console.error("No se pudo borrar conversación:", error);
-          const restoredHiddenConversationIds = readHiddenConversationIds();
-          restoredHiddenConversationIds.delete(conversationId);
-          writeHiddenConversationIds(restoredHiddenConversationIds);
           setConversations(previousConversations);
           setMessagesByConversation(previousMessages);
           setActiveConversationId(previousActiveId);
@@ -455,6 +531,21 @@ export function useChatActions({
           ),
         }));
         console.error("No se pudo enviar mensaje al backend:", error);
+        const rawMessage = error instanceof Error ? error.message : "";
+        const isBlocked = rawMessage.toLowerCase().includes("bloque");
+        showToast.error(
+          isBlocked
+            ? "No puedes chatear: cuenta bloqueada por reglas de comunicación."
+            : "No se pudo enviar el mensaje.",
+          {
+            duration: 2200,
+            progress: true,
+            position: "top-center",
+            transition: "popUp",
+            icon: "",
+            sound: true,
+          },
+        );
       }
     },
     [canUseChat, activeConversationId, setConversations, setMessagesByConversation],

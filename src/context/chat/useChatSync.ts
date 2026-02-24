@@ -26,8 +26,8 @@ const CHAT_READ_MARKERS_KEY = "chat_read_markers";
 const CHAT_HIDDEN_CONVERSATIONS_KEY = "chat_hidden_conversations";
 const CHAT_READ_MARKERS_TTL_MS = 1000 * 60 * 60 * 24;
 const CHAT_READ_MARKERS_MAX_ENTRIES = 200;
-const CHAT_FALLBACK_SYNC_INTERVAL_MS = 30_000;
-const CHAT_MESSAGES_FALLBACK_SYNC_INTERVAL_MS = 12_000;
+const CHAT_FALLBACK_SYNC_INTERVAL_MS = 2_000;
+const CHAT_MESSAGES_FALLBACK_SYNC_INTERVAL_MS = 2_000;
 
 type ReadMarkers = Record<string, number>;
 
@@ -133,8 +133,13 @@ export function useChatSync({
   setConversations,
   setMessagesByConversation,
   setActiveConversationId,
-}: Params) {
+}: Params): {
+  clearUnreadLocal: (conversationId: string) => void;
+  joinConversationRoom: (conversationId: string) => void;
+} {
   const localReadMarkersRef = useRef<ReadMarkers>({});
+  const hasSyncedConversationsRef = useRef(false);
+  const joinedRoomsRef = useRef<Set<string>>(new Set());
 
   const applyLocalReadState = useCallback((conversation: ChatConversation) => {
     const readAt = localReadMarkersRef.current[conversation.id];
@@ -147,6 +152,10 @@ export function useChatSync({
     }
 
     const remoteTimestamp = toTimestamp(conversation.timestamp);
+    if (remoteTimestamp <= 0) {
+      // Si backend no manda timestamp válido, no forzamos lectura local.
+      return conversation;
+    }
     if (remoteTimestamp > readAt) {
       delete localReadMarkersRef.current[conversation.id];
       persistReadMarkers(localReadMarkersRef.current);
@@ -159,6 +168,10 @@ export function useChatSync({
   const syncConversations = useCallback(async () => {
     if (!canUseChat) return;
     try {
+      console.log("[useChatSync] syncConversations:start", {
+        activeConversationId,
+        isChatOpen,
+      });
       const remoteConversations = await chatService.getConversations();
       const hiddenConversationIds = loadHiddenConversationIds();
       const baseConversations = dedupeConversations(remoteConversations)
@@ -171,12 +184,89 @@ export function useChatSync({
         });
 
       setConversations((prev) => {
+        const isInitialSync = !hasSyncedConversationsRef.current;
         const prevById = new Map(prev.map((conversation) => [conversation.id, conversation]));
-        const next = baseConversations.map((conversation) =>
-          mergeConversationData(conversation, prevById.get(conversation.id)),
-        );
+        const next = baseConversations.map((conversation) => {
+          const prevConversation = prevById.get(conversation.id);
+          const merged = mergeConversationData(conversation, prevConversation);
+
+          const isActiveOpen =
+            isChatOpen && activeConversationId === merged.id;
+          if (isActiveOpen) {
+            return merged.unreadCount === 0 ? merged : { ...merged, unreadCount: 0 };
+          }
+
+          // Fallback: algunos backends no devuelven unreadCount correcto.
+          if (merged.unreadCount <= 0) {
+            const remoteTs = toTimestamp(merged.timestamp);
+            const prevTs = toTimestamp(prevConversation?.timestamp || "");
+            const readAt = localReadMarkersRef.current[merged.id] ?? 0;
+            const prevUnread = prevConversation?.unreadCount ?? 0;
+            const newerThanRead = readAt > 0 && remoteTs > readAt;
+            const newerThanPrev = prevConversation ? remoteTs > prevTs : false;
+            const messageChanged =
+              prevConversation &&
+              (prevConversation.lastMessage || "").trim() !==
+                (merged.lastMessage || "").trim();
+
+            if (newerThanRead || newerThanPrev || messageChanged) {
+              console.log("[useChatSync] unread inferred", {
+                conversationId: merged.id,
+                newerThanRead,
+                newerThanPrev,
+                messageChanged,
+                prevUnread: prevConversation?.unreadCount ?? 0,
+              });
+              return { ...merged, unreadCount: 1 };
+            }
+
+            const hasActivity = Boolean(
+              (merged.lastMessage || "").trim() || (merged.timestamp || "").trim(),
+            );
+            // Si aparece una conversación nueva después del primer sync (polling sin socket),
+            // la marcamos con no leído para activar alerta en navbar.
+            if (!isInitialSync && !prevConversation && hasActivity) {
+              console.log("[useChatSync] unread inferred:new conversation", {
+                conversationId: merged.id,
+              });
+              return { ...merged, unreadCount: 1 };
+            }
+
+            // Si ya teníamos no leído local y backend devuelve 0, lo conservamos
+            // hasta que exista evidencia de lectura local.
+            if (prevUnread > 0) {
+              if (readAt <= 0) {
+                return { ...merged, unreadCount: prevUnread };
+              }
+              if (remoteTs <= 0 || remoteTs > readAt) {
+                return { ...merged, unreadCount: prevUnread };
+              }
+            }
+          }
+
+          return merged;
+        });
         return areConversationsEqual(prev, next) ? prev : next;
       });
+      hasSyncedConversationsRef.current = true;
+      console.log("[useChatSync] syncConversations:ok", {
+        remote: remoteConversations.length,
+      });
+
+      const socket = socketRef.current;
+      if (socket?.connected) {
+        const remoteIds = new Set(baseConversations.map((conversation) => conversation.id));
+        // Limpiamos rooms que ya no existen localmente.
+        joinedRoomsRef.current.forEach((id) => {
+          if (!remoteIds.has(id)) joinedRoomsRef.current.delete(id);
+        });
+        // Nos unimos a todas las conversaciones para recibir eventos en tiempo real.
+        baseConversations.forEach((conversation) => {
+          if (joinedRoomsRef.current.has(conversation.id)) return;
+          socket.emit("joinConversation", conversation.id);
+          joinedRoomsRef.current.add(conversation.id);
+        });
+      }
 
       setActiveConversationId((prev) => {
         if (
@@ -189,11 +279,14 @@ export function useChatSync({
       });
     } catch (error) {
       if ((error as Error).message === "NO_AUTH") return;
-      console.error("No se pudieron sincronizar conversaciones:", error);
+      console.error("[useChatSync] syncConversations:error", error);
     }
   }, [
     applyLocalReadState,
+    activeConversationId,
     canUseChat,
+    isChatOpen,
+    socketRef,
     setActiveConversationId,
     setConversations,
   ]);
@@ -202,6 +295,7 @@ export function useChatSync({
     async (conversationId: string) => {
       if (!canUseChat || !conversationId) return;
       try {
+        console.log("[useChatSync] syncMessages:start", { conversationId });
         const remoteMessages = await chatService.getMessages(conversationId);
         setMessagesByConversation((prev) => {
           const previousMessages = prev[conversationId] ?? [];
@@ -220,31 +314,65 @@ export function useChatSync({
           ) ?? latestMessage;
 
         if (latestMessage || otherMessage?.senderName) {
-          setConversations((prev) =>
-            prev.map((conversation) => {
+          setConversations((prev) => {
+            let changed = false;
+
+            const next = prev.map((conversation) => {
               if (conversation.id !== conversationId) return conversation;
+
+              const normalizedCurrentName = (conversation.sellerName || "").trim().toLowerCase();
+              const normalizedCustomerName = (conversation.customer || "").trim().toLowerCase();
+              const looksLikeOwnName =
+                Boolean(normalizedCurrentName) &&
+                (normalizedCurrentName === normalizedCustomerName ||
+                  normalizedCurrentName === "tú" ||
+                  normalizedCurrentName === "tu");
+              const shouldPreferOtherSenderName =
+                Boolean(otherMessage?.senderName) &&
+                (conversation.sellerId === currentUserId ||
+                  conversation.sellerName === "Usuario" ||
+                  looksLikeOwnName);
+
+              const nextSellerName =
+                shouldPreferOtherSenderName
+                  ? (otherMessage?.senderName as string)
+                  : conversation.sellerName && conversation.sellerName !== "Usuario"
+                    ? conversation.sellerName
+                    : otherMessage?.senderName || conversation.sellerName || "Usuario";
+
+              const nextSellerNestedName =
+                shouldPreferOtherSenderName
+                  ? (otherMessage?.senderName as string)
+                  : conversation.seller?.name && conversation.seller.name !== "Usuario"
+                    ? conversation.seller.name
+                  : otherMessage?.senderName || conversation.sellerName || "Usuario";
+
+              const nextTimestamp = latestMessage
+                ? new Date(latestMessage.createdAt).toISOString()
+                : conversation.timestamp;
+
+              const same =
+                conversation.sellerName === nextSellerName &&
+                (conversation.seller?.name || "") === nextSellerNestedName &&
+                conversation.timestamp === nextTimestamp;
+
+              if (same) return conversation;
+              changed = true;
+
               return {
                 ...conversation,
-                sellerName:
-                  conversation.sellerName && conversation.sellerName !== "Usuario"
-                    ? conversation.sellerName
-                    : otherMessage?.senderName || conversation.sellerName || "Usuario",
-                seller: {
-                  name:
-                    conversation.seller?.name && conversation.seller.name !== "Usuario"
-                      ? conversation.seller.name
-                      : otherMessage?.senderName || conversation.seller?.name || "Usuario",
-                },
-                timestamp: latestMessage
-                  ? new Date(latestMessage.createdAt).toISOString()
-                  : conversation.timestamp,
+                sellerName: nextSellerName,
+                seller: { name: nextSellerNestedName },
+                timestamp: nextTimestamp,
               };
-            }),
-          );
+            });
+
+            return changed ? next : prev;
+          });
         }
       } catch (error) {
         if ((error as Error).message === "NO_AUTH") return;
-        console.error("No se pudieron sincronizar mensajes:", error);
+        console.error("[useChatSync] syncMessages:error", { conversationId, error });
       }
     },
     [canUseChat, currentUserId, setConversations, setMessagesByConversation],
@@ -271,9 +399,15 @@ export function useChatSync({
     (conversationId: string) => {
       if (!conversationId || !socketRef.current?.connected) return;
       socketRef.current.emit("joinConversation", conversationId);
+      joinedRoomsRef.current.add(conversationId);
     },
     [socketRef],
   );
+
+  useEffect(() => {
+    if (canUseChat) return;
+    joinedRoomsRef.current.clear();
+  }, [canUseChat]);
 
   useEffect(() => {
     if (!canUseChat) return;
@@ -284,12 +418,12 @@ export function useChatSync({
   useEffect(() => {
     if (!canUseChat) return;
     const intervalId = window.setInterval(() => {
-      // Polling solo como respaldo cuando socket no está conectado.
-      if (socketRef.current?.connected) return;
+      // Polling siempre activo para evitar quedarse sin actualizaciones
+      // cuando el backend no emite eventos en todos los casos.
       void syncConversations();
     }, CHAT_FALLBACK_SYNC_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [canUseChat, socketRef, syncConversations]);
+  }, [canUseChat, syncConversations]);
 
   useEffect(() => {
     if (!activeConversationId) return;
@@ -300,11 +434,10 @@ export function useChatSync({
   useEffect(() => {
     if (!isChatOpen || !activeConversationId) return;
     const intervalId = window.setInterval(() => {
-      if (socketRef.current?.connected) return;
       void syncMessages(activeConversationId);
     }, CHAT_MESSAGES_FALLBACK_SYNC_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [activeConversationId, isChatOpen, socketRef, syncMessages]);
+  }, [activeConversationId, isChatOpen, syncMessages]);
 
   return { clearUnreadLocal, joinConversationRoom };
 }

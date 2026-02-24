@@ -7,6 +7,7 @@ import {
   unblockUser,
   type AdminUser,
 } from "@/src/services/users.services";
+import { useAuth } from "@/src/context/AuthContext";
 
 type UIUser = AdminUser & { isBanned: boolean };
 
@@ -27,12 +28,27 @@ export default function UsersSection() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ Igual que MyOrders: usar auth del contexto y esperar hidratación
+  const { dataUser, isLoadingUser, isAuth } = useAuth();
+
   const loadUsers = useCallback(async () => {
+    // ✅ espera hidratación de auth (evita race con localStorage)
+    if (isLoadingUser) return;
+
+    // ✅ evita llamar el service sin sesión
+    if (!isAuth || !dataUser?.token) {
+      setError("No hay sesión activa. Inicia sesión para ver usuarios.");
+      setUsers([]);
+      setLoadingList(false);
+      return;
+    }
+
     try {
       setLoadingList(true);
       setError(null);
 
-      const data = await getAllUsers();
+      // ✅ token desde AuthContext (como MyOrders)
+      const data = await getAllUsers(dataUser.token);
       const normalized = (data ?? []).map(normalizeUser);
 
       setUsers(normalized);
@@ -45,17 +61,33 @@ export default function UsersSection() {
     } finally {
       setLoadingList(false);
     }
-  }, []);
+  }, [isLoadingUser, isAuth, dataUser?.token]);
 
+  // ✅ Carga principal SIN disparar antes de hidratar auth
   useEffect(() => {
+    if (isLoadingUser) return;
+
+    if (!isAuth) {
+      setUsers([]);
+      setError("No hay sesión activa. Inicia sesión para ver usuarios.");
+      setLoadingList(false);
+      return;
+    }
+
     loadUsers();
-  }, [loadUsers]);
+  }, [isLoadingUser, isAuth, loadUsers]);
 
   const handleBanToggle = async (id: string, isBanned: boolean) => {
     const confirmAction = confirm(
       `¿Seguro que querés ${isBanned ? "desbloquear" : "bloquear"} este usuario?`,
     );
     if (!confirmAction) return;
+
+    // ✅ evita acciones sin sesión
+    if (isLoadingUser || !isAuth || !dataUser?.token) {
+      setError("No hay sesión activa. Inicia sesión para gestionar usuarios.");
+      return;
+    }
 
     // optimistic update
     const prev = users;
@@ -66,8 +98,10 @@ export default function UsersSection() {
     );
 
     try {
-      if (isBanned) await unblockUser(id);
-      else await blockUser(id);
+      // ✅ pasa token desde contexto
+      if (isBanned) await unblockUser(id, dataUser.token);
+      else await blockUser(id, dataUser.token);
+
       // si querés “fuente de verdad” del backend, dejá este reload:
       await loadUsers();
     } catch (e: unknown) {
@@ -124,15 +158,19 @@ export default function UsersSection() {
 
         <button
           onClick={loadUsers}
-          disabled={loadingList}
+          disabled={loadingList || isLoadingUser || !isAuth}
           className="ml-auto px-4 py-2 rounded-xl border-2 border-amber-900 font-extrabold bg-white text-amber-900 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] disabled:opacity-60"
         >
-          Recargar
+          {isLoadingUser ? "Cargando sesión..." : "Recargar"}
         </button>
       </div>
 
       {/* Estados */}
-      {loadingList && (
+      {isLoadingUser && (
+        <div className="mb-4 text-zinc-600 font-bold">Cargando sesión...</div>
+      )}
+
+      {!isLoadingUser && loadingList && (
         <div className="mb-4 text-zinc-600 font-bold">Cargando usuarios...</div>
       )}
 
@@ -186,7 +224,13 @@ export default function UsersSection() {
 
                   <td>
                     <button
-                      disabled={loadingList || isBusy}
+                      disabled={
+                        loadingList ||
+                        isBusy ||
+                        isLoadingUser ||
+                        !isAuth ||
+                        !dataUser?.token
+                      }
                       onClick={() => handleBanToggle(user.id, user.isBanned)}
                       className={`px-3 py-1 rounded-lg font-extrabold border-2 disabled:opacity-60 ${
                         user.isBanned
@@ -201,7 +245,7 @@ export default function UsersSection() {
               );
             })}
 
-            {!loadingList && filtered.length === 0 && (
+            {!isLoadingUser && !loadingList && filtered.length === 0 && (
               <tr>
                 <td colSpan={4} className="text-center p-6 text-zinc-500">
                   No hay usuarios en esta categoría.

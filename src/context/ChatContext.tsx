@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   createContext,
   useContext,
   useEffect,
@@ -8,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ReactElement } from "react";
 import {
   ChatConversation,
   ChatMessage,
@@ -21,6 +23,19 @@ import { SocketLike, useChatSocket } from "@/src/context/chat/useChatSocket";
 import { useChatSync } from "@/src/context/chat/useChatSync";
 import { useChatActions } from "@/src/context/chat/useChatActions";
 import { useChatUnreadNotifications } from "@/src/context/chat/useChatUnreadNotifications";
+
+const CHAT_ALERT_DEBUG =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_CHAT_ALERT_DEBUG === "true";
+
+function logChatContext(scope: string, payload?: unknown) {
+  if (!CHAT_ALERT_DEBUG) return;
+  if (typeof payload === "undefined") {
+    console.log(`[ChatAlert][ChatContext] ${scope}`);
+    return;
+  }
+  console.log(`[ChatAlert][ChatContext] ${scope}`, payload);
+}
 
 interface ChatContextValue {
   isChatOpen: boolean;
@@ -58,8 +73,12 @@ const ChatContext = createContext<ChatContextValue>({
   sendMessage: () => {},
 });
 
-export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
-  const { isAuth } = useAuth();
+export const ChatProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}): ReactElement => {
+  const { isAuth, isLoadingUser } = useAuth();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isAdminDirectChat, setIsAdminDirectChat] = useState(false);
   const [adminChatWithName, setAdminChatWithName] = useState("");
@@ -70,14 +89,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     useState<ChatMessageMap>({});
   const [activeConversationId, setActiveConversationId] = useState<string>("");
 
+  const hasPersistedToken = chatService.isAuthenticated();
+  const isAdminUser = hasPersistedToken && chatService.isAdminUser();
   const canUseChat =
-    isAuth && chatService.isAuthenticated() && !chatService.isAdminUser();
+    hasPersistedToken && !isAdminUser && (isAuth || isLoadingUser);
   const currentUserId = chatService.getCurrentUserId();
 
   const conversationsRef = useRef<ChatConversation[]>([]);
   const activeConversationRef = useRef<string>("");
   const socketRef = useRef<SocketLike | null>(null);
-  const previousUnreadRef = useRef(0);
+  const previousUnreadTotalRef = useRef(0);
+  const previousUnreadSignalRef = useRef("");
   const unreadReadyRef = useRef(false);
 
   useEffect(() => {
@@ -104,6 +126,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     isChatOpen,
     socketRef,
     activeConversationRef,
+    conversationsRef,
     setMessagesByConversation,
     setConversations,
   });
@@ -111,6 +134,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const { openChat, closeChat, selectConversation, deleteConversation, sendMessage } =
     useChatActions({
       canUseChat,
+      isAuthLoading: isLoadingUser,
       messagesByConversation,
       conversationsRef,
       activeConversationRef,
@@ -148,24 +172,72 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     [conversations],
   );
 
+  const unreadSignal = useMemo(() => {
+    return conversations
+      .filter((conversation) => conversation.unreadCount > 0)
+      .map((conversation) => {
+        const normalizedMessage = (conversation.lastMessage || "").trim();
+        return `${conversation.id}|${conversation.unreadCount}|${conversation.timestamp}|${normalizedMessage}`;
+      })
+      .sort()
+      .join("::");
+  }, [conversations]);
+
+  useEffect(() => {
+    logChatContext("unread:state", {
+      canUseChat,
+      isChatOpen,
+      conversations: conversations.length,
+      unreadTotal,
+      unreadSignal,
+      activeConversationId,
+    });
+  }, [
+    activeConversationId,
+    canUseChat,
+    conversations.length,
+    isChatOpen,
+    unreadSignal,
+    unreadTotal,
+  ]);
+
+  const openFirstUnreadConversation = useCallback(() => {
+    const firstUnread = conversations.find((conversation) => conversation.unreadCount > 0);
+    if (firstUnread?.id) {
+      openChat({ conversationId: firstUnread.id });
+      return;
+    }
+    openChat();
+  }, [conversations, openChat]);
+
+  const resetChatState = useCallback(() => {
+    setConversations([]);
+    setMessagesByConversation({});
+    setActiveConversationId("");
+    setIsChatOpen(false);
+  }, []);
+
   useEffect(() => {
     if (!isChatOpen || !activeConversationId) return;
     clearUnreadLocal(activeConversationId);
   }, [activeConversationId, clearUnreadLocal, isChatOpen]);
 
   useEffect(() => {
-    if (canUseChat) return;
+    if (isLoadingUser || canUseChat) return;
     // Si el usuario es admin o no está autenticado, evitamos estado residual del chat cliente.
-    setConversations([]);
-    setMessagesByConversation({});
-    setActiveConversationId("");
-    setIsChatOpen(false);
-  }, [canUseChat]);
+    setTimeout(() => {
+      resetChatState();
+    }, 0);
+  }, [canUseChat, isLoadingUser, resetChatState]);
 
   useChatUnreadNotifications({
+    enabled: true,
     canUseChat,
     unreadTotal,
-    previousUnreadRef,
+    unreadSignal,
+    onOpenUnreadChat: openFirstUnreadConversation,
+    previousUnreadTotalRef,
+    previousUnreadSignalRef,
     unreadReadyRef,
   });
 
@@ -194,4 +266,4 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export const useChat = () => useContext(ChatContext);
+export const useChat = (): ChatContextValue => useContext(ChatContext);

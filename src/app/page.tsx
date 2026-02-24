@@ -6,7 +6,7 @@ import Card from "../components/Card";
 import type { IProduct } from "@/src/interfaces/product.interface";
 import { showToast } from "nextjs-toast-notify";
 
-//SOLO TOKEN. KEY ARRIBA, API_BASE_URL DENTRO
+// SOLO TOKEN. KEY ARRIBA, API_BASE_URL DENTRO
 const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
 async function parseJsonSafe(res: Response) {
@@ -22,9 +22,10 @@ export default function Product() {
   useEffect(() => {
     const run = async () => {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL; // SE DEBE LEER. DENTRO PAAR EVITAR ERRORES EN BUILD
-        if (!API_BASE_URL)
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL; // SE DEBE LEER DENTRO para evitar errores en build
+        if (!API_BASE_URL) {
           throw new Error("NEXT_PUBLIC_API_BASE_URL no está definido");
+        }
 
         const token = localStorage.getItem(TOKEN_KEY);
 
@@ -65,7 +66,8 @@ export default function Product() {
   return (
     <div className="w-full bg-amber-100 text-zinc-900">
       {/* HERO */}
-      <section className="relative overflow-hidden border-b border-amber-300/60">
+
+      <section className="hero-retro relative overflow-hidden border-b border-amber-300/60">
         <div
           className="absolute inset-0 opacity-35"
           style={{
@@ -73,45 +75,53 @@ export default function Product() {
               "url('https://www.transparenttextures.com/patterns/paper-fibers.png')",
           }}
         />
-        <div className="pointer-events-none absolute -top-20 -right-24 w-80 h-80 rounded-full bg-emerald-800/15" />
-        <div className="pointer-events-none absolute -bottom-28 -left-24 w-96 h-96 rounded-full bg-amber-800/10" />
+        <div className="pointer-events-none absolute -top-20 -right-24 h-80 w-80 rounded-full bg-emerald-800/15" />
+        <div className="pointer-events-none absolute -bottom-28 -left-24 h-96 w-96 rounded-full bg-amber-800/10" />
 
-        <div className="relative max-w-6xl mx-auto px-4 py-14 sm:py-20 flex flex-col md:flex-row items-center gap-12">
-          <div className="flex-1 space-y-6">
-            <span className="font-typewriter inline-block px-3 py-1 bg-amber-800 text-amber-50 uppercase tracking-widest text-xs sm:text-sm -rotate-2">
-              Liquidación de temporada
-            </span>
-
-            <h1 className="font-typewriter text-4xl sm:text-6xl md:text-7xl  leading-tight">
-              Objetos con{" "}
-              <span className="text-emerald-900 text-2xl sm:text-xl md:text-5xl decoration-amber-600 underline underline-offset-8">
-                historia
+        {/* ✅ balance texto/imagen */}
+        <div className="relative mx-auto grid max-w-[1420px] grid-cols-1 items-center gap-10 px-4 py-14 sm:gap-12 sm:py-20 md:grid-cols-[1.03fr_1fr] lg:gap-14">
+          {/* Texto */}
+          <div className="flex flex-col justify-between space-y-6">
+            <div className="space-y-6">
+              <span className="font-typewriter inline-block -rotate-2 bg-amber-800 px-3 py-1 text-xs uppercase tracking-widest text-amber-50 sm:text-sm">
+                Liquidación de temporada
               </span>
-              ,<br />
-              precios de RetroGarage.
-            </h1>
 
-            <p className="font-typewriter text-base sm:text-lg max-w-xl text-zinc-800">
+              {/* ✅ 4 renglones exactos */}
+              <h1 className="font-typewriter text-zinc-950">
+                Objetos con
+                <br />
+                <span className="inline-block text-emerald-900">historia,</span>
+                <br />
+                precios de
+                <br />
+                RetroGarage.
+              </h1>
+            </div>
+
+            <p className="font-typewriter max-w-xl text-[15px] leading-relaxed text-zinc-800 sm:text-base">
               Tesoros olvidados: desde maletas vintage hasta cámaras analógicas
               que aún sueñan con revelar rollos.
             </p>
           </div>
 
-          <div className="flex-1 relative w-full max-w-md">
-            <div className="relative w-full aspect-square">
-              <div className="absolute inset-0 border-2 border-amber-50 shadow-2xl rotate-2 overflow-hidden rounded-sm">
+          {/* Imagen */}
+          <div className="relative w-full max-w-[680px] justify-self-center md:justify-self-end">
+            <div className="relative aspect-square w-full">
+              <div className="absolute inset-0 rotate-[1.6deg] overflow-hidden rounded-sm border-2 border-amber-50 shadow-2xl">
                 <Image
                   src="https://res.cloudinary.com/dyylxjijf/image/upload/v1770309885/homehero_idlclz.png"
                   alt="Vintage items"
                   fill
-                  sizes="(max-width: 768px) 90vw, 420px"
+                  sizes="(max-width: 768px) 92vw, (max-width: 1280px) 48vw, 680px"
                   className="object-cover"
                   priority
                 />
               </div>
 
-              <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-amber-300 p-2 shadow-lg -rotate-12 flex items-center justify-center text-center border border-amber-700/30">
-                <p className="font-display  text-amber-950 leading-none text-lg">
+              {/* Sticky note */}
+              <div className="absolute -bottom-4 left-2 z-10 w-28 -rotate-12 border border-amber-700/30 bg-amber-300 p-2 shadow-lg sm:-bottom-5 sm:left-3 sm:w-32 sm:p-2.5 md:-bottom-6 md:left-0">
+                <p className="font-display text-center text-base leading-none text-amber-950 sm:text-lg">
                   ¡Sale 30% off!
                 </p>
               </div>
@@ -121,24 +131,24 @@ export default function Product() {
       </section>
 
       {/* FEATURED */}
-      <section id="featured" className="max-w-6xl mx-auto px-4 py-14 sm:py-20">
-        <div className="flex items-end justify-between gap-6 mb-10 sm:mb-14">
+      <section id="featured" className="mx-auto max-w-6xl px-4 py-14 sm:py-20">
+        <div className="mb-10 flex items-end justify-between gap-6 sm:mb-14">
           <div>
-            <h2 className="font-typewriter text-2xl sm:text-4xl font-extrabold mb-2">
+            <h2 className="mb-2 font-typewriter text-2xl font-extrabold sm:text-4xl">
               Destacados de la semana
             </h2>
-            <h4 className="font-typewriter text-amber-900 font-semibold">
+            <h4 className="font-typewriter font-semibold text-amber-900">
               Recién llegados del ático
             </h4>
           </div>
         </div>
 
         {loading ? (
-          <p className="font-handwritten text-amber-900 font-semibold">
+          <p className="font-handwritten font-semibold text-amber-900">
             Cargando productos...
           </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 sm:gap-10 lg:grid-cols-4">
             {allProducts?.slice(0, 8).map((product: any) => (
               <Card key={product.id ?? product.title} product={product} />
             ))}

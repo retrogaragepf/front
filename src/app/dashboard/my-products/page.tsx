@@ -12,13 +12,10 @@ type MyProduct = {
   description?: string;
   price?: number | string;
   stock?: number | string;
-  // Back actual:
   imgUrl?: string;
-  // Otros posibles nombres:
   imageUrl?: string;
   image?: string;
   createdAt?: string;
-
   category?: any;
   era?: any;
 };
@@ -42,7 +39,6 @@ function formatCOP(value?: number) {
   return value.toLocaleString("es-CO", { minimumFractionDigits: 0 });
 }
 
-// ✅ Toast wrapper seguro (no rompe si cambia export)
 function notify(
   msg: string,
   type: "success" | "error" | "warning" = "success",
@@ -54,17 +50,17 @@ function notify(
   else console.log(`[toast:${type}]`, msg);
 }
 
-// ✅ Extrae JWT real aunque localStorage guarde JSON { user, token }
-function getAuthToken(): string | null {
+// ✅ Fallback (compatibilidad). Fuente principal será dataUser?.token
+function getAuthTokenFromStorage(): string | null {
   if (typeof window === "undefined") return null;
 
   const raw = localStorage.getItem(TOKEN_KEY);
   if (!raw) return null;
 
-  // Caso 1: JWT plano
+  // JWT plano
   if (raw.includes(".") && raw.split(".").length === 3) return raw;
 
-  // Caso 2: JSON { user, token }
+  // JSON { user, token }
   try {
     const obj = JSON.parse(raw);
     const t = obj?.token;
@@ -76,7 +72,6 @@ function getAuthToken(): string | null {
   return null;
 }
 
-// ✅ Normaliza shape del back para el front (imgUrl -> imageUrl, price/stock -> number)
 function normalizeProduct(
   p: any,
 ): MyProduct & { imageUrl?: string; price?: number; stock?: number } {
@@ -113,25 +108,32 @@ function normalizeProduct(
 
 export default function MyProductsPage() {
   const router = useRouter();
-  const { isAuth, isLoadingUser } = useAuth();
+
+  // ✅ usa token desde AuthContext (memoria) para evitar race con localStorage
+  const { dataUser, isAuth, isLoadingUser } = useAuth();
 
   const [items, setItems] = useState<
     (MyProduct & { imageUrl?: string; price?: number; stock?: number })[]
   >([]);
   const [loading, setLoading] = useState(true);
 
+  // (opcional) solo debug visual, no afecta lógica
   const rawStorage = useMemo(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(TOKEN_KEY);
   }, []);
 
-  const fetchMyProducts = async () => {
+  const fetchMyProducts = async (opts?: { silent?: boolean }) => {
     setLoading(true);
 
     try {
-      const token = getAuthToken();
+      // ✅ prioridad: token de contexto; fallback: localStorage
+      const token = dataUser?.token ?? getAuthTokenFromStorage();
+
       if (!token) {
-        notify("Debes iniciar sesión para ver tus productos", "warning");
+        if (!opts?.silent) {
+          notify("Debes iniciar sesión para ver tus productos", "warning");
+        }
         router.replace("/login");
         return;
       }
@@ -157,12 +159,14 @@ export default function MyProductsPage() {
               : "No se pudieron cargar tus productos";
 
         if (res.status === 401 || res.status === 403) {
-          notify("Tu sesión expiró. Inicia sesión de nuevo.", "warning");
+          if (!opts?.silent) {
+            notify("Tu sesión expiró. Inicia sesión de nuevo.", "warning");
+          }
           router.replace("/login");
           return;
         }
 
-        notify(msg, "error");
+        if (!opts?.silent) notify(msg, "error");
         setItems([]);
         return;
       }
@@ -175,38 +179,70 @@ export default function MyProductsPage() {
 
       setItems(list.map(normalizeProduct));
     } catch (err: any) {
-      notify(err?.message || "Error cargando tus productos", "error");
+      if (!opts?.silent) {
+        notify(err?.message || "Error cargando tus productos", "error");
+      }
       setItems([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ Carga principal SIN doble carga: espera hidratación del auth
   useEffect(() => {
     if (isLoadingUser) return;
 
-    const token = getAuthToken();
+    // Si terminó de cargar y NO hay auth ni token en storage, ahí sí redirige
+    const fallbackToken = getAuthTokenFromStorage();
+    const hasToken = Boolean(dataUser?.token || fallbackToken);
 
-    // ✅ si NO hay token real, ahí sí sacas
-    if (!token) {
+    if (!isAuth && !hasToken) {
+      setLoading(false);
       notify("Debes iniciar sesión para entrar al dashboard", "warning");
       router.replace("/login");
       return;
     }
 
-    // ✅ si hay token, NO redirijas por isAuth (puede estar false 1 momento)
     fetchMyProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoadingUser]);
+  }, [isLoadingUser, isAuth, dataUser?.token]);
+
+  // ✅ Refrescar al volver con atrás/adelante (bfcache) y al volver a la pestaña
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted && !isLoadingUser && (isAuth || dataUser?.token)) {
+        fetchMyProducts({ silent: true });
+      }
+    };
+
+    const onVisibility = () => {
+      if (
+        document.visibilityState === "visible" &&
+        !isLoadingUser &&
+        (isAuth || dataUser?.token)
+      ) {
+        fetchMyProducts({ silent: true });
+      }
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoadingUser, isAuth, dataUser?.token]);
 
   return (
     <div className="min-h-screen px-6 py-10">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="font-display text-3xl text-amber-900 font-extrabold">
+            <h3 className="font-display text-3xl text-amber-900 font-extrabold">
               Mis productos
-            </h1>
+            </h3>
             <p className="text-sm text-slate-700">
               Aquí ves solo los productos asociados a tu cuenta.
             </p>
@@ -214,7 +250,7 @@ export default function MyProductsPage() {
 
           <div className="flex gap-3">
             <button
-              onClick={fetchMyProducts}
+              onClick={() => fetchMyProducts()}
               className="shrink-0 px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-[1px] active:translate-y-[1px]"
             >
               Actualizar
@@ -275,7 +311,7 @@ export default function MyProductsPage() {
 
                   <div className="mt-3 flex items-center justify-between text-sm">
                     <span className="font-semibold text-slate-900">
-                      ${formatCOP(p.price)}
+                      ${formatCOP(p.price as number | undefined)}
                     </span>
                     <span className="text-slate-700">
                       Stock: <b className="text-slate-900">{p.stock ?? "—"}</b>

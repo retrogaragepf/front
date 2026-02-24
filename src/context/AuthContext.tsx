@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -13,10 +14,12 @@ type User = {
   id?: string | number | null;
   name?: string;
   email?: string;
+  fullName?: string;
+  username?: string;
   isAdmin?: boolean;
   iat?: number;
   exp?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 export type UserSession = {
@@ -35,7 +38,11 @@ interface AuthContextProps {
 
 const AUTH_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
-function decodeJwtPayload(token: string): Record<string, any> | null {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
@@ -54,6 +61,24 @@ function decodeJwtPayload(token: string): Record<string, any> | null {
   }
 }
 
+function getStringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function getOptionalId(value: unknown): string | number | null {
+  if (typeof value === "string" || typeof value === "number") return value;
+  return null;
+}
+
+// ✅ opcional pero muy útil: validar expiración del token
+function isTokenExpired(token: string): boolean {
+  const payload = decodeJwtPayload(token);
+  const exp = Number(payload?.exp ?? 0);
+  if (!exp) return false; // si no trae exp, no lo invalidamos aquí
+  const nowSec = Math.floor(Date.now() / 1000);
+  return exp <= nowSec;
+}
+
 export const AuthContext = createContext<AuthContextProps>({
   dataUser: null,
   isAuth: false,
@@ -62,14 +87,23 @@ export const AuthContext = createContext<AuthContextProps>({
   logout: () => {},
 });
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AuthProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.JSX.Element => {
   const [dataUser, setDataUser] = useState<UserSession | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const router = useRouter();
 
+  // ✅ evita borrar localStorage en el primer render antes de hidratar
+  const didHydrateRef = useRef(false);
+
   const persistSession = (session: UserSession | null) => {
     try {
-      if (session) {
+      if (typeof window === "undefined") return;
+
+      if (session?.token) {
         localStorage.setItem(AUTH_KEY, JSON.stringify(session));
       } else {
         localStorage.removeItem(AUTH_KEY);
@@ -79,70 +113,104 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // ✅ Cargar sesión
+  // ✅ Cargar sesión (una sola vez)
   useEffect(() => {
     try {
+      if (typeof window === "undefined") return;
+
       const raw = localStorage.getItem(AUTH_KEY);
+
       if (!raw) {
-        setIsLoadingUser(false);
+        setDataUser(null);
         return;
       }
 
-      let parsed: any = null;
+      let parsed: unknown = null;
       try {
         parsed = JSON.parse(raw);
       } catch {
-        parsed = raw;
+        parsed = raw; // compatibilidad JWT plano
       }
 
       // Forma esperada: { user, token, email }
-      if (parsed && typeof parsed === "object" && parsed?.token) {
+      if (
+        isRecord(parsed) &&
+        typeof parsed.token === "string"
+      ) {
+        if (isTokenExpired(parsed.token)) {
+          localStorage.removeItem(AUTH_KEY);
+          setDataUser(null);
+          return;
+        }
+
         const normalized: UserSession = {
-          user: parsed.user ?? {},
+          user: isRecord(parsed.user) ? (parsed.user as User) : {},
           token: parsed.token,
-          email: parsed.email ?? parsed.user?.email ?? "",
+          email:
+            (typeof parsed.email === "string" ? parsed.email : "") ||
+            (isRecord(parsed.user) && typeof parsed.user.email === "string"
+              ? parsed.user.email
+              : ""),
         };
+
         setDataUser(normalized);
-        console.log("✅ Sesión cargada:", normalized.user);
         return;
       }
 
       // Compatibilidad: JWT plano guardado por versiones anteriores
       if (typeof parsed === "string" && parsed.includes(".")) {
+        if (isTokenExpired(parsed)) {
+          localStorage.removeItem(AUTH_KEY);
+          setDataUser(null);
+          return;
+        }
+
         const payload = decodeJwtPayload(parsed);
         const normalized: UserSession = {
           user: {
-            id: payload?.id ?? null,
-            name: payload?.name ?? "",
-            email: payload?.email ?? "",
+            id: getOptionalId(payload?.id),
+            name: getStringValue(payload?.name),
+            email: getStringValue(payload?.email),
             isAdmin: Boolean(payload?.isAdmin),
-            iat: payload?.iat,
-            exp: payload?.exp,
+            iat: typeof payload?.iat === "number" ? payload.iat : undefined,
+            exp: typeof payload?.exp === "number" ? payload.exp : undefined,
           },
           token: parsed,
-          email: payload?.email ?? "",
+          email: getStringValue(payload?.email),
         };
+
         setDataUser(normalized);
-        console.log("✅ Sesión cargada desde JWT:", normalized.user);
+        return;
       }
+
+      // Si llega algo raro/corrupto, limpia
+      localStorage.removeItem(AUTH_KEY);
+      setDataUser(null);
     } catch (e) {
       console.error("Error leyendo auth:", e);
       setDataUser(null);
     } finally {
+      didHydrateRef.current = true; // ✅ ya terminó hidratación
       setIsLoadingUser(false);
     }
   }, []);
 
-  // ✅ Persistir sesión
+  // ✅ Persistir sesión SOLO después de hidratar
   useEffect(() => {
+    if (!didHydrateRef.current || isLoadingUser) return;
     persistSession(dataUser);
-  }, [dataUser]);
+  }, [dataUser, isLoadingUser]);
 
   const login = (payload: UserSession) => {
-    console.log("Login - Guardando:", payload.user);
-    // Guardado inmediato para evitar carrera entre router.push y useEffect
-    persistSession(payload);
-    setDataUser(payload);
+    // normaliza un poco por seguridad
+    const normalized: UserSession = {
+      user: payload?.user ?? {},
+      token: payload?.token ?? null,
+      email: payload?.email ?? payload?.user?.email ?? "",
+    };
+
+    persistSession(normalized); // guardado inmediato (evita carrera con router.push)
+    setDataUser(normalized);
   };
 
   const logout = () => {
@@ -151,7 +219,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.push("/login");
   };
 
-  // ✅ ahora valida sesión por token o email
   const isAuth = useMemo(() => Boolean(dataUser?.token), [dataUser]);
 
   return (
@@ -163,4 +230,4 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = (): AuthContextProps => useContext(AuthContext);

@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactElement } from "react";
 import { chatService } from "@/src/services/chat.services";
 import { ChatMessage } from "@/src/types/chat.types";
 import ChatMessages from "@/src/components/chat/chat-window/ChatMessages";
 import ChatComposer from "@/src/components/chat/chat-window/ChatComposer";
+import { appendMessageSafe, isObjectRecord } from "@/src/context/chat/chatStateUtils";
 
 type Props = {
   isOpen: boolean;
@@ -13,55 +15,147 @@ type Props = {
   onClose: () => void;
 };
 
+type SocketLike = {
+  connected: boolean;
+  on: (event: string, cb: (...args: unknown[]) => void) => void;
+  emit: (event: string, ...args: unknown[]) => void;
+  disconnect: () => void;
+};
+
 export default function AdminDirectChatModal({
   isOpen,
   conversationId,
   userName,
   onClose,
-}: Props) {
+}: Props): ReactElement | null {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const currentUserId = useMemo(() => chatService.getCurrentUserId(), []);
+  const POLL_INTERVAL_MS = 2_000;
+  const [socket, setSocket] = useState<SocketLike | null>(null);
 
-  const loadMessages = useCallback(async () => {
+  const areMessagesEqualById = (prev: ChatMessage[], next: ChatMessage[]) => {
+    if (prev === next) return true;
+    if (prev.length !== next.length) return false;
+    for (let i = 0; i < prev.length; i += 1) {
+      if (prev[i].id !== next[i].id) return false;
+    }
+    return true;
+  };
+
+  const loadMessages = useCallback(async (options?: { silent?: boolean }) => {
     if (!conversationId) return;
+    const silent = Boolean(options?.silent);
     try {
-      setLoading(true);
-      setError(null);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
       const data = await chatService.getMessages(conversationId);
-      setMessages(data);
+      setMessages((prev) => (areMessagesEqualById(prev, data) ? prev : data));
     } catch (e: unknown) {
       const message =
         e instanceof Error ? e.message : "No se pudieron cargar los mensajes.";
       setError(message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [conversationId]);
 
   useEffect(() => {
     if (!isOpen || !conversationId) return;
-    void loadMessages();
+    void loadMessages({ silent: false });
   }, [conversationId, isOpen, loadMessages]);
 
   useEffect(() => {
     if (!isOpen || !conversationId) return;
+    if (process.env.NEXT_PUBLIC_ENABLE_CHAT_SOCKET === "false") return;
+
+    let canceled = false;
+    let mountedSocket: SocketLike | null = null;
+
+    const mountSocket = (
+      ioFactory: ((url: string, options?: Record<string, unknown>) => SocketLike) | undefined,
+    ) => {
+      if (canceled || !ioFactory) return;
+      const token = chatService.getSocketToken();
+      if (!token) return;
+
+      mountedSocket = ioFactory(chatService.getSocketUrl(), {
+        auth: { token },
+        transports: ["websocket", "polling"],
+        reconnection: true,
+      });
+
+      mountedSocket.on("connect", () => {
+        console.log("[AdminDirectChatModal] socket:connect", { conversationId });
+        mountedSocket?.emit("joinConversation", conversationId);
+      });
+
+      mountedSocket.on("newMessage", (...args: unknown[]) => {
+        const payload = args[0];
+        if (!isObjectRecord(payload)) return;
+        const incoming = chatService.normalizeSocketMessage(payload, conversationId);
+        if (!incoming) return;
+        console.log("[AdminDirectChatModal] socket:newMessage", {
+          conversationId: incoming.conversationId,
+          messageId: incoming.id,
+          senderId: incoming.senderId,
+        });
+        setMessages((prev) => appendMessageSafe(prev, incoming));
+      });
+
+      setSocket(mountedSocket);
+    };
+
+    const connect = async () => {
+      try {
+        const dynamicImport = new Function(
+          "specifier",
+          "return import(specifier)",
+        ) as (specifier: string) => Promise<unknown>;
+        const socketClientModule = (await dynamicImport(
+          "socket.io-client",
+        )) as { io?: (url: string, options?: Record<string, unknown>) => SocketLike };
+        mountSocket(socketClientModule?.io);
+      } catch {
+        console.warn("[AdminDirectChatModal] socket:unavailable, fallback polling");
+        // Si no hay socket client, seguimos con polling/REST.
+      }
+    };
+
+    void connect();
+
+    return () => {
+      canceled = true;
+      mountedSocket?.disconnect();
+      setSocket(null);
+    };
+  }, [conversationId, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !conversationId) return;
     const intervalId = window.setInterval(() => {
-      void loadMessages();
-    }, 4500);
+      void loadMessages({ silent: true });
+    }, POLL_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [conversationId, isOpen, loadMessages]);
+  }, [conversationId, isOpen, loadMessages, POLL_INTERVAL_MS]);
 
   const handleSendMessage = async (content: string) => {
     if (!conversationId) return;
     try {
       setError(null);
+      console.log("[AdminDirectChatModal] send:rest", {
+        conversationId,
+        socketConnected: Boolean(socket?.connected),
+      });
       const sent = await chatService.sendMessage({ conversationId, content });
-      setMessages((prev) => [...prev, sent]);
+      setMessages((prev) => appendMessageSafe(prev, sent));
     } catch (e: unknown) {
       const message =
         e instanceof Error ? e.message : "No se pudo enviar el mensaje.";
+      console.error("[AdminDirectChatModal] send:error", { conversationId, error: e });
       setError(message);
     }
   };

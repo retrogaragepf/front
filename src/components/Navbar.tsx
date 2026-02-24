@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactElement } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
 import { useChat } from "@/src/context/ChatContext";
@@ -8,33 +9,151 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
 import { signOut } from "next-auth/react";
+import { adminChatService } from "@/src/services/adminChat.services";
+import { chatService } from "@/src/services/chat.services";
+import type { UserSession } from "@/src/context/AuthContext";
+import type { SocketLike } from "@/src/context/chat/useChatSocket";
 
-const Navbar = () => {
+const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
+const CHAT_ALERT_DEBUG =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_CHAT_ALERT_DEBUG === "true";
+
+function logChatAlert(scope: string, payload?: unknown) {
+  if (!CHAT_ALERT_DEBUG) return;
+  if (typeof payload === "undefined") {
+    console.log(`[ChatAlert][Navbar] ${scope}`);
+    return;
+  }
+  console.log(`[ChatAlert][Navbar] ${scope}`, payload);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getStringField(record: Record<string, unknown>, key: string): string {
+  const value = record[key];
+  return typeof value === "string" ? value : "";
+}
+
+function getBooleanField(
+  record: Record<string, unknown>,
+  key: string,
+): boolean {
+  return Boolean(record[key]);
+}
+
+function loadAdminReadMarkers(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(ADMIN_READ_CHATS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.entries(parsed).reduce<Record<string, number>>(
+      (acc, [id, value]) => {
+        const at = typeof value === "number" ? value : Number(value);
+        if (id && Number.isFinite(at) && at > 0) acc[id] = at;
+        return acc;
+      },
+      {},
+    );
+  } catch {
+    return {};
+  }
+}
+
+function hasPendingAdminChat(
+  chat: {
+    id: string;
+    unreadCount: number;
+    timestamp: string;
+    lastMessage: string;
+  },
+  readMarkers: Record<string, number>,
+): boolean {
+  const hasActivity = Boolean(
+    (chat.lastMessage || "").trim() || (chat.timestamp || "").trim(),
+  );
+  if (!hasActivity) return false;
+
+  const readAt = readMarkers[chat.id] ?? 0;
+  const chatTs = Date.parse(chat.timestamp || "");
+  const hasValidTs = Number.isFinite(chatTs);
+
+  if (!readAt) return true;
+
+  if (chat.unreadCount > 0) {
+    if (!hasValidTs) return true;
+    return chatTs > readAt;
+  }
+
+  if (!hasValidTs) return false;
+  return chatTs > readAt;
+}
+
+function toTimestamp(value: string): number {
+  const parsed = Date.parse(value || "");
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+type PendingChatLike = {
+  id: string;
+  unreadCount: number;
+  timestamp: string;
+  lastMessage?: string;
+};
+
+function buildPendingSignature(chats: PendingChatLike[]): string {
+  return chats
+    .map((chat) => {
+      const normalizedMessage = (chat.lastMessage || "").trim();
+      return `${chat.id}|${chat.unreadCount}|${chat.timestamp}|${normalizedMessage}`;
+    })
+    .sort()
+    .join("::");
+}
+
+const Navbar = (): ReactElement => {
   const { dataUser, logout } = useAuth();
   const router = useRouter();
+  const session = dataUser as UserSession | null;
+  const userRecord = asRecord(session?.user);
 
   const { cartItems } = useCart();
-  const { openChat, hasUnreadMessages, unreadTotal, conversations } = useChat();
+  const { openChat, conversations, activeConversation, isChatOpen } = useChat();
   const itemsCart = cartItems.length;
   const [isAdminSupportOpen, setIsAdminSupportOpen] = useState(false);
   const [adminSubject, setAdminSubject] = useState("");
   const [adminDetail, setAdminDetail] = useState("");
   const [isLaunchingAdminChat, setIsLaunchingAdminChat] = useState(false);
+  const [adminUnreadConversations, setAdminUnreadConversations] = useState(0);
+  const [userRealtimePendingCount, setUserRealtimePendingCount] = useState(0);
+  const adminUnreadReadyRef = useRef(false);
+  const previousAdminPendingSignatureRef = useRef("");
+  const previousAdminPendingCountRef = useRef(0);
+  const adminRealtimePendingIdsRef = useRef<Set<string>>(new Set());
+  const userRealtimePendingIdsRef = useRef<Set<string>>(new Set());
+  const socketRef = useRef<SocketLike | null>(null);
 
   const safeName =
-    (dataUser as any)?.user?.name ??
-    (dataUser as any)?.name ??
-    (dataUser as any)?.user?.fullName ??
-    (dataUser as any)?.fullName ??
-    (dataUser as any)?.user?.username ??
-    (dataUser as any)?.username ??
+    getStringField(userRecord, "name") ||
+    getStringField(userRecord, "fullName") ||
+    getStringField(userRecord, "username") ||
     "";
 
   const isLogged =
-    Boolean((dataUser as any)?.user?.email) ||
-    Boolean((dataUser as any)?.email) ||
-    Boolean((dataUser as any)?.user) ||
-    Boolean(dataUser);
+    Boolean(getStringField(userRecord, "email")) ||
+    Boolean(session?.email) ||
+    Boolean(session?.user) ||
+    Boolean(session);
 
   const AUTH_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
@@ -61,13 +180,314 @@ const Navbar = () => {
 
   const isAdminUser = useMemo(() => {
     const userFlag =
-      Boolean((dataUser as any)?.user?.isAdmin) || Boolean((dataUser as any)?.isAdmin);
+      getBooleanField(userRecord, "isAdmin") ||
+      Boolean((session as UserSession | null)?.user?.isAdmin);
     if (userFlag) return true;
 
-    const token =
-      (dataUser as any)?.token ?? (dataUser as any)?.user?.token ?? null;
+    const fallbackToken = getStringField(userRecord, "token");
+    const token = session?.token ?? (fallbackToken || null);
     return decodeIsAdminFromJwt(token);
-  }, [dataUser]);
+  }, [session, userRecord]);
+
+  const unreadConversationsUserFromContext = useMemo(
+    () =>
+      conversations.filter((conversation) => conversation.unreadCount > 0)
+        .length,
+    [conversations],
+  );
+  const firstPendingUserConversationId = useMemo(() => {
+    const unreadConversations = conversations.filter(
+      (conversation) => conversation.unreadCount > 0,
+    );
+    unreadConversations.sort(
+      (a, b) => toTimestamp(b.timestamp) - toTimestamp(a.timestamp),
+    );
+    return unreadConversations[0]?.id ?? null;
+  }, [conversations]);
+
+  const adminRealtimePendingCount = adminRealtimePendingIdsRef.current.size;
+  const navbarUnreadChats = isAdminUser
+    ? Math.max(adminUnreadConversations, adminRealtimePendingCount)
+    : Math.max(unreadConversationsUserFromContext, userRealtimePendingCount);
+  const hasNavbarUnread = navbarUnreadChats > 0;
+
+  const notifyNewMessage = () => {
+    logChatAlert("notifyNewMessage:toast");
+    showToast.info("Mensaje nuevo recibido", {
+      duration: 2200,
+      progress: true,
+      position: "top-right",
+      transition: "popUp",
+      icon: "",
+      sound: true,
+    });
+  };
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadAdminUnread = async () => {
+      if (!isLogged || !isAdminUser) {
+        if (!canceled) setAdminUnreadConversations(0);
+        logChatAlert("adminPoll:skip", { isLogged, isAdminUser });
+        return;
+      }
+      try {
+        const chats = await adminChatService.getConversations();
+        if (canceled) return;
+        const readMarkers = loadAdminReadMarkers();
+        const pendingChats = chats.filter((chat) =>
+          hasPendingAdminChat(chat, readMarkers),
+        );
+        const pending = pendingChats.length;
+        setAdminUnreadConversations(pending);
+        logChatAlert("adminPoll:data", {
+          totalChats: chats.length,
+          pending,
+          pendingIds: pendingChats.map((chat) => chat.id),
+        });
+        if (socketRef.current?.connected) {
+          chats.forEach((chat) => {
+            if (chat.id) socketRef.current?.emit("joinConversation", chat.id);
+          });
+          logChatAlert("adminPoll:rejoinRooms", {
+            socketConnected: socketRef.current.connected,
+            rooms: chats.map((chat) => chat.id).filter(Boolean),
+          });
+        }
+
+        const currentSignature = buildPendingSignature(pendingChats);
+
+        if (!adminUnreadReadyRef.current) {
+          adminUnreadReadyRef.current = true;
+          previousAdminPendingSignatureRef.current = currentSignature;
+          previousAdminPendingCountRef.current = pending;
+        } else {
+          const hasNewOrChangedPending =
+            pending > 0 &&
+            (currentSignature !== previousAdminPendingSignatureRef.current ||
+              pending > previousAdminPendingCountRef.current);
+          previousAdminPendingSignatureRef.current = currentSignature;
+          previousAdminPendingCountRef.current = pending;
+          if (!hasNewOrChangedPending) return;
+        }
+      } catch (error) {
+        logChatAlert("adminPoll:error", error);
+      }
+    };
+
+    void loadAdminUnread();
+    const intervalId = window.setInterval(() => {
+      void loadAdminUnread();
+    }, 2_000);
+
+    return () => {
+      canceled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [isAdminUser, isLogged]);
+
+  useEffect(() => {
+    let canceled = false;
+    if (!isLogged) {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      adminRealtimePendingIdsRef.current.clear();
+      userRealtimePendingIdsRef.current.clear();
+      setUserRealtimePendingCount(0);
+      logChatAlert("socket:skip:notLogged");
+      return;
+    }
+    if (process.env.NEXT_PUBLIC_ENABLE_CHAT_SOCKET === "false") {
+      logChatAlert("socket:disabledByEnv");
+      return;
+    }
+
+    const resolveConversationIds = async (): Promise<string[]> => {
+      try {
+        if (isAdminUser) {
+          const chats = await adminChatService.getConversations();
+          logChatAlert("resolveConversationIds:admin", {
+            count: chats.length,
+            ids: chats.map((chat) => chat.id),
+          });
+          return chats.map((chat) => chat.id).filter(Boolean);
+        }
+        const chats = await chatService.getConversations();
+        logChatAlert("resolveConversationIds:user", {
+          count: chats.length,
+          ids: chats.map((chat) => chat.id),
+        });
+        return chats.map((chat) => chat.id).filter(Boolean);
+      } catch (error) {
+        if (error instanceof Error && error.message === "NO_AUTH") return [];
+        logChatAlert("resolveConversationIds:error", error);
+        return [];
+      }
+    };
+
+    const connectSocket = async () => {
+      try {
+        if (socketRef.current || canceled) return;
+        const token = chatService.getSocketToken();
+        if (!token) {
+          logChatAlert("socket:skip:noToken");
+          return;
+        }
+
+        const dynamicImport = new Function(
+          "specifier",
+          "return import(specifier)",
+        ) as (specifier: string) => Promise<unknown>;
+        const socketClientModule = (await dynamicImport(
+          "socket.io-client",
+        )) as {
+          io?: (url: string, options?: Record<string, unknown>) => SocketLike;
+        };
+        const ioFactory = socketClientModule?.io;
+        if (!ioFactory || canceled) {
+          logChatAlert("socket:skip:noFactoryOrCanceled", {
+            hasFactory: Boolean(ioFactory),
+            canceled,
+          });
+          return;
+        }
+
+        const socket = ioFactory(chatService.getSocketUrl(), {
+          auth: { token },
+          transports: ["websocket", "polling"],
+          reconnection: true,
+        });
+
+        socket.on("connect", async () => {
+          logChatAlert("socket:connect", {
+            isAdminUser,
+            socketConnected: socket.connected,
+          });
+          try {
+            const ids = await resolveConversationIds();
+            if (canceled) return;
+            ids.forEach((id) => {
+              socket.emit("joinConversation", id);
+            });
+            logChatAlert("socket:joinRooms", { ids });
+          } catch {
+            // noop
+          }
+        });
+        socket.on("disconnect", (reason: unknown) => {
+          logChatAlert("socket:disconnect", { reason });
+        });
+        socket.on("connect_error", (error: unknown) => {
+          logChatAlert("socket:connect_error", error);
+        });
+
+        socket.on("newMessage", (...args: unknown[]) => {
+          const payload = args[0];
+          if (!isRecord(payload)) return;
+          const conversationId = String(payload.conversationId ?? "");
+          if (!conversationId) return;
+
+          const sender = isRecord(payload.sender) ? payload.sender : null;
+          const senderId = String(
+            sender?.id ?? payload.senderId ?? payload.userId ?? "",
+          );
+          const currentUserId = chatService.getCurrentUserId();
+          logChatAlert("socket:newMessage:raw", {
+            isAdminUser,
+            conversationId,
+            senderId,
+            currentUserId,
+            activeConversationId: activeConversation?.id ?? null,
+            isChatOpen,
+            payload,
+          });
+          if (senderId && senderId === currentUserId) {
+            logChatAlert("socket:newMessage:ignoredOwnMessage", {
+              conversationId,
+              senderId,
+            });
+            return;
+          }
+
+          if (isAdminUser) {
+            adminRealtimePendingIdsRef.current.add(conversationId);
+            setAdminUnreadConversations((prev) =>
+              Math.max(prev, adminRealtimePendingIdsRef.current.size),
+            );
+            logChatAlert("socket:newMessage:adminPendingUpdated", {
+              conversationId,
+              pendingCount: adminRealtimePendingIdsRef.current.size,
+            });
+          } else {
+            userRealtimePendingIdsRef.current.add(conversationId);
+            setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+            logChatAlert("socket:newMessage:userPendingUpdated", {
+              conversationId,
+              pendingCount: userRealtimePendingIdsRef.current.size,
+            });
+          }
+
+          // Requisito: alertar en cada mensaje nuevo recibido.
+          notifyNewMessage();
+        });
+
+        socketRef.current = socket;
+        logChatAlert("socket:mounted");
+      } catch (error) {
+        logChatAlert("socket:connectError", error);
+      }
+    };
+
+    void connectSocket();
+    const joinIntervalId = window.setInterval(async () => {
+      if (canceled || !socketRef.current?.connected) return;
+      const ids = await resolveConversationIds();
+      ids.forEach((id) => socketRef.current?.emit("joinConversation", id));
+      logChatAlert("socket:joinRooms:interval", { ids });
+    }, 2_000);
+
+    return () => {
+      canceled = true;
+      window.clearInterval(joinIntervalId);
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      logChatAlert("socket:cleanup");
+    };
+  }, [activeConversation?.id, isAdminUser, isChatOpen, isLogged]);
+
+  useEffect(() => {
+    if (isAdminUser) return;
+    if (!isChatOpen || !activeConversation?.id) return;
+    if (!userRealtimePendingIdsRef.current.has(activeConversation.id)) return;
+    userRealtimePendingIdsRef.current.delete(activeConversation.id);
+    setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+    logChatAlert("userPending:clearedByOpenConversation", {
+      conversationId: activeConversation.id,
+      pendingCount: userRealtimePendingIdsRef.current.size,
+    });
+  }, [activeConversation?.id, isAdminUser, isChatOpen]);
+
+  useEffect(() => {
+    logChatAlert("navbarUnread:state", {
+      isAdminUser,
+      adminUnreadConversations,
+      adminRealtimePendingCount: adminRealtimePendingIdsRef.current.size,
+      unreadConversationsUserFromContext,
+      userRealtimePendingCount,
+      navbarUnreadChats,
+      hasNavbarUnread,
+      firstPendingUserConversationId,
+    });
+  }, [
+    adminUnreadConversations,
+    firstPendingUserConversationId,
+    hasNavbarUnread,
+    isAdminUser,
+    navbarUnreadChats,
+    unreadConversationsUserFromContext,
+    userRealtimePendingCount,
+  ]);
 
   const launchAdminSupportChat = async () => {
     const normalizedSubject = adminSubject.trim();
@@ -156,15 +576,61 @@ const Navbar = () => {
   };
 
   const handleOpenUnreadChat = () => {
+    logChatAlert("handleOpenUnreadChat:click", {
+      isAdminUser,
+      adminUnreadConversations,
+      firstPendingUserConversationId,
+      unreadConversationsUserFromContext,
+    });
+    if (isAdminUser) {
+      if (adminUnreadConversations <= 0) {
+        showToast.info("No hay chats nuevos.", {
+          duration: 1800,
+          progress: true,
+          position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
+        });
+        return;
+      }
+      adminRealtimePendingIdsRef.current.clear();
+      setAdminUnreadConversations(0);
+      router.push("/admin/dashboard?section=chats&openChat=1");
+      return;
+    }
     // Abrimos primero una conversación con no leídos para limpiar la alerta al entrar.
     const firstUnreadConversation = conversations.find(
       (conversation) => conversation.unreadCount > 0,
     );
+    if (firstPendingUserConversationId) {
+      if (
+        userRealtimePendingIdsRef.current.has(firstPendingUserConversationId)
+      ) {
+        userRealtimePendingIdsRef.current.delete(
+          firstPendingUserConversationId,
+        );
+        setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+      }
+      openChat({ conversationId: firstPendingUserConversationId });
+      return;
+    }
     if (firstUnreadConversation?.id) {
+      if (userRealtimePendingIdsRef.current.has(firstUnreadConversation.id)) {
+        userRealtimePendingIdsRef.current.delete(firstUnreadConversation.id);
+        setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+      }
       openChat({ conversationId: firstUnreadConversation.id });
       return;
     }
-    openChat();
+    showToast.info("No hay chats nuevos.", {
+      duration: 1800,
+      progress: true,
+      position: "top-center",
+      transition: "popUp",
+      icon: "",
+      sound: true,
+    });
   };
 
   return (
@@ -221,7 +687,7 @@ const Navbar = () => {
         </nav>
 
         <div className="flex items-center gap-3">
-          {isLogged && !isAdminUser && hasUnreadMessages && (
+          {isLogged && hasNavbarUnread && (
             <button
               type="button"
               onClick={handleOpenUnreadChat}
@@ -232,7 +698,7 @@ const Navbar = () => {
               <span className="text-lg">💬</span>
               <span
                 className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-amber-50"
-                aria-label={`${unreadTotal} mensajes nuevos`}
+                aria-label={`${navbarUnreadChats} chats con mensajes nuevos`}
               />
             </button>
           )}
@@ -333,35 +799,12 @@ const Navbar = () => {
               </Link>
             </li>
 
-            {isLogged && (
-              <li>
-                {/* ✅ decide al click */}
-                <button
-                  type="button"
-                  onClick={goToProfile}
-                  className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
-                >
-                  Mi Perfil
-                </button>
-              </li>
-            )}
-
-            {isLogged && !isAdminUser && hasUnreadMessages && (
-              <li>
-                <button
-                  type="button"
-                  onClick={handleOpenUnreadChat}
-                  className="relative hover:text-emerald-900 transition"
-                >
-                  Chat
-                  <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-red-600" />
-                </button>
-              </li>
-            )}
-
             <li>
-              <Link href="/cart" className="hover:text-emerald-900 transition">
-                Carrito
+              <Link
+                href="/categories"
+                className="hover:text-emerald-900 transition"
+              >
+                Categorias
               </Link>
             </li>
 
@@ -382,7 +825,7 @@ const Navbar = () => {
 
       {isAdminSupportOpen && (
         <div
-          className="fixed inset-0 z-[95] flex items-center justify-center bg-zinc-900/60 p-4"
+          className="fixed inset-0 z-95 flex items-center justify-center bg-zinc-900/60 p-4"
           onClick={(event) => {
             if (event.target === event.currentTarget)
               setIsAdminSupportOpen(false);

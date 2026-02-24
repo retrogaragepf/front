@@ -130,9 +130,9 @@ function getSimpleStatusTarget(current: SimpleSaleStatus): SimpleSaleStatus {
 }
 
 function mapSimpleToBackendStatus(status: SimpleSaleStatus): string {
-  if (status === "enviado") return "shipped";
-  if (status === "recibido") return "delivered";
-  return "paid";
+  if (status === "enviado") return "SHIPPED";
+  if (status === "recibido") return "DELIVERED";
+  return "PAID";
 }
 
 function buildStatusPathCandidates(id: string): string[] {
@@ -147,6 +147,8 @@ function buildStatusPathCandidates(id: string): string[] {
   if (configured && configured.length > 0) return configured;
 
   return [
+    `/ventas/${encodeURIComponent(id)}/status`,
+    `/ventas/${encodeURIComponent(id)}`,
     `/orders/${encodeURIComponent(id)}/status`,
     `/orders/${encodeURIComponent(id)}`,
     `/admin/orders/${encodeURIComponent(id)}/status`,
@@ -165,53 +167,60 @@ function getOrdersArray(data: unknown): AnyRecord[] {
 }
 
 function normalizeOrder(orderInput: unknown): AdminSaleRecord {
-  const wrapper = asRecord(orderInput);
-  const orderCandidate = asRecord(wrapper.order);
-  const order = Object.keys(orderCandidate).length > 0 ? orderCandidate : wrapper;
-  const item = extractFirstItem(order);
-  const product = asRecord(item.product);
+  const row = asRecord(orderInput);
+  const order = asRecord(row.order);
+  const product = asRecord(row.product);
+  const orderItem = extractFirstItem(order);
 
   const buyerRaw =
+    order.user ??
     order.buyer ??
     order.customer ??
-    order.user ??
     order.buyerUser ??
     order.purchaser;
   const sellerRaw =
-    order.seller ??
-    order.vendor ??
-    order.owner ??
-    order.sellerUser ??
-    item.seller ??
+    product.user ??
     product.seller ??
-    product.owner;
+    product.owner ??
+    row.seller ??
+    orderItem.seller;
 
   const buyer = personFrom(buyerRaw, "Comprador no disponible");
   const seller = personFrom(sellerRaw, "Vendedor no disponible");
 
-  const statusRaw = getString(order.status) || "pending";
+  const statusRaw =
+    getString(order.status) ||
+    getString(row.status) ||
+    "pending";
   const statusSimple = resolveStatus(statusRaw);
-  const createdAt = getString(order.createdAt) || getString(order.date) || "";
+  const createdAt =
+    getString(order.createdAt) ||
+    getString(order.updatedAt) ||
+    getString(row.createdAt) ||
+    "";
   const productName =
-    getString(item.title) ||
+    getString(row.title) ||
+    getString(product.title) ||
+    getString(orderItem.title) ||
     getString(product.title) ||
     getString(product.name) ||
     "Producto";
 
-  const quantity = Math.max(1, getNumber(item.quantity) || 1);
-  const unitPrice = getNumber(item.unitPrice || item.price);
-  const total = getNumber(order.total || item.subtotal || unitPrice * quantity);
+  const quantity = Math.max(1, getNumber(row.quantity || orderItem.quantity) || 1);
+  const unitPrice = getNumber(row.unitPrice || orderItem.unitPrice || orderItem.price || product.price);
+  const subtotal = getNumber(row.subtotal || orderItem.subtotal || unitPrice * quantity);
+  const total = getNumber(order.total || subtotal || unitPrice * quantity);
   const trackingCode =
     getString(order.trackingCode) || getString(order.trackingNumber) || "";
 
   return {
     id: String(
-      order.id ??
+      row.id ??
+        row._id ??
+        row.saleId ??
+        order.id ??
         order._id ??
         order.orderId ??
-        wrapper.id ??
-        wrapper._id ??
-        wrapper.saleId ??
         "",
     ),
     createdAt,
@@ -262,6 +271,7 @@ function getOrdersPathCandidates(): string[] {
   if (configured && configured.length > 0) return configured;
 
   return [
+    "/ventas/admin/todas",
     "/ventas/mis-ventas",
     "/ventas",
     "/orders/me",
@@ -309,9 +319,12 @@ export const adminSalesService = {
 
     const bodies: string[] = [
       JSON.stringify({ status: backendStatus }),
+      JSON.stringify({ status: backendStatus.toLowerCase() }),
       JSON.stringify({ orderStatus: backendStatus }),
       JSON.stringify({ state: backendStatus }),
       JSON.stringify({ status: nextSimpleStatus }),
+      JSON.stringify({ status: nextSimpleStatus.toUpperCase() }),
+      JSON.stringify({ status: nextSimpleStatus === "enviado" ? "ENVIADO" : "RECIBIDO" }),
     ];
 
     for (const path of paths) {

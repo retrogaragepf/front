@@ -31,19 +31,25 @@ function formatCOP(value: number): string {
 }
 
 function nextStatusLabel(status: SimpleSaleStatus): string {
-  if (status === "comprado") return "Marcar enviado";
-  if (status === "enviado") return "Marcar recibido";
+  if (status === "comprado") return "Confirmar envío";
+  if (status === "enviado") return "Confirmar recibido";
   return "Recibido";
 }
 
 function badgeClass(status: SimpleSaleStatus): string {
   if (status === "comprado") {
-    return "border-amber-600 text-amber-800 bg-amber-100";
+    return "border-zinc-500 text-zinc-800 bg-zinc-100";
   }
   if (status === "enviado") {
-    return "border-sky-700 text-sky-800 bg-sky-100";
+    return "border-amber-600 text-amber-800 bg-amber-100";
   }
   return "border-emerald-700 text-emerald-800 bg-emerald-100";
+}
+
+function statusLabel(status: SimpleSaleStatus): string {
+  if (status === "comprado") return "ENVÍO PENDIENTE";
+  if (status === "enviado") return "ENVIADO";
+  return "RECIBIDO";
 }
 
 export default function AdminSalesSection(): ReactElement {
@@ -230,7 +236,7 @@ export default function AdminSalesSection(): ReactElement {
                         row.statusSimple,
                       )}`}
                     >
-                      {row.statusSimple.toUpperCase()}
+                      {statusLabel(row.statusSimple)}
                     </span>
                   </td>
                   <td className="p-4">

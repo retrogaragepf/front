@@ -142,6 +142,8 @@ const Navbar = (): ReactElement => {
   const adminRealtimePendingIdsRef = useRef<Set<string>>(new Set());
   const userRealtimePendingIdsRef = useRef<Set<string>>(new Set());
   const socketRef = useRef<SocketLike | null>(null);
+  const isChatOpenRef = useRef(isChatOpen);
+  const activeConversationIdRef = useRef(activeConversation?.id);
 
   const safeName =
     getStringField(userRecord, "name") ||
@@ -222,6 +224,9 @@ const Navbar = (): ReactElement => {
       sound: true,
     });
   };
+
+  useEffect(() => { isChatOpenRef.current = isChatOpen; }, [isChatOpen]);
+  useEffect(() => { activeConversationIdRef.current = activeConversation?.id; }, [activeConversation?.id]);
 
   useEffect(() => {
     let canceled = false;
@@ -398,8 +403,8 @@ const Navbar = (): ReactElement => {
             conversationId,
             senderId,
             currentUserId,
-            activeConversationId: activeConversation?.id ?? null,
-            isChatOpen,
+            activeConversationId: activeConversationIdRef.current ?? null,
+            isChatOpen: isChatOpenRef.current,
             payload,
           });
           if (senderId && senderId === currentUserId) {
@@ -454,7 +459,7 @@ const Navbar = (): ReactElement => {
       socketRef.current = null;
       logChatAlert("socket:cleanup");
     };
-  }, [activeConversation?.id, isAdminUser, isChatOpen, isLogged]);
+  }, [isAdminUser, isLogged]);
 
   useEffect(() => {
     if (isAdminUser) return;

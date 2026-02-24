@@ -5,6 +5,7 @@ import {
   getAllUsers,
   blockUser,
   unblockUser,
+  deleteUser,
   type AdminUser,
 } from "@/src/services/users.services";
 import { useAuth } from "@/src/context/AuthContext";
@@ -26,6 +27,7 @@ export default function UsersSection() {
 
   const [loadingList, setLoadingList] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // ✅ Igual que MyOrders: usar auth del contexto y esperar hidratación
@@ -115,6 +117,35 @@ export default function UsersSection() {
       setUsers(prev);
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleDelete = async (id: string, name?: string | null) => {
+    const confirmAction = confirm(
+      `¿Seguro que querés eliminar al usuario "${name || id}"? Esta acción no se puede deshacer.`,
+    );
+    if (!confirmAction) return;
+
+    if (isLoadingUser || !isAuth || !dataUser?.token) {
+      setError("No hay sesión activa. Inicia sesión para gestionar usuarios.");
+      return;
+    }
+
+    setError(null);
+    setDeletingId(id);
+
+    try {
+      await deleteUser(id, dataUser.token);
+      setUsers((curr) => curr.filter((u) => u.id !== id));
+    } catch (e: unknown) {
+      console.error("deleteUser error:", e);
+      const message =
+        e instanceof Error
+          ? e.message
+          : "No se pudo eliminar el usuario.";
+      setError(message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -223,23 +254,41 @@ export default function UsersSection() {
                   </td>
 
                   <td>
-                    <button
-                      disabled={
-                        loadingList ||
-                        isBusy ||
-                        isLoadingUser ||
-                        !isAuth ||
-                        !dataUser?.token
-                      }
-                      onClick={() => handleBanToggle(user.id, user.isBanned)}
-                      className={`px-3 py-1 rounded-lg font-extrabold border-2 disabled:opacity-60 ${
-                        user.isBanned
-                          ? "bg-emerald-700 text-white border-emerald-800"
-                          : "bg-red-600 text-white border-red-700"
-                      }`}
-                    >
-                      {isBusy ? "..." : user.isBanned ? "Unblock" : "Block"}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        disabled={
+                          loadingList ||
+                          isBusy ||
+                          deletingId === user.id ||
+                          isLoadingUser ||
+                          !isAuth ||
+                          !dataUser?.token
+                        }
+                        onClick={() => handleBanToggle(user.id, user.isBanned)}
+                        className={`px-3 py-1 rounded-lg font-extrabold border-2 disabled:opacity-60 ${
+                          user.isBanned
+                            ? "bg-emerald-700 text-white border-emerald-800"
+                            : "bg-red-600 text-white border-red-700"
+                        }`}
+                      >
+                        {isBusy ? "..." : user.isBanned ? "Unblock" : "Block"}
+                      </button>
+
+                      <button
+                        disabled={
+                          loadingList ||
+                          isBusy ||
+                          deletingId === user.id ||
+                          isLoadingUser ||
+                          !isAuth ||
+                          !dataUser?.token
+                        }
+                        onClick={() => handleDelete(user.id, user.name)}
+                        className="px-3 py-1 rounded-lg font-extrabold border-2 border-zinc-700 bg-zinc-800 text-white disabled:opacity-60"
+                      >
+                        {deletingId === user.id ? "..." : "Eliminar"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

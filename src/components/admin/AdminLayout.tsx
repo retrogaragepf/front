@@ -1,16 +1,59 @@
 "use client";
 
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { showToast } from "nextjs-toast-notify";
 import { createDiscountCode } from "@/src/services/discounts.services";
 import { useAuth } from "@/src/context/AuthContext";
+import { adminChatService } from "@/src/services/adminChat.services";
 
 type Props = {
   children: ReactNode;
   section: "users" | "products" | "chats" | "sales";
   setSection: (s: "users" | "products" | "chats" | "sales") => void;
 };
+
+const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
+
+function loadAdminReadMarkers(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(ADMIN_READ_CHATS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.entries(parsed).reduce<Record<string, number>>(
+      (acc, [id, value]) => {
+        const at = typeof value === "number" ? value : Number(value);
+        if (id && Number.isFinite(at) && at > 0) acc[id] = at;
+        return acc;
+      },
+      {},
+    );
+  } catch {
+    return {};
+  }
+}
+
+function hasPendingAdminChat(
+  chat: { id: string; unreadCount: number; timestamp: string; lastMessage: string },
+  readMarkers: Record<string, number>,
+): boolean {
+  const hasActivity = Boolean((chat.lastMessage || "").trim() || (chat.timestamp || "").trim());
+  if (!hasActivity) return false;
+
+  const readAt = readMarkers[chat.id] ?? 0;
+  const chatTs = Date.parse(chat.timestamp || "");
+  const hasValidTs = Number.isFinite(chatTs);
+
+  if (!readAt) return true;
+  if (chat.unreadCount > 0) {
+    if (!hasValidTs) return true;
+    return chatTs > readAt;
+  }
+  if (!hasValidTs) return false;
+  return chatTs > readAt;
+}
 
 export default function AdminLayout({
   children,
@@ -29,6 +72,38 @@ export default function AdminLayout({
 
   // ✅ panel lateral/modal de cupones (NO reemplaza children)
   const [isCouponPanelOpen, setIsCouponPanelOpen] = useState(false);
+  const [hasPendingChats, setHasPendingChats] = useState(false);
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadPendingChats = async () => {
+      if (isLoadingUser || !isAuth || !dataUser?.token) {
+        if (!canceled) setHasPendingChats(false);
+        return;
+      }
+
+      try {
+        const chats = await adminChatService.getConversations();
+        if (canceled) return;
+        const readMarkers = loadAdminReadMarkers();
+        const pending = chats.some((chat) => hasPendingAdminChat(chat, readMarkers));
+        setHasPendingChats(pending);
+      } catch {
+        if (!canceled) setHasPendingChats(false);
+      }
+    };
+
+    void loadPendingChats();
+    const intervalId = window.setInterval(() => {
+      void loadPendingChats();
+    }, 2_000);
+
+    return () => {
+      canceled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [dataUser?.token, isAuth, isLoadingUser]);
   const onCreateDiscount = async () => {
     if (isCreatingDiscount) return;
 
@@ -154,11 +229,18 @@ Gracias por comprar en RetroGarage™ 🛍️`;
             className={`px-4 py-3 rounded-xl border-2 border-amber-900 font-extrabold text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] transition ${
               section === "chats"
                 ? "bg-amber-200 text-amber-900"
+                : hasPendingChats
+                  ? "bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
                 : "bg-white text-amber-900 hover:bg-amber-100"
             }`}
             title="Abrir gestión de chats"
           >
-            Gestión de Chats
+            <span className="inline-flex items-center gap-2">
+              Gestión de Chats
+              {hasPendingChats && (
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-700" />
+              )}
+            </span>
           </button>
 
           <button
@@ -255,8 +337,62 @@ Gracias por comprar en RetroGarage™ 🛍️`;
         </div>
       </aside>
 
+      {/* Navegación móvil admin */}
+      <div className="md:hidden fixed left-0 right-0 top-16 z-30 border-b-2 border-amber-900 bg-amber-100/95 backdrop-blur px-2 py-2">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setSection("users")}
+            className={`px-3 py-2 rounded-lg border-2 border-amber-900 text-xs font-extrabold ${
+              section === "users"
+                ? "bg-amber-200 text-amber-900"
+                : "bg-white text-amber-900"
+            }`}
+          >
+            Usuarios
+          </button>
+          <button
+            onClick={() => setSection("products")}
+            className={`px-3 py-2 rounded-lg border-2 border-amber-900 text-xs font-extrabold ${
+              section === "products"
+                ? "bg-amber-200 text-amber-900"
+                : "bg-white text-amber-900"
+            }`}
+          >
+            Productos
+          </button>
+          <button
+            onClick={() => setSection("chats")}
+            className={`px-3 py-2 rounded-lg border-2 border-amber-900 text-xs font-extrabold ${
+              section === "chats"
+                ? "bg-amber-200 text-amber-900"
+                : hasPendingChats
+                  ? "bg-emerald-100 text-emerald-900"
+                  : "bg-white text-amber-900"
+            }`}
+            title="Abrir gestión de chats"
+          >
+            <span className="inline-flex items-center gap-2">
+              Chats
+              {hasPendingChats && (
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-700" />
+              )}
+            </span>
+          </button>
+          <button
+            onClick={() => setSection("sales")}
+            className={`px-3 py-2 rounded-lg border-2 border-amber-900 text-xs font-extrabold ${
+              section === "sales"
+                ? "bg-amber-200 text-amber-900"
+                : "bg-white text-amber-900"
+            }`}
+          >
+            Ventas
+          </button>
+        </div>
+      </div>
+
       {/* Contenido normal (NO se toca) */}
-      <main className="flex-1 p-10">{children}</main>
+      <main className="flex-1 p-10 md:p-10 pt-28 md:pt-10">{children}</main>
 
       {/* ✅ Panel derecho / modal flotante de cupones (no rompe auth) */}
       {isCouponPanelOpen && (

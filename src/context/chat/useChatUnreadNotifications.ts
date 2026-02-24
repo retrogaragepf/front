@@ -5,6 +5,7 @@ type Params = {
   canUseChat: boolean;
   unreadTotal: number;
   unreadSignal: number;
+  onOpenUnreadChat?: () => void;
   previousUnreadTotalRef: MutableRefObject<number>;
   previousUnreadSignalRef: MutableRefObject<number>;
   unreadReadyRef: MutableRefObject<boolean>;
@@ -14,10 +15,15 @@ export function useChatUnreadNotifications({
   canUseChat,
   unreadTotal,
   unreadSignal,
+  onOpenUnreadChat,
   previousUnreadTotalRef,
   previousUnreadSignalRef,
   unreadReadyRef,
 }: Params): void {
+  type ToastInfoOptions = Parameters<typeof showToast.info>[1] & {
+    onClick?: () => void;
+  };
+
   useEffect(() => {
     if (!unreadReadyRef.current) {
       unreadReadyRef.current = true;
@@ -37,14 +43,16 @@ export function useChatUnreadNotifications({
         previousSignal: previousUnreadSignalRef.current,
         unreadSignal,
       });
-      showToast.info("Mensaje nuevo recibido", {
+      const toastOptions: ToastInfoOptions = {
         duration: 2200,
         progress: true,
         position: "top-right",
         transition: "popUp",
         icon: "",
         sound: true,
-      });
+        onClick: () => onOpenUnreadChat?.(),
+      };
+      showToast.info("Mensaje nuevo recibido", toastOptions);
     }
 
     console.log("[useChatUnreadNotifications] tick", {
@@ -60,6 +68,7 @@ export function useChatUnreadNotifications({
     canUseChat,
     unreadSignal,
     unreadTotal,
+    onOpenUnreadChat,
     previousUnreadSignalRef,
     previousUnreadTotalRef,
     unreadReadyRef,

@@ -10,9 +10,25 @@ import { useRouter } from "next/navigation";
 import { showToast } from "nextjs-toast-notify";
 import { signOut } from "next-auth/react";
 import { adminChatService } from "@/src/services/adminChat.services";
+import type { UserSession } from "@/src/context/AuthContext";
 
 const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
 const USER_READ_CHATS_STORAGE_KEY = "chat_read_markers";
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function getStringField(record: Record<string, unknown>, key: string): string {
+  const value = record[key];
+  return typeof value === "string" ? value : "";
+}
+
+function getBooleanField(record: Record<string, unknown>, key: string): boolean {
+  return Boolean(record[key]);
+}
 
 function loadAdminReadMarkers(): Record<string, number> {
   if (typeof window === "undefined") return {};
@@ -91,6 +107,8 @@ function hasPendingAdminChat(
 const Navbar = (): ReactElement => {
   const { dataUser, logout } = useAuth();
   const router = useRouter();
+  const session = dataUser as UserSession | null;
+  const userRecord = asRecord(session?.user);
 
   const { cartItems } = useCart();
   const { openChat, conversations } = useChat();
@@ -102,19 +120,16 @@ const Navbar = (): ReactElement => {
   const [adminUnreadConversations, setAdminUnreadConversations] = useState(0);
 
   const safeName =
-    (dataUser as any)?.user?.name ??
-    (dataUser as any)?.name ??
-    (dataUser as any)?.user?.fullName ??
-    (dataUser as any)?.fullName ??
-    (dataUser as any)?.user?.username ??
-    (dataUser as any)?.username ??
+    getStringField(userRecord, "name") ||
+    getStringField(userRecord, "fullName") ||
+    getStringField(userRecord, "username") ||
     "";
 
   const isLogged =
-    Boolean((dataUser as any)?.user?.email) ||
-    Boolean((dataUser as any)?.email) ||
-    Boolean((dataUser as any)?.user) ||
-    Boolean(dataUser);
+    Boolean(getStringField(userRecord, "email")) ||
+    Boolean(session?.email) ||
+    Boolean(session?.user) ||
+    Boolean(session);
 
   const AUTH_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
@@ -141,13 +156,14 @@ const Navbar = (): ReactElement => {
 
   const isAdminUser = useMemo(() => {
     const userFlag =
-      Boolean((dataUser as any)?.user?.isAdmin) || Boolean((dataUser as any)?.isAdmin);
+      getBooleanField(userRecord, "isAdmin") ||
+      Boolean((session as UserSession | null)?.user?.isAdmin);
     if (userFlag) return true;
 
-    const token =
-      (dataUser as any)?.token ?? (dataUser as any)?.user?.token ?? null;
+    const fallbackToken = getStringField(userRecord, "token");
+    const token = session?.token ?? (fallbackToken || null);
     return decodeIsAdminFromJwt(token);
-  }, [dataUser]);
+  }, [session, userRecord]);
 
   const unreadConversationsUser = useMemo(
     () => {

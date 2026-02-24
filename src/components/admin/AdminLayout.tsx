@@ -1,11 +1,10 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { showToast } from "nextjs-toast-notify";
 import { createDiscountCode } from "@/src/services/discounts.services";
 import { useAuth } from "@/src/context/AuthContext";
-import { adminChatService } from "@/src/services/adminChat.services";
 
 type Props = {
   children: ReactNode;
@@ -30,43 +29,6 @@ export default function AdminLayout({
 
   // ✅ panel lateral/modal de cupones (NO reemplaza children)
   const [isCouponPanelOpen, setIsCouponPanelOpen] = useState(false);
-  const [hasChatMessages, setHasChatMessages] = useState(false);
-  const [checkingChats, setCheckingChats] = useState(false);
-
-  useEffect(() => {
-    let canceled = false;
-
-    const checkChats = async () => {
-      if (isLoadingUser || !isAuth || !dataUser?.token) {
-        if (!canceled) setHasChatMessages(false);
-        return;
-      }
-
-      try {
-        if (!canceled) setCheckingChats(true);
-        const chats = await adminChatService.getConversations();
-        const hasAnyMessage = chats.some((chat) =>
-          Boolean((chat.lastMessage || "").trim() || (chat.timestamp || "").trim()),
-        );
-        if (!canceled) setHasChatMessages(hasAnyMessage);
-      } catch {
-        if (!canceled) setHasChatMessages(false);
-      } finally {
-        if (!canceled) setCheckingChats(false);
-      }
-    };
-
-    void checkChats();
-    const intervalId = window.setInterval(() => {
-      void checkChats();
-    }, 4_000);
-
-    return () => {
-      canceled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [dataUser?.token, isAuth, isLoadingUser]);
-
   const onCreateDiscount = async () => {
     if (isCreatingDiscount) return;
 
@@ -189,19 +151,12 @@ Gracias por comprar en RetroGarage™ 🛍️`;
 
           <button
             onClick={() => setSection("chats")}
-            disabled={checkingChats || !hasChatMessages}
             className={`px-4 py-3 rounded-xl border-2 border-amber-900 font-extrabold text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] transition ${
               section === "chats"
                 ? "bg-amber-200 text-amber-900"
                 : "bg-white text-amber-900 hover:bg-amber-100"
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-            title={
-              checkingChats
-                ? "Validando mensajes..."
-                : hasChatMessages
-                  ? "Abrir gestión de chats"
-                  : "Sin mensajes disponibles"
-            }
+            }`}
+            title="Abrir gestión de chats"
           >
             Gestión de Chats
           </button>

@@ -192,8 +192,12 @@ export function useChatSync({
             const readAt = localReadMarkersRef.current[merged.id] ?? 0;
             const newerThanRead = readAt > 0 && remoteTs > readAt;
             const newerThanPrev = prevConversation ? remoteTs > prevTs : false;
+            const messageChanged =
+              prevConversation &&
+              (prevConversation.lastMessage || "").trim() !==
+                (merged.lastMessage || "").trim();
 
-            if ((newerThanRead || newerThanPrev) && merged.lastMessage) {
+            if ((newerThanRead || newerThanPrev || messageChanged) && merged.lastMessage) {
               return { ...merged, unreadCount: 1 };
             }
           }
@@ -328,12 +332,12 @@ export function useChatSync({
   useEffect(() => {
     if (!canUseChat) return;
     const intervalId = window.setInterval(() => {
-      // Polling solo como respaldo cuando socket no está conectado.
-      if (socketRef.current?.connected) return;
+      // Polling siempre activo para evitar quedarse sin actualizaciones
+      // cuando el backend no emite eventos en todos los casos.
       void syncConversations();
     }, CHAT_FALLBACK_SYNC_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [canUseChat, socketRef, syncConversations]);
+  }, [canUseChat, syncConversations]);
 
   useEffect(() => {
     if (!activeConversationId) return;
@@ -344,11 +348,10 @@ export function useChatSync({
   useEffect(() => {
     if (!isChatOpen || !activeConversationId) return;
     const intervalId = window.setInterval(() => {
-      if (socketRef.current?.connected) return;
       void syncMessages(activeConversationId);
     }, CHAT_MESSAGES_FALLBACK_SYNC_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [activeConversationId, isChatOpen, socketRef, syncMessages]);
+  }, [activeConversationId, isChatOpen, syncMessages]);
 
   return { clearUnreadLocal, joinConversationRoom };
 }

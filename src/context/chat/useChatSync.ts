@@ -139,6 +139,7 @@ export function useChatSync({
 } {
   const localReadMarkersRef = useRef<ReadMarkers>({});
   const hasSyncedConversationsRef = useRef(false);
+  const joinedRoomsRef = useRef<Set<string>>(new Set());
 
   const applyLocalReadState = useCallback((conversation: ChatConversation) => {
     const readAt = localReadMarkersRef.current[conversation.id];
@@ -240,6 +241,21 @@ export function useChatSync({
         remote: remoteConversations.length,
       });
 
+      const socket = socketRef.current;
+      if (socket?.connected) {
+        const remoteIds = new Set(baseConversations.map((conversation) => conversation.id));
+        // Limpiamos rooms que ya no existen localmente.
+        joinedRoomsRef.current.forEach((id) => {
+          if (!remoteIds.has(id)) joinedRoomsRef.current.delete(id);
+        });
+        // Nos unimos a todas las conversaciones para recibir eventos en tiempo real.
+        baseConversations.forEach((conversation) => {
+          if (joinedRoomsRef.current.has(conversation.id)) return;
+          socket.emit("joinConversation", conversation.id);
+          joinedRoomsRef.current.add(conversation.id);
+        });
+      }
+
       setActiveConversationId((prev) => {
         if (
           prev &&
@@ -258,6 +274,7 @@ export function useChatSync({
     activeConversationId,
     canUseChat,
     isChatOpen,
+    socketRef,
     setActiveConversationId,
     setConversations,
   ]);
@@ -370,9 +387,15 @@ export function useChatSync({
     (conversationId: string) => {
       if (!conversationId || !socketRef.current?.connected) return;
       socketRef.current.emit("joinConversation", conversationId);
+      joinedRoomsRef.current.add(conversationId);
     },
     [socketRef],
   );
+
+  useEffect(() => {
+    if (canUseChat) return;
+    joinedRoomsRef.current.clear();
+  }, [canUseChat]);
 
   useEffect(() => {
     if (!canUseChat) return;

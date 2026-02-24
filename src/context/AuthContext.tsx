@@ -175,9 +175,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // ✅ Persistir sesión SOLO después de hidratar
   useEffect(() => {
-    if (!didHydrateRef.current) return;
+    if (!didHydrateRef.current || isLoadingUser) return;
     persistSession(dataUser);
-  }, [dataUser]);
+  }, [dataUser, isLoadingUser]);
 
   const login = (payload: UserSession) => {
     // normaliza un poco por seguridad

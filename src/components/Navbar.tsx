@@ -11,6 +11,7 @@ import { showToast } from "nextjs-toast-notify";
 import { signOut } from "next-auth/react";
 import { adminChatService } from "@/src/services/adminChat.services";
 import { chatService } from "@/src/services/chat.services";
+import { tryChatToast } from "@/src/context/chat/chatToastDedup";
 import type { UserSession } from "@/src/context/AuthContext";
 import type { SocketLike } from "@/src/context/chat/useChatSocket";
 import { useNotifications } from "@/src/context/NotificationContext";
@@ -248,13 +249,13 @@ const Navbar = (): ReactElement => {
   const hasNavbarUnread = navbarUnreadChats > 0;
 
   const notifyNewMessage = () => {
-    const now = Date.now();
-    // Dedup: si ya se mostró un toast en los últimos 800ms, no mostrar otro.
-    if (now - lastNotifyTimestampRef.current < 800) {
+    // Shared dedup: covers Navbar socket, custom event, poll AND
+    // useChatUnreadNotifications — all share the same 1 500 ms window.
+    if (!tryChatToast()) {
       logChatAlert("notifyNewMessage:dedup:skipped");
       return;
     }
-    lastNotifyTimestampRef.current = now;
+    lastNotifyTimestampRef.current = Date.now();
     logChatAlert("notifyNewMessage:toast");
     showToast.info("Mensaje nuevo recibido", {
       duration: 2200,

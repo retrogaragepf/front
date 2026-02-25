@@ -139,6 +139,8 @@ const Navbar = (): ReactElement => {
   const adminUnreadReadyRef = useRef(false);
   const previousAdminPendingSignatureRef = useRef("");
   const previousAdminPendingCountRef = useRef(0);
+  // Rastrea unreadCount por conversación para evitar auto-alertas del admin.
+  const previousAdminPendingUnreadsRef = useRef<Record<string, number>>({});
   const adminRealtimePendingIdsRef = useRef<Set<string>>(new Set());
   const userRealtimePendingIdsRef = useRef<Set<string>>(new Set());
   const socketRef = useRef<SocketLike | null>(null);
@@ -274,19 +276,28 @@ const Navbar = (): ReactElement => {
         }
 
         const currentSignature = buildPendingSignature(pendingChats);
+        const currentUnreads: Record<string, number> = {};
+        pendingChats.forEach((chat) => { currentUnreads[chat.id] = chat.unreadCount; });
 
         if (!adminUnreadReadyRef.current) {
           adminUnreadReadyRef.current = true;
           previousAdminPendingSignatureRef.current = currentSignature;
           previousAdminPendingCountRef.current = pending;
+          previousAdminPendingUnreadsRef.current = currentUnreads;
         } else {
-          const hasNewOrChangedPending =
-            pending > 0 &&
-            (currentSignature !== previousAdminPendingSignatureRef.current ||
-              pending > previousAdminPendingCountRef.current);
+          const prevUnreads = previousAdminPendingUnreadsRef.current;
+          // Solo alertar si apareció conversación nueva en pending O si unreadCount subió.
+          // Evita auto-alertas cuando el admin envía su propio mensaje
+          // (cambia lastMessage/timestamp pero unreadCount no sube).
+          const hasNewConversation = pendingChats.some((chat) => !(chat.id in prevUnreads));
+          const hasIncreasedUnread = pendingChats.some(
+            (chat) => chat.id in prevUnreads && chat.unreadCount > (prevUnreads[chat.id] ?? 0),
+          );
+          const shouldAlert = pending > 0 && (hasNewConversation || hasIncreasedUnread);
           previousAdminPendingSignatureRef.current = currentSignature;
           previousAdminPendingCountRef.current = pending;
-          if (!hasNewOrChangedPending) return;
+          previousAdminPendingUnreadsRef.current = currentUnreads;
+          if (!shouldAlert) return;
           notifyNewMessage();
         }
       } catch (error) {
@@ -298,6 +309,60 @@ const Navbar = (): ReactElement => {
     const intervalId = window.setInterval(() => {
       void loadAdminUnread();
     }, 2_000);
+
+    return () => {
+      canceled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [isAdminUser, isLogged]);
+
+  // Poll directo para usuarios: espejo del admin poll.
+  // Funciona sin socket y sin ChatContext, solo HTTP.
+  useEffect(() => {
+    if (isAdminUser || !isLogged) return;
+
+    let canceled = false;
+    let initialized = false;
+    const prevUnreads: Record<string, number> = {};
+
+    const pollUserChats = async () => {
+      try {
+        const chats = await chatService.getConversations();
+        if (canceled) return;
+
+        const unreadChats = chats.filter((c) => c.unreadCount > 0);
+
+        if (!initialized) {
+          initialized = true;
+          unreadChats.forEach((c) => { prevUnreads[c.id] = c.unreadCount; });
+          logChatAlert("userPoll:init", { unreadCount: unreadChats.length });
+          return;
+        }
+
+        const hasNewConversation = unreadChats.some((c) => !(c.id in prevUnreads));
+        const hasIncreasedUnread = unreadChats.some(
+          (c) => c.id in prevUnreads && c.unreadCount > (prevUnreads[c.id] ?? 0),
+        );
+
+        if (hasNewConversation || hasIncreasedUnread) {
+          logChatAlert("userPoll:newMessage", { hasNewConversation, hasIncreasedUnread });
+          notifyNewMessage();
+        }
+
+        // Actualizar baseline: solo conversaciones con unread activo.
+        Object.keys(prevUnreads).forEach((id) => {
+          if (!unreadChats.some((c) => c.id === id)) delete prevUnreads[id];
+        });
+        unreadChats.forEach((c) => { prevUnreads[c.id] = c.unreadCount; });
+      } catch (error) {
+        logChatAlert("userPoll:error", error);
+      }
+    };
+
+    void pollUserChats();
+    const intervalId = window.setInterval(() => {
+      if (!canceled) void pollUserChats();
+    }, 3_000);
 
     return () => {
       canceled = true;

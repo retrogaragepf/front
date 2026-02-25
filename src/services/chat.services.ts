@@ -196,7 +196,9 @@ function normalizeConversation(raw: ApiRecord): ChatConversation {
         "",
     ),
     timestamp: String(
-      (isRecord(rowRecord.lastMessage) ? rowRecord.lastMessage.createdAt : null) ??
+      rowRecord.timestamp ??
+        raw.timestamp ??
+        (isRecord(rowRecord.lastMessage) ? rowRecord.lastMessage.createdAt : null) ??
         rowRecord.updatedAt ??
         rowRecord.createdAt ??
         "",

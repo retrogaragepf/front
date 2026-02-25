@@ -274,11 +274,17 @@ function collectParticipantIds(raw: ApiRecord, base: ApiRecord): string[] {
 function pickChatUser(participants: ApiRecord[], currentUserId: string): ApiRecord | null {
   if (participants.length === 0) return null;
 
+  // Preferir participante marcado explícitamente como no-admin (formato nuevo del back).
+  const nonAdminByFlag = participants.find(
+    (p) => getBoolean(p.isAdmin) === false && getBoolean(p.isSupportAdmin) === false,
+  );
+  if (nonAdminByFlag) return nonAdminByFlag;
+
+  // Fallback: campo role (formato antiguo).
   const nonAdmin = participants.find((participant) => {
     const role = getString(participant.role).toLowerCase();
     return role && role !== "admin";
   });
-
   if (nonAdmin) return nonAdmin;
 
   const notMe = participants.find(
@@ -311,7 +317,10 @@ function parseTimestamp(raw: ApiRecord, base: ApiRecord): string {
   const fromNested = asRecord(base.lastMessage);
   const fromRaw = asRecord(raw.lastMessage);
 
+  // base.timestamp / raw.timestamp: campo directo que el back ahora provee.
   const value =
+    base.timestamp ??
+    raw.timestamp ??
     fromNested.createdAt ??
     base.updatedAt ??
     base.createdAt ??
@@ -579,10 +588,10 @@ export const adminChatService = {
 
     const configured = getConfiguredPaths("NEXT_PUBLIC_ADMIN_CHAT_ENDPOINTS");
     const defaults = [
-      "/chat/my-conversations",
-      "/chat/conversations",
+      "/chat/conversations",       // endpoint admin confirmado por el back
       "/chat/all-conversations",
       "/chat/conversations/admin",
+      "/chat/my-conversations",    // fallback: puede devolver solo las propias
     ];
 
     let data: unknown;

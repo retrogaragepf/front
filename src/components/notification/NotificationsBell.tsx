@@ -21,7 +21,7 @@ const NotificationsBell = () => {
         <span className="text-lg">🔔</span>
 
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center">
+          <span className="absolute -right-1 -top-1 min-w-4 h-4 px-1 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center">
             {unreadCount}
           </span>
         )}

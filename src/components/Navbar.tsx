@@ -129,7 +129,7 @@ const Navbar = (): ReactElement => {
   const session = dataUser as UserSession | null;
   const userRecord = asRecord(session?.user);
   const { notifications, unreadCount, markAsRead } = useNotifications();
-const [openNotifications, setOpenNotifications] = useState(false);
+  const [openNotifications, setOpenNotifications] = useState(false);
 
   const { cartItems } = useCart();
   const { openChat, conversations, activeConversation, isChatOpen } = useChat();
@@ -201,7 +201,10 @@ const [openNotifications, setOpenNotifications] = useState(false);
       const parts = token.split(".");
       if (parts.length !== 3) return "";
       const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+      const padded = base64.padEnd(
+        base64.length + ((4 - (base64.length % 4)) % 4),
+        "=",
+      );
       const payload = JSON.parse(atob(padded));
       return String(payload?.id ?? payload?.sub ?? payload?.userId ?? "");
     } catch {
@@ -264,8 +267,12 @@ const [openNotifications, setOpenNotifications] = useState(false);
     });
   };
 
-  useEffect(() => { isChatOpenRef.current = isChatOpen; }, [isChatOpen]);
-  useEffect(() => { activeConversationIdRef.current = activeConversation?.id; }, [activeConversation?.id]);
+  useEffect(() => {
+    isChatOpenRef.current = isChatOpen;
+  }, [isChatOpen]);
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversation?.id;
+  }, [activeConversation?.id]);
 
   useEffect(() => {
     let canceled = false;
@@ -308,7 +315,9 @@ const [openNotifications, setOpenNotifications] = useState(false);
 
         const currentSignature = buildPendingSignature(pendingChats);
         const currentUnreads: Record<string, number> = {};
-        pendingChats.forEach((chat) => { currentUnreads[chat.id] = chat.unreadCount; });
+        pendingChats.forEach((chat) => {
+          currentUnreads[chat.id] = chat.unreadCount;
+        });
 
         if (!adminUnreadReadyRef.current) {
           adminUnreadReadyRef.current = true;
@@ -320,11 +329,16 @@ const [openNotifications, setOpenNotifications] = useState(false);
           // Solo alertar si apareció conversación nueva en pending O si unreadCount subió.
           // Evita auto-alertas cuando el admin envía su propio mensaje
           // (cambia lastMessage/timestamp pero unreadCount no sube).
-          const hasNewConversation = pendingChats.some((chat) => !(chat.id in prevUnreads));
-          const hasIncreasedUnread = pendingChats.some(
-            (chat) => chat.id in prevUnreads && chat.unreadCount > (prevUnreads[chat.id] ?? 0),
+          const hasNewConversation = pendingChats.some(
+            (chat) => !(chat.id in prevUnreads),
           );
-          const shouldAlert = pending > 0 && (hasNewConversation || hasIncreasedUnread);
+          const hasIncreasedUnread = pendingChats.some(
+            (chat) =>
+              chat.id in prevUnreads &&
+              chat.unreadCount > (prevUnreads[chat.id] ?? 0),
+          );
+          const shouldAlert =
+            pending > 0 && (hasNewConversation || hasIncreasedUnread);
           previousAdminPendingSignatureRef.current = currentSignature;
           previousAdminPendingCountRef.current = pending;
           previousAdminPendingUnreadsRef.current = currentUnreads;
@@ -365,18 +379,26 @@ const [openNotifications, setOpenNotifications] = useState(false);
 
         if (!initialized) {
           initialized = true;
-          unreadChats.forEach((c) => { prevUnreads[c.id] = c.unreadCount; });
+          unreadChats.forEach((c) => {
+            prevUnreads[c.id] = c.unreadCount;
+          });
           logChatAlert("userPoll:init", { unreadCount: unreadChats.length });
           return;
         }
 
-        const hasNewConversation = unreadChats.some((c) => !(c.id in prevUnreads));
+        const hasNewConversation = unreadChats.some(
+          (c) => !(c.id in prevUnreads),
+        );
         const hasIncreasedUnread = unreadChats.some(
-          (c) => c.id in prevUnreads && c.unreadCount > (prevUnreads[c.id] ?? 0),
+          (c) =>
+            c.id in prevUnreads && c.unreadCount > (prevUnreads[c.id] ?? 0),
         );
 
         if (hasNewConversation || hasIncreasedUnread) {
-          logChatAlert("userPoll:newMessage", { hasNewConversation, hasIncreasedUnread });
+          logChatAlert("userPoll:newMessage", {
+            hasNewConversation,
+            hasIncreasedUnread,
+          });
           notifyNewMessage();
         }
 
@@ -384,7 +406,9 @@ const [openNotifications, setOpenNotifications] = useState(false);
         Object.keys(prevUnreads).forEach((id) => {
           if (!unreadChats.some((c) => c.id === id)) delete prevUnreads[id];
         });
-        unreadChats.forEach((c) => { prevUnreads[c.id] = c.unreadCount; });
+        unreadChats.forEach((c) => {
+          prevUnreads[c.id] = c.unreadCount;
+        });
       } catch (error) {
         logChatAlert("userPoll:error", error);
       }
@@ -506,7 +530,8 @@ const [openNotifications, setOpenNotifications] = useState(false);
           const senderId = String(
             sender?.id ?? payload.senderId ?? payload.userId ?? "",
           );
-          const currentUserId = chatService.getCurrentUserId() || getCurrentUserIdFromJwt();
+          const currentUserId =
+            chatService.getCurrentUserId() || getCurrentUserIdFromJwt();
           logChatAlert("socket:newMessage:raw", {
             isAdminUser,
             conversationId,
@@ -525,12 +550,36 @@ const [openNotifications, setOpenNotifications] = useState(false);
           }
 
           if (!isAdminUser) {
+            // No contar mensajes de conversaciones que el usuario borró/ocultó.
+            try {
+              const rawHidden = window.localStorage.getItem(
+                "chat_hidden_conversations",
+              );
+              if (rawHidden) {
+                const hidden: unknown = JSON.parse(rawHidden);
+                if (
+                  Array.isArray(hidden) &&
+                  hidden.some((id) => String(id) === conversationId)
+                ) {
+                  logChatAlert("socket:newMessage:ignoredHidden", {
+                    conversationId,
+                  });
+                  return;
+                }
+              }
+            } catch {
+              /* ignorar */
+            }
+
             // No sumar al badge ni tostar si el usuario ya tiene esa conversación abierta.
             const isOpenConversation =
-              isChatOpenRef.current && activeConversationIdRef.current === conversationId;
+              isChatOpenRef.current &&
+              activeConversationIdRef.current === conversationId;
             if (!isOpenConversation) {
               userRealtimePendingIdsRef.current.add(conversationId);
-              setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+              setUserRealtimePendingCount(
+                userRealtimePendingIdsRef.current.size,
+              );
               logChatAlert("socket:newMessage:userPendingUpdated", {
                 conversationId,
                 pendingCount: userRealtimePendingIdsRef.current.size,
@@ -605,18 +654,40 @@ const [openNotifications, setOpenNotifications] = useState(false);
     if (isAdminUser || !isLogged) return;
 
     const handleChatNewMessage = (event: Event) => {
-      const customEvent = event as CustomEvent<{ conversationId?: string; senderId?: string }>;
+      const customEvent = event as CustomEvent<{
+        conversationId?: string;
+        senderId?: string;
+      }>;
       const conversationId = customEvent.detail?.conversationId ?? "";
       if (!conversationId) return;
 
-      const currentUserId = chatService.getCurrentUserId() || getCurrentUserIdFromJwt();
+      const currentUserId =
+        chatService.getCurrentUserId() || getCurrentUserIdFromJwt();
       const senderId = customEvent.detail?.senderId ?? "";
       if (senderId && senderId === currentUserId) return;
+
+      // Ignorar conversaciones ocultas.
+      try {
+        const rawHidden = window.localStorage.getItem(
+          "chat_hidden_conversations",
+        );
+        if (rawHidden) {
+          const hidden: unknown = JSON.parse(rawHidden);
+          if (
+            Array.isArray(hidden) &&
+            hidden.some((id) => String(id) === conversationId)
+          )
+            return;
+        }
+      } catch {
+        /* ignorar */
+      }
 
       logChatAlert("user:customEvent:newMessage", { conversationId, senderId });
       // No sumar al badge ni tostar si el usuario ya tiene esa conversación abierta.
       const isOpenConversation =
-        isChatOpenRef.current && activeConversationIdRef.current === conversationId;
+        isChatOpenRef.current &&
+        activeConversationIdRef.current === conversationId;
       if (!isOpenConversation) {
         userRealtimePendingIdsRef.current.add(conversationId);
         setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
@@ -624,9 +695,15 @@ const [openNotifications, setOpenNotifications] = useState(false);
       }
     };
 
-    window.addEventListener("retrogarage:chat-new-message", handleChatNewMessage);
+    window.addEventListener(
+      "retrogarage:chat-new-message",
+      handleChatNewMessage,
+    );
     return () => {
-      window.removeEventListener("retrogarage:chat-new-message", handleChatNewMessage);
+      window.removeEventListener(
+        "retrogarage:chat-new-message",
+        handleChatNewMessage,
+      );
     };
   }, [isAdminUser, isLogged]);
 
@@ -642,7 +719,9 @@ const [openNotifications, setOpenNotifications] = useState(false);
       previousUserUnreadCountRef.current = unreadConversationsUserFromContext;
       return;
     }
-    if (unreadConversationsUserFromContext > previousUserUnreadCountRef.current) {
+    if (
+      unreadConversationsUserFromContext > previousUserUnreadCountRef.current
+    ) {
       logChatAlert("user:unreadContext:increased", {
         prev: previousUserUnreadCountRef.current,
         next: unreadConversationsUserFromContext,
@@ -812,7 +891,7 @@ const [openNotifications, setOpenNotifications] = useState(false);
 
   return (
     <header className="w-full bg-amber-100 text-zinc-900 border-b-2 border-amber-300 sticky top-0 z-50">
-      <div className="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-6 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-4">
         <Link
           href="/"
           className="text-xl font-extrabold tracking-wide text-amber-900 hover:text-emerald-900 transition"
@@ -820,8 +899,8 @@ const [openNotifications, setOpenNotifications] = useState(false);
           RetroGarage™
         </Link>
 
-        <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2">
-          <ul className="flex items-center gap-8 text-sm font-extrabold tracking-wide text-amber-900 uppercase list-none m-0 p-0 ">
+        <nav className="hidden md:flex justify-center min-w-0">
+          <ul className="flex items-center gap-5 lg:gap-8 text-sm font-extrabold tracking-wide text-amber-900 uppercase list-none m-0 p-0 whitespace-nowrap">
             <li>
               <Link
                 href="/aboutus"
@@ -863,7 +942,7 @@ const [openNotifications, setOpenNotifications] = useState(false);
           </ul>
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 lg:gap-3 justify-self-end shrink-0 relative z-20">
           {isLogged && hasNavbarUnread && (
             <button
               type="button"
@@ -879,62 +958,63 @@ const [openNotifications, setOpenNotifications] = useState(false);
               />
             </button>
           )}
-{isLogged && (
-  <div className="relative">
-    {/* 🔔 BOTÓN */}
-    <button
-      type="button"
-      onClick={() => setOpenNotifications((v) => !v)}
-      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-300 bg-amber-50 hover:bg-amber-200 transition"
-      aria-label="Notificaciones"
-      title="Notificaciones"
-    >
-      <span className="text-lg">🔔</span>
 
-      {unreadCount > 0 && (
-        <span className="absolute -right-1 -top-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-[10px] text-white flex items-center justify-center ring-2 ring-amber-50">
-          {unreadCount}
-        </span>
-      )}
-    </button>
-
-    {/* 📬 DROPDOWN */}
-    {openNotifications && (
-      <div className="absolute right-0 top-14 w-80 rounded-xl border-2 border-amber-300 bg-amber-50 shadow-lg z-50">
-        <div className="px-4 py-2 border-b border-amber-200 font-bold text-amber-900">
-          Notificaciones
-        </div>
-
-        {notifications.length === 0 ? (
-          <div className="px-4 py-3 text-sm text-zinc-600">
-            No tenés notificaciones todavía
-          </div>
-        ) : (
-          <ul className="max-h-80 overflow-y-auto">
-            {notifications.map((n) => (
-              <li
-                key={n.id}
-                onClick={() => {
-                  if (!n.read) markAsRead(n.id);
-                }}
-                className={`px-4 py-3 text-sm cursor-pointer border-b border-amber-100 hover:bg-amber-100 transition ${
-                  !n.read
-                    ? "font-bold text-amber-900"
-                    : "text-zinc-700"
-                }`}
+          {isLogged && (
+            <div className="relative">
+              {/* 🔔 BOTÓN */}
+              <button
+                type="button"
+                onClick={() => setOpenNotifications((v) => !v)}
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-300 bg-amber-50 hover:bg-amber-200 transition"
+                aria-label="Notificaciones"
+                title="Notificaciones"
               >
-                <p>{n.message}</p>
-                <span className="text-[10px] text-zinc-500">
-                  {new Date(n.createdAt).toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    )}
-  </div>
-)}
+                <span className="text-lg">🔔</span>
+
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 min-w-4.5 h-4.5 px-1 rounded-full bg-red-600 text-[10px] text-white flex items-center justify-center ring-2 ring-amber-50">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* 📬 DROPDOWN */}
+              {openNotifications && (
+                <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border-2 border-amber-300 bg-amber-50 shadow-lg z-50">
+                  <div className="px-4 py-2 border-b border-amber-200 font-bold text-amber-900">
+                    Notificaciones
+                  </div>
+
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-zinc-600">
+                      No tenés notificaciones todavía
+                    </div>
+                  ) : (
+                    <ul className="max-h-80 overflow-y-auto">
+                      {notifications.map((n) => (
+                        <li
+                          key={n.id}
+                          onClick={() => {
+                            if (!n.read) markAsRead(n.id);
+                          }}
+                          className={`px-4 py-3 text-sm cursor-pointer border-b border-amber-100 hover:bg-amber-100 transition ${
+                            !n.read
+                              ? "font-bold text-amber-900"
+                              : "text-zinc-700"
+                          }`}
+                        >
+                          <p>{n.message}</p>
+                          <span className="text-[10px] text-zinc-500">
+                            {new Date(n.createdAt).toLocaleString()}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <Link
             href="/cart"

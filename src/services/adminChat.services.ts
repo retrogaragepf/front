@@ -6,6 +6,12 @@ export type AdminChatConversation = {
   userId: string;
   userName: string;
   userEmail: string;
+  /** Name of the other participant (for user-to-user chats). */
+  receiverName: string;
+  /** Email of the other participant (for user-to-user chats). */
+  receiverEmail: string;
+  /** True when both participants are regular users (no admin involved). */
+  isUserChat: boolean;
   subject: string;
   status: "active" | "blocked";
   unreadCount: number;
@@ -445,12 +451,33 @@ function normalizeConversation(raw: ApiRecord, currentUserId: string): AdminChat
   const conversationStatus = getConversationStatus(raw, base);
   const participantStatus = userRecord ? getParticipantStatus(userRecord) : "active";
 
+  // Find the second non-admin participant (for user-to-user chats).
+  const userRecordId = userRecord ? getParticipantId(userRecord) : "";
+  const receiverRecord =
+    participants.find((p) => {
+      const pid = getParticipantId(p);
+      return (
+        pid &&
+        pid !== currentUserId &&
+        pid !== userRecordId &&
+        !getBoolean(p.isAdmin) &&
+        !getBoolean(p.isSupportAdmin)
+      );
+    }) ?? null;
+
+  const receiverName = receiverRecord ? getParticipantName(receiverRecord) || "" : "";
+  const receiverEmail = receiverRecord ? getParticipantEmail(receiverRecord) || "" : "";
+  const isUserChat = Boolean(receiverRecord);
+
   return {
     id,
     deleteCandidates: resolvedIds,
     userId: userRecord ? getParticipantId(userRecord) : fallbackUserId,
     userName,
     userEmail,
+    receiverName,
+    receiverEmail,
+    isUserChat,
     subject,
     status: conversationStatus === "blocked" ? "blocked" : participantStatus,
     unreadCount: parseUnreadCount(raw, base),

@@ -250,7 +250,9 @@ async function requestGet(path: string) {
   const data = await parseJsonSafe(response);
   if (!response.ok) {
     const message = getErrorMessage(data, "Error consultando chat.");
-    throw new Error(message);
+    const error = new Error(message) as HttpError;
+    error.status = response.status;
+    throw error;
   }
   return data;
 }
@@ -269,7 +271,9 @@ async function requestPost(path: string, body: Record<string, unknown>) {
   const data = await parseJsonSafe(response);
   if (!response.ok) {
     const message = getErrorMessage(data, "Error enviando datos de chat.");
-    throw new Error(message);
+    const error = new Error(message) as HttpError;
+    error.status = response.status;
+    throw error;
   }
   return data;
 }
@@ -369,7 +373,27 @@ export const chatService = {
 
   async getMessages(conversationId: string): Promise<ChatMessage[]> {
     const encodedId = encodeURIComponent(conversationId);
-    const data = await requestGet(`/chat/conversation/${encodedId}/messages`);
+    const paths = [
+      `/chat/conversations/${encodedId}/messages`,
+      `/chat/conversation/${encodedId}/messages`,
+    ];
+    let data: unknown = null;
+    let lastError: unknown = null;
+    for (const path of paths) {
+      try {
+        data = await requestGet(path);
+        break;
+      } catch (error) {
+        const status = (error as HttpError).status;
+        if (status === 401) throw error;
+        lastError = error;
+        if (status !== 404 && status !== 405) break;
+      }
+    }
+    if (data == null) {
+      if (lastError instanceof Error) throw lastError;
+      throw new Error("No se pudieron obtener los mensajes.");
+    }
     const currentUserId = getCurrentUserIdFromToken();
     const list = getDataArray(data);
 
@@ -382,7 +406,24 @@ export const chatService = {
     type: "PRIVATE";
     participantIds: string[];
   }): Promise<ChatConversation> {
-    const created = await requestPost("/chat/conversation", payload);
+    const paths = ["/chat/conversations", "/chat/conversation"];
+    let created: unknown = null;
+    let lastError: unknown = null;
+    for (const path of paths) {
+      try {
+        created = await requestPost(path, payload);
+        break;
+      } catch (error) {
+        const status = (error as HttpError).status;
+        if (status === 401) throw error;
+        lastError = error;
+        if (status !== 404 && status !== 405) break;
+      }
+    }
+    if (created == null) {
+      if (lastError instanceof Error) throw lastError;
+      throw new Error("No se pudo crear la conversación.");
+    }
     return normalizeConversation(created as ApiRecord);
   },
 

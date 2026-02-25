@@ -184,6 +184,25 @@ const Navbar = (): ReactElement => {
     }
   };
 
+  // Fallback: obtener userId directamente del JWT en localStorage.
+  const getCurrentUserIdFromJwt = (): string => {
+    try {
+      const raw = localStorage.getItem(AUTH_KEY);
+      if (!raw) return "";
+      const parsed = JSON.parse(raw);
+      const token = parsed?.token;
+      if (!token || typeof token !== "string") return "";
+      const parts = token.split(".");
+      if (parts.length !== 3) return "";
+      const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+      const payload = JSON.parse(atob(padded));
+      return String(payload?.id ?? payload?.sub ?? payload?.userId ?? "");
+    } catch {
+      return "";
+    }
+  };
+
   const isAdminUser = useMemo(() => {
     const userFlag =
       getBooleanField(userRecord, "isAdmin") ||
@@ -475,7 +494,7 @@ const Navbar = (): ReactElement => {
           const senderId = String(
             sender?.id ?? payload.senderId ?? payload.userId ?? "",
           );
-          const currentUserId = chatService.getCurrentUserId();
+          const currentUserId = chatService.getCurrentUserId() || getCurrentUserIdFromJwt();
           logChatAlert("socket:newMessage:raw", {
             isAdminUser,
             conversationId,
@@ -580,7 +599,7 @@ const Navbar = (): ReactElement => {
       const conversationId = customEvent.detail?.conversationId ?? "";
       if (!conversationId) return;
 
-      const currentUserId = chatService.getCurrentUserId();
+      const currentUserId = chatService.getCurrentUserId() || getCurrentUserIdFromJwt();
       const senderId = customEvent.detail?.senderId ?? "";
       if (senderId && senderId === currentUserId) return;
 

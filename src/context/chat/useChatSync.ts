@@ -380,10 +380,12 @@ export function useChatSync({
         if (status === 404) {
           const count = (sync404CountRef.current[conversationId] ?? 0) + 1;
           sync404CountRef.current[conversationId] = count;
-          // Solo eliminar después de 3 fallos consecutivos (grace period para
-          // conversaciones recién creadas que el backend aún no registró).
-          if (count >= 3) {
+          // Solo eliminar después de 6 fallos consecutivos (grace period para
+          // conversaciones recién creadas que el backend aún no registró o donde
+          // el ID puede ser incorrecto y necesita corrección via syncConversations).
+          if (count >= 6) {
             console.warn("[useChatSync] syncMessages:404:removing", { conversationId, count });
+            void syncConversations();
             setConversations((prev) => prev.filter((c) => c.id !== conversationId));
             setMessagesByConversation((prev) => {
               if (!(conversationId in prev)) return prev;
@@ -398,7 +400,7 @@ export function useChatSync({
         console.error("[useChatSync] syncMessages:error", { conversationId, error });
       }
     },
-    [canUseChat, currentUserId, setConversations, setMessagesByConversation],
+    [canUseChat, currentUserId, setConversations, setMessagesByConversation, syncConversations],
   );
 
   const clearUnreadLocal = useCallback(

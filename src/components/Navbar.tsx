@@ -13,6 +13,7 @@ import { adminChatService } from "@/src/services/adminChat.services";
 import { chatService } from "@/src/services/chat.services";
 import type { UserSession } from "@/src/context/AuthContext";
 import type { SocketLike } from "@/src/context/chat/useChatSocket";
+import { useNotifications } from "@/src/context/NotificationContext";
 
 const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
 const CHAT_ALERT_DEBUG =
@@ -126,6 +127,8 @@ const Navbar = (): ReactElement => {
   const router = useRouter();
   const session = dataUser as UserSession | null;
   const userRecord = asRecord(session?.user);
+  const { notifications, unreadCount, markAsRead } = useNotifications();
+const [openNotifications, setOpenNotifications] = useState(false);
 
   const { cartItems } = useCart();
   const { openChat, conversations, activeConversation, isChatOpen } = useChat();
@@ -702,6 +705,62 @@ const Navbar = (): ReactElement => {
               />
             </button>
           )}
+{isLogged && (
+  <div className="relative">
+    {/* 🔔 BOTÓN */}
+    <button
+      type="button"
+      onClick={() => setOpenNotifications((v) => !v)}
+      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-300 bg-amber-50 hover:bg-amber-200 transition"
+      aria-label="Notificaciones"
+      title="Notificaciones"
+    >
+      <span className="text-lg">🔔</span>
+
+      {unreadCount > 0 && (
+        <span className="absolute -right-1 -top-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-[10px] text-white flex items-center justify-center ring-2 ring-amber-50">
+          {unreadCount}
+        </span>
+      )}
+    </button>
+
+    {/* 📬 DROPDOWN */}
+    {openNotifications && (
+      <div className="absolute right-0 top-14 w-80 rounded-xl border-2 border-amber-300 bg-amber-50 shadow-lg z-50">
+        <div className="px-4 py-2 border-b border-amber-200 font-bold text-amber-900">
+          Notificaciones
+        </div>
+
+        {notifications.length === 0 ? (
+          <div className="px-4 py-3 text-sm text-zinc-600">
+            No tenés notificaciones todavía
+          </div>
+        ) : (
+          <ul className="max-h-80 overflow-y-auto">
+            {notifications.map((n) => (
+              <li
+                key={n.id}
+                onClick={() => {
+                  if (!n.read) markAsRead(n.id);
+                }}
+                className={`px-4 py-3 text-sm cursor-pointer border-b border-amber-100 hover:bg-amber-100 transition ${
+                  !n.read
+                    ? "font-bold text-amber-900"
+                    : "text-zinc-700"
+                }`}
+              >
+                <p>{n.message}</p>
+                <span className="text-[10px] text-zinc-500">
+                  {new Date(n.createdAt).toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )}
+  </div>
+)}
 
           <Link
             href="/cart"

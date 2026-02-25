@@ -3,123 +3,126 @@
 import React, {
   createContext,
   useContext,
-  useMemo,
+  useEffect,
   useState,
+  useCallback,
 } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 
-export type NotificationType =
-  | "purchase_success"
-  | "sale_made"
-  | "product_approved"
-  | "product_rejected"
-  | "product_shipped"
-  | "product_delivered";
-
 export type Notification = {
   id: string;
-  userId: string;
-  type: NotificationType;
+  type: string;
   message: string;
   read: boolean;
   createdAt: string;
 };
 
-interface NotificationContextProps {
+type NotificationContextType = {
   notifications: Notification[];
   unreadCount: number;
-  addNotification: (data: {
-    type: NotificationType;
-    message: string;
-    userId?: string;
-  }) => void;
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
-}
+  loading: boolean;
+  refreshNotifications: () => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+};
 
-const NotificationContext = createContext<NotificationContextProps>({
-  notifications: [],
-  unreadCount: 0,
-  addNotification: () => {},
-  markAsRead: () => {},
-  markAllAsRead: () => {},
-});
+const NotificationContext = createContext<
+  NotificationContextType | undefined
+>(undefined);
 
-export const NotificationProvider = ({
+export function NotificationProvider({
   children,
 }: {
   children: React.ReactNode;
-}) => {
-  const { dataUser } = useAuth();
+}) {
+  const { dataUser, isAuth } = useAuth();
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const currentUserId =
-    dataUser?.user?.id?.toString() ?? null;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const addNotification: NotificationContextProps["addNotification"] = ({
-    type,
-    message,
-    userId,
-  }) => {
-    const targetUserId = userId ?? currentUserId;
-    if (!targetUserId) return;
+  // 🔔 Traer notificaciones del usuario
+  const refreshNotifications = useCallback(async () => {
+    if (!isAuth || !dataUser?.token) return;
 
-    setNotifications((prev) => [
-      {
-        id: crypto.randomUUID(),
-        userId: targetUserId,
-        type,
-        message,
-        read: false,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/notifications/me?includeDailySummary=false`,
+        {
+          headers: {
+            Authorization: `Bearer ${dataUser.token}`,
+          },
+        }
+      );
+
+      if (!res.ok) throw new Error("Error cargando notificaciones");
+
+      const data = await res.json();
+      setNotifications(data);
+    } catch (err) {
+      console.error("❌ Error notifications:", err);
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuth, dataUser?.token]);
+
+  // 🔔 Marcar como leída
+  const markAsRead = async (id: string) => {
+    if (!dataUser?.token) return;
+
+    try {
+      await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/notifications/${id}/read`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${dataUser.token}`,
+          },
+        }
+      );
+
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id ? { ...n, read: true } : n
+        )
+      );
+    } catch (err) {
+      console.error("❌ Error markAsRead:", err);
+    }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) =>
-        n.id === id ? { ...n, read: true } : n,
-      ),
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications((prev) =>
-      prev.map((n) => ({ ...n, read: true })),
-    );
-  };
-
-  const userNotifications = useMemo(
-    () =>
-      currentUserId
-        ? notifications.filter(
-            (n) => n.userId === currentUserId,
-          )
-        : [],
-    [notifications, currentUserId],
-  );
-
-  const unreadCount = useMemo(
-    () => userNotifications.filter((n) => !n.read).length,
-    [userNotifications],
-  );
+  // 🔁 Cargar al loguearse
+  useEffect(() => {
+    if (isAuth) {
+      refreshNotifications();
+    } else {
+      setNotifications([]);
+    }
+  }, [isAuth, refreshNotifications]);
 
   return (
     <NotificationContext.Provider
       value={{
-        notifications: userNotifications,
+        notifications,
         unreadCount,
-        addNotification,
+        loading,
+        refreshNotifications,
         markAsRead,
-        markAllAsRead,
       }}
     >
       {children}
     </NotificationContext.Provider>
   );
-};
+}
 
-export const useNotifications = () =>
-  useContext(NotificationContext);
+export function useNotifications() {
+  const ctx = useContext(NotificationContext);
+  if (!ctx) {
+    throw new Error(
+      "useNotifications debe usarse dentro de NotificationProvider"
+    );
+  }
+  return ctx;
+}

@@ -25,7 +25,6 @@ export default function SalesPage() {
 
   const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-  // 🔐 sacamos el token REAL
   const getToken = () => {
     const raw = localStorage.getItem("retrogarage_auth");
     if (!raw) return null;
@@ -36,7 +35,6 @@ export default function SalesPage() {
     }
   };
 
-  // 📦 traer ventas
   const fetchVentas = async () => {
     const token = getToken();
     if (!token) return;
@@ -49,15 +47,16 @@ export default function SalesPage() {
       });
 
       const data = await res.json();
+      console.log("VENTAS ACTUALIZADAS:", data);
+
       setVentas(data);
     } catch (err) {
-      console.error(err);
+      console.error("Error cargando ventas:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🚚 cambiar estado
   const cambiarEstado = async (
     id: string,
     status: "SHIPPED" | "DELIVERED" | "CANCELLED"
@@ -65,17 +64,30 @@ export default function SalesPage() {
     const token = getToken();
     if (!token) return;
 
-    await fetch(`${API}/ventas/${id}/status`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ status: status.toLowerCase() }),
-    });
+    try {
+      console.log("CAMBIANDO ESTADO:", id, status);
 
-    // refrescamos lista
-    fetchVentas();
+      const res = await fetch(`${API}/ventas/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }), // 🔥 ahora va en MAYÚSCULA
+      });
+
+      const text = await res.text();
+      console.log("RESPUESTA PATCH:", res.status, text);
+
+      if (!res.ok) {
+        console.error("Error actualizando estado");
+        return;
+      }
+
+      await fetchVentas();
+    } catch (err) {
+      console.error("Error en cambiarEstado:", err);
+    }
   };
 
   useEffect(() => {
@@ -126,16 +138,21 @@ export default function SalesPage() {
             {venta.status === "PAID" && (
               <button
                 onClick={() => cambiarEstado(venta.id, "SHIPPED")}
+                className="
+                  mt-4
+                  px-4 py-2
+                  rounded-xl
+                  border-2 border-zinc-900
+                  bg-amber-300
+                  font-bold
+                  shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
+                  hover:bg-amber-400
+                  active:translate-x-[1px]
+                  active:translate-y-[1px]
+                  transition-all
+                "
               >
                 Marcar como enviado
-              </button>
-            )}
-
-            {venta.status === "SHIPPED" && (
-              <button
-                onClick={() => cambiarEstado(venta.id, "DELIVERED")}
-              >
-                Marcar como entregado
               </button>
             )}
           </li>

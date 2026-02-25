@@ -14,7 +14,9 @@ type Venta = {
     createdAt: string;
     user: {
       id: string;
+      name?: string;
       email: string;
+      address?: string;
     };
   };
 };
@@ -23,11 +25,16 @@ export default function SalesPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const API = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const API =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com";
 
   const getToken = () => {
     const raw = localStorage.getItem("retrogarage_auth");
     if (!raw) return null;
+
+    // ✅ JWT pelado
+    if (raw.startsWith("eyJ")) return raw;
+
     try {
       return JSON.parse(raw).token;
     } catch {
@@ -37,10 +44,15 @@ export default function SalesPage() {
 
   const fetchVentas = async () => {
     const token = getToken();
-    if (!token) return;
+
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
     try {
-      const res = await fetch(`${API}/ventas/mis-ventas`, {
+      // ✅ Swagger: status es requerido (ej: PAID)
+      const res = await fetch(`${API}/ventas/mis-ventas?status=PAID`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -49,7 +61,7 @@ export default function SalesPage() {
       const data = await res.json();
       console.log("VENTAS ACTUALIZADAS:", data);
 
-      setVentas(data);
+      setVentas(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error cargando ventas:", err);
     } finally {
@@ -59,7 +71,7 @@ export default function SalesPage() {
 
   const cambiarEstado = async (
     id: string,
-    status: "SHIPPED" | "DELIVERED" | "CANCELLED"
+    status: "SHIPPED" | "DELIVERED" | "CANCELLED",
   ) => {
     const token = getToken();
     if (!token) return;
@@ -73,7 +85,7 @@ export default function SalesPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status }), // 🔥 ahora va en MAYÚSCULA
+        body: JSON.stringify({ status }),
       });
 
       const text = await res.text();
@@ -115,7 +127,25 @@ export default function SalesPage() {
             <h3>{venta.title}</h3>
 
             <p>
-              <b>Cliente:</b> {venta.order.user.email}
+              <b>Comprador:</b>{" "}
+              {venta.order.user.name ? (
+                venta.order.user.name
+              ) : (
+                <span style={{ opacity: 0.7 }}>—</span>
+              )}
+            </p>
+
+            <p>
+              <b>Email:</b> {venta.order.user.email}
+            </p>
+
+            <p>
+              <b>Dirección de envío:</b>{" "}
+              {venta.order.user.address ? (
+                venta.order.user.address
+              ) : (
+                <span style={{ opacity: 0.7 }}>—</span>
+              )}
             </p>
 
             <p>

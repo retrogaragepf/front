@@ -140,6 +140,8 @@ export function useChatSync({
   const localReadMarkersRef = useRef<ReadMarkers>({});
   const hasSyncedConversationsRef = useRef(false);
   const joinedRoomsRef = useRef<Set<string>>(new Set());
+  // Rastreo de 404 consecutivos por conversación para no borrar conversaciones recién creadas.
+  const sync404CountRef = useRef<Record<string, number>>({});
 
   const applyLocalReadState = useCallback((conversation: ChatConversation) => {
     const readAt = localReadMarkersRef.current[conversation.id];
@@ -297,6 +299,8 @@ export function useChatSync({
       try {
         console.log("[useChatSync] syncMessages:start", { conversationId });
         const remoteMessages = await chatService.getMessages(conversationId);
+        // Éxito: resetear contador de 404 si existía.
+        delete sync404CountRef.current[conversationId];
         setMessagesByConversation((prev) => {
           const previousMessages = prev[conversationId] ?? [];
           if (areMessagesEqualById(previousMessages, remoteMessages)) return prev;
@@ -374,15 +378,21 @@ export function useChatSync({
         if ((error as Error).message === "NO_AUTH") return;
         const status = (error as Error & { status?: number }).status;
         if (status === 404) {
-          // Conversación no existe en el backend: limpiar del estado local.
-          console.warn("[useChatSync] syncMessages:404:removing", { conversationId });
-          setConversations((prev) => prev.filter((c) => c.id !== conversationId));
-          setMessagesByConversation((prev) => {
-            if (!(conversationId in prev)) return prev;
-            const next = { ...prev };
-            delete next[conversationId];
-            return next;
-          });
+          const count = (sync404CountRef.current[conversationId] ?? 0) + 1;
+          sync404CountRef.current[conversationId] = count;
+          // Solo eliminar después de 3 fallos consecutivos (grace period para
+          // conversaciones recién creadas que el backend aún no registró).
+          if (count >= 3) {
+            console.warn("[useChatSync] syncMessages:404:removing", { conversationId, count });
+            setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+            setMessagesByConversation((prev) => {
+              if (!(conversationId in prev)) return prev;
+              const next = { ...prev };
+              delete next[conversationId];
+              return next;
+            });
+            delete sync404CountRef.current[conversationId];
+          }
           return;
         }
         console.error("[useChatSync] syncMessages:error", { conversationId, error });

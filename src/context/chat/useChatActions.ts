@@ -21,7 +21,6 @@ import { SocketLike } from "@/src/context/chat/useChatSocket";
 type Params = {
   canUseChat: boolean;
   isAuthLoading: boolean;
-  messagesByConversation: ChatMessageMap;
   conversationsRef: MutableRefObject<ChatConversation[]>;
   activeConversationRef: MutableRefObject<string>;
   setIsChatOpen: Dispatch<SetStateAction<boolean>>;
@@ -117,7 +116,6 @@ function isSupportConversation(conversation: ChatConversation): boolean {
 export function useChatActions({
   canUseChat,
   isAuthLoading,
-  messagesByConversation,
   conversationsRef,
   activeConversationRef,
   setIsChatOpen,
@@ -401,25 +399,28 @@ export function useChatActions({
     (conversationId: string) => {
       if (!conversationId) return;
 
-      const previousConversations = conversationsRef.current;
-      const previousMessages = messagesByConversation;
-      const previousActiveId = activeConversationRef.current;
+      const currentConversations = conversationsRef.current;
+      const currentActiveId = activeConversationRef.current;
 
-      const nextConversations = previousConversations.filter(
+      const nextConversations = currentConversations.filter(
         (conversation) => conversation.id !== conversationId,
       );
       const nextActiveId =
-        previousActiveId === conversationId
+        currentActiveId === conversationId
           ? (nextConversations[0]?.id ?? "")
-          : previousActiveId;
-      logChatActions("deleteConversation:localRemove", {
+          : currentActiveId;
+
+      logChatActions("deleteConversation:localHide", {
         conversationId,
-        previousCount: previousConversations.length,
+        previousCount: currentConversations.length,
         nextCount: nextConversations.length,
-        previousActiveId,
+        currentActiveId,
         nextActiveId,
       });
 
+      // Purely local: remove from UI state and persist to hidden list.
+      // No backend DELETE is called — the server keeps the conversation intact.
+      addHiddenConversationId(conversationId);
       setConversations(nextConversations);
       setMessagesByConversation((prev) => {
         const { [conversationId]: _deleted, ...rest } = prev;
@@ -427,59 +428,18 @@ export function useChatActions({
       });
       setActiveConversationId(nextActiveId);
 
-      void (async () => {
-        try {
-          // En backend actual, DELETE de conversación está restringido a admin.
-          // Para usuario normal mantenemos borrado local (no persistente).
-          if (!chatService.isAdminUser()) {
-            addHiddenConversationId(conversationId);
-            showToast.success("Conversación eliminada de tu vista.", {
-              duration: 2200,
-              progress: true,
-              position: "top-center",
-              transition: "popUp",
-              icon: "",
-              sound: true,
-            });
-            return;
-          }
-
-          await chatService.deleteConversation(conversationId);
-        } catch (error) {
-          const status = Number((error as { status?: number })?.status ?? 0);
-          if ([401, 403, 404, 405].includes(status)) {
-            // Si el backend no permite borrar o no encuentra, dejamos oculto local.
-            addHiddenConversationId(conversationId);
-            showToast.info("Conversación ocultada localmente.", {
-              duration: 2200,
-              progress: true,
-              position: "top-center",
-              transition: "popUp",
-              icon: "",
-              sound: true,
-            });
-            return;
-          }
-
-          console.error("No se pudo borrar conversación:", error);
-          setConversations(previousConversations);
-          setMessagesByConversation(previousMessages);
-          setActiveConversationId(previousActiveId);
-          showToast.error("No se pudo borrar la conversación.", {
-            duration: 2200,
-            progress: true,
-            position: "top-center",
-            transition: "popUp",
-            icon: "",
-            sound: true,
-          });
-        }
-      })();
+      showToast.success("Conversación eliminada de tu vista.", {
+        duration: 2200,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
     },
     [
       activeConversationRef,
       conversationsRef,
-      messagesByConversation,
       setActiveConversationId,
       setConversations,
       setMessagesByConversation,

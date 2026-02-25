@@ -12,9 +12,11 @@ import {
   appendMessageSafe,
   dedupeConversations,
   formatTime,
+  isObjectRecord,
   mergeConversationData,
   replaceOptimisticMessage,
 } from "@/src/context/chat/chatStateUtils";
+import { SocketLike } from "@/src/context/chat/useChatSocket";
 
 type Params = {
   canUseChat: boolean;
@@ -32,6 +34,7 @@ type Params = {
   clearUnreadLocal: (conversationId: string) => void;
   joinConversationRoom: (conversationId: string) => void;
   activeConversationId: string;
+  socketRef: MutableRefObject<SocketLike | null>;
 };
 
 type UseChatActionsResult = {
@@ -127,6 +130,7 @@ export function useChatActions({
   clearUnreadLocal,
   joinConversationRoom,
   activeConversationId,
+  socketRef,
 }: Params): UseChatActionsResult {
   const ensureConversation = useCallback(
     async (
@@ -490,9 +494,10 @@ export function useChatActions({
       }
 
       const currentUserId = chatService.getCurrentUserId();
+      const conversationId = activeConversationId;
       const optimisticMessage: ChatMessage = {
         id: `temp-${Date.now()}`,
-        conversationId: activeConversationId,
+        conversationId,
         senderId: currentUserId ?? undefined,
         from: "customer",
         content: normalizedContent,
@@ -502,15 +507,15 @@ export function useChatActions({
 
       setMessagesByConversation((prev) => ({
         ...prev,
-        [activeConversationId]: appendMessageSafe(
-          prev[activeConversationId] ?? [],
+        [conversationId]: appendMessageSafe(
+          prev[conversationId] ?? [],
           optimisticMessage,
         ),
       }));
 
       setConversations((prev) =>
         prev.map((conversation) =>
-          conversation.id === activeConversationId
+          conversation.id === conversationId
             ? {
                 ...conversation,
                 lastMessage: normalizedContent,
@@ -520,46 +525,100 @@ export function useChatActions({
         ),
       );
 
-      try {
-        const persistedMessage = await chatService.sendMessage({
-          conversationId: activeConversationId,
-          content: normalizedContent,
-        });
+      const socket = socketRef.current;
 
-        setMessagesByConversation((prev) => ({
-          ...prev,
-          [activeConversationId]: replaceOptimisticMessage(
-            prev[activeConversationId] ?? [],
-            optimisticMessage.id,
-            persistedMessage,
-          ),
-        }));
-      } catch (error) {
-        setMessagesByConversation((prev) => ({
-          ...prev,
-          [activeConversationId]: (prev[activeConversationId] ?? []).filter(
-            (message) => message.id !== optimisticMessage.id,
-          ),
-        }));
-        console.error("No se pudo enviar mensaje al backend:", error);
-        const rawMessage = error instanceof Error ? error.message : "";
-        const isBlocked = rawMessage.toLowerCase().includes("bloque");
-        showToast.error(
-          isBlocked
-            ? "No puedes chatear: cuenta bloqueada por reglas de comunicación."
-            : "No se pudo enviar el mensaje.",
-          {
-            duration: 2200,
-            progress: true,
-            position: "top-center",
-            transition: "popUp",
-            icon: "",
-            sound: true,
+      if (socket?.connected) {
+        // Envío por WebSocket: el gateway guarda el mensaje Y emite newMessage al room
+        socket.emit(
+          "sendMessage",
+          { conversationId, content: normalizedContent },
+          (ack: unknown) => {
+            if (!isObjectRecord(ack) || !("id" in ack)) {
+              // El gateway rechazó el mensaje (ej: bloqueado, no participante)
+              setMessagesByConversation((prev) => ({
+                ...prev,
+                [conversationId]: (prev[conversationId] ?? []).filter(
+                  (message) => message.id !== optimisticMessage.id,
+                ),
+              }));
+              const errorMsg =
+                isObjectRecord(ack) && typeof ack.message === "string"
+                  ? ack.message
+                  : "No se pudo enviar el mensaje.";
+              const isBlocked = errorMsg.toLowerCase().includes("bloque");
+              showToast.error(
+                isBlocked
+                  ? "No puedes chatear: cuenta bloqueada por reglas de comunicación."
+                  : errorMsg,
+                {
+                  duration: 2200,
+                  progress: true,
+                  position: "top-center",
+                  transition: "popUp",
+                  icon: "",
+                  sound: true,
+                },
+              );
+              return;
+            }
+            // Reemplazamos el mensaje optimista con el persistido
+            const persistedMessage = chatService.normalizeSocketMessage(
+              ack,
+              conversationId,
+            );
+            if (!persistedMessage) return;
+            setMessagesByConversation((prev) => ({
+              ...prev,
+              [conversationId]: replaceOptimisticMessage(
+                prev[conversationId] ?? [],
+                optimisticMessage.id,
+                persistedMessage,
+              ),
+            }));
           },
         );
+      } else {
+        // Fallback HTTP cuando el socket no está conectado
+        try {
+          const persistedMessage = await chatService.sendMessage({
+            conversationId,
+            content: normalizedContent,
+          });
+          setMessagesByConversation((prev) => ({
+            ...prev,
+            [conversationId]: replaceOptimisticMessage(
+              prev[conversationId] ?? [],
+              optimisticMessage.id,
+              persistedMessage,
+            ),
+          }));
+        } catch (error) {
+          setMessagesByConversation((prev) => ({
+            ...prev,
+            [conversationId]: (prev[conversationId] ?? []).filter(
+              (message) => message.id !== optimisticMessage.id,
+            ),
+          }));
+          console.error("No se pudo enviar mensaje al backend:", error);
+          const rawMessage = error instanceof Error ? error.message : "";
+          const isBlocked = rawMessage.toLowerCase().includes("bloque");
+          showToast.error(
+            isBlocked
+              ? "No puedes chatear: cuenta bloqueada por reglas de comunicación."
+              : "No se pudo enviar el mensaje.",
+            {
+              duration: 2200,
+              progress: true,
+              position: "top-center",
+              transition: "popUp",
+              icon: "",
+              sound: true,
+            },
+          );
+        }
       }
     },
-    [canUseChat, activeConversationId, setConversations, setMessagesByConversation],
+    [canUseChat, activeConversationId, socketRef, setConversations, setMessagesByConversation],
   );
 
   return { openChat, closeChat, selectConversation, deleteConversation, sendMessage };

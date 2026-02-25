@@ -393,8 +393,8 @@ export const chatService = {
   async getMessages(conversationId: string): Promise<ChatMessage[]> {
     const encodedId = encodeURIComponent(conversationId);
     const paths = [
-      `/chat/conversations/${encodedId}/messages`,
       `/chat/conversation/${encodedId}/messages`,
+      `/chat/conversations/${encodedId}/messages`,
     ];
     let data: unknown = null;
     let lastError: unknown = null;
@@ -425,7 +425,7 @@ export const chatService = {
     type: "PRIVATE";
     participantIds: string[];
   }): Promise<ChatConversation> {
-    const paths = ["/chat/conversations", "/chat/conversation"];
+    const paths = ["/chat/conversation", "/chat/conversations"];
     let created: unknown = null;
     let lastError: unknown = null;
     for (const path of paths) {
@@ -479,7 +479,7 @@ export const chatService = {
     conversationId: string;
     content: string;
   }): Promise<ChatMessage> {
-    const paths = ["/chat/messages", "/chat/message"];
+    const paths = ["/chat/message", "/chat/messages"];
     let created: unknown = null;
     let lastError: unknown = null;
     for (const path of paths) {

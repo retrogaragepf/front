@@ -72,3 +72,20 @@ export type FilterParams = {
   sortBy?: 'price' | 'date' | 'name';
   sortOrder?: 'asc' | 'desc';
 };
+
+export type OrderStatus =
+  | "PENDING_PAYMENT"
+  | "PAID"
+  | "DISPATCHED"
+  | "DELIVERED"
+  | "CANCELLED";
+
+export interface IOrder {
+  id: string;
+  total: number;
+  status: OrderStatus;
+  createdAt: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+}
+

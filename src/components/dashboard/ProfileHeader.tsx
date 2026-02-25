@@ -110,6 +110,7 @@ export default function ProfileHeader() {
                   setAvatarPublicId(publicId);
                   setAvatarUrl(secureUrl);
 
+
                   // ✅ Persistencia en backend (nuevo, aislado)
                   try {
                     const saved = await updateMyAvatar({
@@ -127,6 +128,7 @@ export default function ProfileHeader() {
                     );
                     // Si falla el PATCH, al menos queda visible en UI actual
                   }
+
                 }}
               />
             </div>

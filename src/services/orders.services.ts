@@ -17,12 +17,12 @@ export type OrderItemDTO = {
   unitPrice: number;
   quantity: number;
   subtotal: number;
-  product?: {
+  status?: string; 
     id: string;
     title: string;
     imgUrl?: string;
   };
-};
+
 
 export type OrderDTO = {
   id: string;
@@ -53,17 +53,23 @@ function assertApiBaseUrl(): string {
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
 
-  const raw = localStorage.getItem(TOKEN_KEY);
-  if (!raw) return null;
+  const rawMain = localStorage.getItem(TOKEN_KEY);
+  if (rawMain) {
+    if (rawMain.startsWith("eyJ")) return rawMain;
 
-  // JWT pelado
-  if (raw.startsWith("eyJ")) return raw;
+    try {
+      const parsed = JSON.parse(rawMain);
+      if (typeof parsed?.token === "string") return parsed.token;
+    } catch {}
+  }
 
-  // JSON { user, token }
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed?.token === "string") return parsed.token;
-  } catch {}
+  const rawLegacy = localStorage.getItem("userSesion");
+  if (rawLegacy) {
+    try {
+      const parsed = JSON.parse(rawLegacy);
+      if (typeof parsed?.token === "string") return parsed.token;
+    } catch {}
+  }
 
   return null;
 }
@@ -98,13 +104,18 @@ function normalizeItem(input: unknown, index: number): OrderItemDTO {
     getString(product.id) ||
     `${index}`;
 
+  const status = getString(row.status); 
   return {
     id,
     title:
-      getString(row.title) || getString(product.title) || getString(product.name) || "Producto",
+      getString(row.title) ||
+      getString(product.title) ||
+      getString(product.name) ||
+      "Producto",
     unitPrice,
     quantity,
     subtotal,
+    status, 
     product: getString(product.id) || getString(product._id)
       ? {
           id: getString(product.id) || getString(product._id),
@@ -124,11 +135,13 @@ function normalizeOrder(input: unknown): OrderDTO {
     getString(row._id) ||
     getString(row.orderId) ||
     getString(row.uuid);
+
   const createdAt =
     getString(row.createdAt) ||
     getString(row.date) ||
     getString(row.created_at) ||
     new Date().toISOString();
+
   const status = getString(row.status) || "pending";
 
   return {

@@ -12,6 +12,10 @@ type MyProduct = {
   description?: string;
   price?: number | string;
   stock?: number | string;
+
+  // ✅ NUEVO: no cambia lógica, solo permite leer status si viene del back
+  status?: string;
+
   imgUrl?: string;
   imageUrl?: string;
   image?: string;
@@ -70,6 +74,34 @@ function getAuthTokenFromStorage(): string | null {
   } catch {}
 
   return null;
+}
+
+/** ✅ NUEVO: helpers para badge de status (no tocan lógica) */
+function normalizeStatus(
+  p: any,
+): "approved" | "rejected" | "pending" | "unknown" {
+  const s = String(p?.status ?? p?.approvalStatus ?? p?.state ?? "")
+    .toLowerCase()
+    .trim();
+  if (s === "approved") return "approved";
+  if (s === "rejected") return "rejected";
+  if (s === "pending") return "pending";
+  return "unknown";
+}
+
+function statusBadgeProps(
+  status: "approved" | "rejected" | "pending" | "unknown",
+) {
+  switch (status) {
+    case "approved":
+      return { label: "APROBADO", cls: "bg-emerald-100 text-emerald-900" };
+    case "rejected":
+      return { label: "RECHAZADO", cls: "bg-rose-100 text-rose-900" };
+    case "pending":
+      return { label: "PENDIENTE", cls: "bg-amber-100 text-amber-900" };
+    default:
+      return { label: "ESTADO?", cls: "bg-zinc-100 text-zinc-900" };
+  }
 }
 
 function normalizeProduct(
@@ -281,6 +313,10 @@ export default function MyProductsPage() {
               const title = p.title ?? "Sin título";
               const img = p.imageUrl;
 
+              // ✅ NUEVO: status badge (solo UI)
+              const status = normalizeStatus(p);
+              const { label, cls } = statusBadgeProps(status);
+
               return (
                 <div
                   key={p.id}
@@ -315,6 +351,16 @@ export default function MyProductsPage() {
                     </span>
                     <span className="text-slate-700">
                       Stock: <b className="text-slate-900">{p.stock ?? "—"}</b>
+                    </span>
+                  </div>
+
+                  {/* ✅ NUEVO: badge de status (estilo pill como stock) */}
+                  <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+                    <span
+                      className={`inline-flex items-center px-3 py-1 rounded-full border-2 border-zinc-900 text-xs font-black
+                      shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)] ${cls}`}
+                    >
+                      {label}
                     </span>
                   </div>
 

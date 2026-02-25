@@ -906,7 +906,7 @@ const Navbar = (): ReactElement => {
                 href="/aboutus"
                 className="font-handwritten border-b-2 border-transparent hover:border-amber-800 hover:text-emerald-900 transition"
               >
-                Sobre Nosotros
+                Nosotros
               </Link>
             </li>
 

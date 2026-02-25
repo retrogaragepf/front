@@ -17,12 +17,14 @@ export type OrderItemDTO = {
   unitPrice: number;
   quantity: number;
   subtotal: number;
-  status?: string; 
+  status?: string;
+  imgUrl?: string;
+  product?: {
     id: string;
     title: string;
     imgUrl?: string;
-  };
-
+  } | null;
+};
 
 export type OrderDTO = {
   id: string;
@@ -104,7 +106,7 @@ function normalizeItem(input: unknown, index: number): OrderItemDTO {
     getString(product.id) ||
     `${index}`;
 
-  const status = getString(row.status); 
+  const status = getString(row.status);
   return {
     id,
     title:
@@ -115,14 +117,15 @@ function normalizeItem(input: unknown, index: number): OrderItemDTO {
     unitPrice,
     quantity,
     subtotal,
-    status, 
-    product: getString(product.id) || getString(product._id)
-      ? {
-          id: getString(product.id) || getString(product._id),
-          title: getString(product.title) || getString(product.name),
-          imgUrl: getString(product.imgUrl) || getString(product.image),
-        }
-      : undefined,
+    status,
+    product:
+      getString(product.id) || getString(product._id)
+        ? {
+            id: getString(product.id) || getString(product._id),
+            title: getString(product.title) || getString(product.name),
+            imgUrl: getString(product.imgUrl) || getString(product.image),
+          }
+        : undefined,
   };
 }
 
@@ -153,7 +156,9 @@ function normalizeOrder(input: unknown): OrderDTO {
     stripeSessionId:
       getString(row.stripeSessionId) || getString(row.sessionId) || null,
     stripePaymentIntentId:
-      getString(row.stripePaymentIntentId) || getString(row.paymentIntentId) || null,
+      getString(row.stripePaymentIntentId) ||
+      getString(row.paymentIntentId) ||
+      null,
     createdAt,
     updatedAt: getString(row.updatedAt) || undefined,
     items: rawItems.map(normalizeItem),

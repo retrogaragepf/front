@@ -140,7 +140,6 @@ export const ChatProvider = ({
     useChatActions({
       canUseChat,
       isAuthLoading: isLoadingUser,
-      messagesByConversation,
       conversationsRef,
       activeConversationRef,
       setIsChatOpen,
@@ -179,12 +178,10 @@ export const ChatProvider = ({
   );
 
   const unreadSignal = useMemo(() => {
+    // "Mensaje nuevo recibido" toast on every polling cycle.
     return conversations
       .filter((conversation) => conversation.unreadCount > 0)
-      .map((conversation) => {
-        const normalizedMessage = (conversation.lastMessage || "").trim();
-        return `${conversation.id}|${conversation.unreadCount}|${conversation.timestamp}|${normalizedMessage}`;
-      })
+      .map((conversation) => `${conversation.id}|${conversation.unreadCount}`)
       .sort()
       .join("::");
   }, [conversations]);

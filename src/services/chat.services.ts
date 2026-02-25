@@ -96,15 +96,27 @@ function getString(value: unknown, fallback = ""): string {
 }
 
 function getParticipantId(record: ApiRecord): string {
-  return String(record.id ?? record.userId ?? record._id ?? "");
+  // Prefer userId over id: the backend may return participant entities where
+  // `id` is the participant UUID and `userId` is the actual user UUID.
+  return String(record.userId ?? record.id ?? record._id ?? "");
 }
 
 function getParticipantName(record: ApiRecord): string {
-  return (
+  const direct =
     getString(record.name) ||
     getString(record.fullName) ||
     getString(record.username) ||
-    getString(record.email)
+    getString(record.email);
+  if (direct) return direct;
+
+  // Participant entities may nest the actual user data under a `user` field.
+  const nested = isRecord(record.user) ? record.user : null;
+  if (!nested) return "";
+  return (
+    getString(nested.name) ||
+    getString(nested.fullName) ||
+    getString(nested.username) ||
+    getString(nested.email)
   );
 }
 
@@ -179,8 +191,15 @@ function normalizeConversation(raw: ApiRecord): ChatConversation {
       ? "Administrador"
       : otherName || "Usuario";
 
+  // The backend's /chat/my-conversations returns participant entities where the
+  // top-level `id` is the participant UUID.  The actual conversation UUID lives
+  // in `raw.conversationId` or `raw.conversation.id`.  We must prefer those.
+  const conversationId = String(
+    raw.conversationId ?? row.id ?? rowRecord.id ?? rowRecord._id ?? raw.id ?? "",
+  );
+
   return {
-    id: String(rowRecord.id ?? rowRecord._id ?? ""),
+    id: conversationId,
     sellerName: String(resolvedOtherName),
     sellerId: otherParticipant ? getParticipantId(otherParticipant) || undefined : undefined,
     seller: { name: String(resolvedOtherName) },
@@ -460,7 +479,24 @@ export const chatService = {
     conversationId: string;
     content: string;
   }): Promise<ChatMessage> {
-    const created = await requestPost("/chat/message", payload);
+    const paths = ["/chat/messages", "/chat/message"];
+    let created: unknown = null;
+    let lastError: unknown = null;
+    for (const path of paths) {
+      try {
+        created = await requestPost(path, payload);
+        break;
+      } catch (error) {
+        const status = (error as HttpError).status;
+        if (status === 401) throw error;
+        lastError = error;
+        if (status !== 404 && status !== 405) break;
+      }
+    }
+    if (created == null) {
+      if (lastError instanceof Error) throw lastError;
+      throw new Error("No se pudo enviar el mensaje.");
+    }
     return normalizeMessage(
       created as ApiRecord,
       payload.conversationId,

@@ -547,9 +547,9 @@ const Navbar = (): ReactElement => {
             conversationId,
             pendingCount: adminRealtimePendingIdsRef.current.size,
           });
-
-          // Requisito: alertar en cada mensaje nuevo recibido (admin).
-          notifyNewMessage();
+          // Toast lo maneja exclusivamente el admin poll (cada 2s) con detección
+          // de unreadCount. Evita auto-alertas ya que el senderId check del socket
+          // puede fallar si el backend no incluye sender info correctamente.
         });
 
         socketRef.current = socket;

@@ -1,5 +1,3 @@
-// src/services/payments.ts
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export type CheckoutItem = { productId: string; quantity: number };
@@ -66,9 +64,14 @@ export async function createCheckoutSession(
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(
-      (data as any)?.message || "No se pudo iniciar el pago con Stripe.",
-    );
+    const msg = String((data as any)?.message ?? "");
+
+    // ✅ 401 / Unauthorized: mensaje amigable
+    if (res.status === 401 || msg.toLowerCase().includes("unauthorized")) {
+      throw new Error("Necesitas registrarte primero");
+    }
+
+    throw new Error(msg || "No se pudo iniciar el pago con Stripe.");
   }
 
   return data as { url: string; sessionId?: string };

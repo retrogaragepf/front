@@ -11,6 +11,7 @@ import ProfileHeader from "@/src/components/dashboard/ProfileHeader";
 import MyProductsPanel from "@/src/components/dashboard/MyProductsPanel";
 
 import { useAuth } from "@/src/context/AuthContext";
+import ProfileInfo from "@/src/components/dashboard/ProfileInfo";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -58,7 +59,9 @@ export default function DashboardPage() {
           </section>
         ) : null}
 
-        {/* <StatsGrid /> */}
+        
+        <ProfileInfo/>
+        
 
         <MyProductsPanel />
       </main>

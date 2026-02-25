@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCart } from "@/src/context/CartContext";
 import { showToast } from "nextjs-toast-notify";
 import { createCheckoutSession } from "@/src/services/payments";
+import { useRouter } from "next/navigation";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
@@ -23,6 +24,32 @@ function getToken(): string | null {
     return typeof parsed?.token === "string" ? parsed.token : null;
   } catch {
     return null;
+  }
+}
+
+/** ✅ NUEVO: obtener dirección guardada (soporta varias shapes) */
+function getUserAddress(): string {
+  if (typeof window === "undefined") return "";
+  const raw = localStorage.getItem(TOKEN_KEY);
+  if (!raw) return "";
+
+  // Si guardaste solo JWT, no hay user => no podemos leer address
+  if (raw.startsWith("eyJ")) return "";
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    const user = parsed?.user ?? parsed;
+    const addr =
+      user?.address ??
+      user?.direccion ??
+      user?.addressLine ??
+      user?.shippingAddress ??
+      "";
+
+    return typeof addr === "string" ? addr.trim() : "";
+  } catch {
+    return "";
   }
 }
 
@@ -48,6 +75,7 @@ type CouponApplied = {
 export default function Receipt() {
   const { itemsCount, totalPrice, cartItems, clearCart } = useCart();
   const [isPaying, setIsPaying] = useState(false);
+  const router = useRouter();
 
   // -----------------------
   // Coupon state
@@ -59,6 +87,11 @@ export default function Receipt() {
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
   const isEmpty = cartItems.length === 0;
+
+  // -----------------------
+  // ✅ NUEVO: Dirección (solo lectura para validar)
+  // -----------------------
+  const userAddress = useMemo(() => getUserAddress(), []);
 
   // -----------------------
   // Totals (subtotal + discount + final)
@@ -153,7 +186,6 @@ export default function Receipt() {
         .json()
         .catch(() => ({}))) as DiscountValidateResponse;
 
-      // debug temporal
       console.log("DISCOUNTS/VALIDATE =>", data);
 
       if (!res.ok || !data?.valid) {
@@ -174,7 +206,6 @@ export default function Receipt() {
         throw new Error("El back no devolvió percentage válido.");
       }
 
-      // ✅ fallback: si el back NO devuelve totals, calculamos para UI
       const subtotal = Number(totalPrice ?? 0);
       if (!Number.isFinite(subtotal) || subtotal <= 0) {
         throw new Error("Subtotal inválido.");
@@ -185,7 +216,6 @@ export default function Receipt() {
         disc = Math.round((subtotal * pct) / 100);
       }
 
-      // ✅ cap para que nunca deje total en 0 (evita Stripe/DTO)
       const maxDiscount = Math.max(0, subtotal - 1);
       disc = Math.min(disc, maxDiscount);
 
@@ -212,7 +242,7 @@ export default function Receipt() {
 
       setCouponApplied({
         valid: true,
-        code, // ✅ usamos el input como fuente si el back no manda code
+        code,
         type: "PERCENT",
         value: pct,
         discountAmount: disc,
@@ -290,6 +320,25 @@ export default function Receipt() {
   const handleCheckout = async () => {
     if (isEmpty || isPaying) return;
 
+    // ✅ NUEVO: si NO hay token, no validamos dirección (deja que corra tu flujo de auth)
+    const token = getToken();
+    if (token) {
+      const addr = (userAddress || "").trim();
+      if (!addr) {
+        showToast.warning("Necesitas agregar una dirección antes de pagar.", {
+          duration: 3500,
+          progress: true,
+          position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
+        });
+
+        router.push("/dashboard");
+        return;
+      }
+    }
+
     // ✅ bloqueo final
     if (couponApplied?.valid && totalFinal < 1) {
       showToast.error("El total final debe ser mínimo $1 para poder pagar.", {
@@ -307,7 +356,27 @@ export default function Receipt() {
       setIsPaying(true);
       await runStripeCheckout();
     } catch (err: any) {
-      showToast.error(err?.message || "No se pudo iniciar el pago", {
+      const msg = String(err?.message || "No se pudo iniciar el pago");
+
+      if (
+        msg === "Necesitas registrarte primero" ||
+        msg.toLowerCase().includes("unauthorized")
+      ) {
+        showToast.error("Necesitas registrarte primero", {
+          duration: 3500,
+          progress: true,
+          position: "top-center",
+          transition: "popUp",
+          icon: "",
+          sound: true,
+        });
+
+        setIsPaying(false);
+        router.push("/register");
+        return;
+      }
+
+      showToast.error(msg, {
         duration: 4000,
         progress: true,
         position: "top-center",
@@ -315,6 +384,7 @@ export default function Receipt() {
         icon: "",
         sound: true,
       });
+
       setIsPaying(false);
     }
   };
@@ -326,6 +396,43 @@ export default function Receipt() {
       <div className="flex items-center justify-between">
         <span className="text-slate-600 italic">Items</span>
         <span className="font-bold">{itemsCount}</span>
+      </div>
+
+      {/* ✅ NUEVO: Apartado Dirección */}
+      <div className="rounded-lg border-2 border-slate-900 bg-amber-200 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-amber-900 italic text-sm">Dirección</span>
+
+          {userAddress ? (
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-900">
+              OK
+            </span>
+          ) : (
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px]  text-black">
+              Falta
+            </span>
+          )}
+        </div>
+
+        <div className="mt-2 text-xs text-black">
+          {userAddress ? (
+            <p className="wrap-break-words">{userAddress}</p>
+          ) : (
+            <p className="text-black">
+              No tienes dirección registrada. Completa tu perfil para poder
+              pagar.
+            </p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard/")}
+          className="mt-3 w-full rounded-lg border-2 border-slate-900 text-white bg-emerald-900 px-3 py-2 text-xs font-bold transition hover:bg-amber-900"
+          disabled={isPaying}
+        >
+          {userAddress ? "Editar dirección" : "Agregar dirección"}
+        </button>
       </div>
 
       {/* ✅ Cupón */}

@@ -50,9 +50,11 @@ export function useChatUnreadNotifications({
     }
 
     const totalIncreased = unreadTotal > previousUnreadTotalRef.current;
-    const signalChanged = unreadSignal !== previousUnreadSignalRef.current;
 
-    if (canUseChat && (totalIncreased || signalChanged)) {
+    // Only fire when the total unread count actually grew. A signal change
+    // without a count increase means the user read a conversation (unreadCount
+    // dropped to 0) — that must never trigger the "new message" toast.
+    if (canUseChat && totalIncreased) {
       logUnreadHook("toast:trigger", {
         previousUnread: previousUnreadTotalRef.current,
         unreadTotal,

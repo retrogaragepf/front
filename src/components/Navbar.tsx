@@ -146,6 +146,8 @@ const [openNotifications, setOpenNotifications] = useState(false);
   const previousAdminPendingUnreadsRef = useRef<Record<string, number>>({});
   const adminRealtimePendingIdsRef = useRef<Set<string>>(new Set());
   const userRealtimePendingIdsRef = useRef<Set<string>>(new Set());
+  // IDs of user-to-user conversations — admin doesn't get notified for these.
+  const userChatIdsRef = useRef<Set<string>>(new Set());
   const socketRef = useRef<SocketLike | null>(null);
   const isChatOpenRef = useRef(isChatOpen);
   const activeConversationIdRef = useRef(activeConversation?.id);
@@ -277,9 +279,15 @@ const [openNotifications, setOpenNotifications] = useState(false);
         const chats = await adminChatService.getConversations();
         if (canceled) return;
         const readMarkers = loadAdminReadMarkers();
-        const pendingChats = chats.filter((chat) =>
-          hasPendingAdminChat(chat, readMarkers),
+        // Keep an up-to-date set of user-to-user chat IDs so the socket handler
+        // can skip notifications for those conversations.
+        userChatIdsRef.current = new Set(
+          chats.filter((c) => c.isUserChat).map((c) => c.id),
         );
+        // Only count/notify for admin-support chats, not user-to-user chats.
+        const pendingChats = chats
+          .filter((chat) => !chat.isUserChat)
+          .filter((chat) => hasPendingAdminChat(chat, readMarkers));
         const pending = pendingChats.length;
         setAdminUnreadConversations(pending);
         logChatAlert("adminPoll:data", {
@@ -516,18 +524,6 @@ const [openNotifications, setOpenNotifications] = useState(false);
           }
 
           if (!isAdminUser) {
-            // No contar mensajes de conversaciones que el usuario borró/ocultó.
-            try {
-              const rawHidden = window.localStorage.getItem("chat_hidden_conversations");
-              if (rawHidden) {
-                const hidden: unknown = JSON.parse(rawHidden);
-                if (Array.isArray(hidden) && hidden.some((id) => String(id) === conversationId)) {
-                  logChatAlert("socket:newMessage:ignoredHidden", { conversationId });
-                  return;
-                }
-              }
-            } catch { /* ignorar */ }
-
             // No sumar al badge ni tostar si el usuario ya tiene esa conversación abierta.
             const isOpenConversation =
               isChatOpenRef.current && activeConversationIdRef.current === conversationId;
@@ -543,6 +539,11 @@ const [openNotifications, setOpenNotifications] = useState(false);
             return;
           }
 
+          // Skip user-to-user chats — admin only gets notified for support chats.
+          if (userChatIdsRef.current.has(conversationId)) {
+            logChatAlert("socket:newMessage:ignoredUserChat", { conversationId });
+            return;
+          }
           adminRealtimePendingIdsRef.current.add(conversationId);
           setAdminUnreadConversations((prev) =>
             Math.max(prev, adminRealtimePendingIdsRef.current.size),
@@ -610,15 +611,6 @@ const [openNotifications, setOpenNotifications] = useState(false);
       const currentUserId = chatService.getCurrentUserId() || getCurrentUserIdFromJwt();
       const senderId = customEvent.detail?.senderId ?? "";
       if (senderId && senderId === currentUserId) return;
-
-      // Ignorar conversaciones ocultas.
-      try {
-        const rawHidden = window.localStorage.getItem("chat_hidden_conversations");
-        if (rawHidden) {
-          const hidden: unknown = JSON.parse(rawHidden);
-          if (Array.isArray(hidden) && hidden.some((id) => String(id) === conversationId)) return;
-        }
-      } catch { /* ignorar */ }
 
       logChatAlert("user:customEvent:newMessage", { conversationId, senderId });
       // No sumar al badge ni tostar si el usuario ya tiene esa conversación abierta.

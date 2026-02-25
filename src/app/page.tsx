@@ -79,7 +79,7 @@ export default function Product() {
         <div className="pointer-events-none absolute -bottom-28 -left-24 h-96 w-96 rounded-full bg-amber-800/10" />
 
         {/* ✅ balance texto/imagen */}
-        <div className="relative mx-auto grid max-w-[1420px] grid-cols-1 items-center gap-10 px-4 py-14 sm:gap-12 sm:py-20 md:grid-cols-[1.03fr_1fr] lg:gap-14">
+        <div className="relative mx-auto grid max-w-355 grid-cols-1 items-center gap-10 px-4 py-14 sm:gap-12 sm:py-20 md:grid-cols-[1.03fr_1fr] lg:gap-14">
           {/* Texto */}
           <div className="flex flex-col justify-between space-y-6">
             <div className="space-y-6">
@@ -106,7 +106,7 @@ export default function Product() {
           </div>
 
           {/* Imagen */}
-          <div className="relative w-full max-w-[680px] justify-self-center md:justify-self-end">
+          <div className="relative w-full max-w-170 justify-self-center md:justify-self-end">
             <div className="relative aspect-square w-full">
               <div className="absolute inset-0 rotate-[1.6deg] overflow-hidden rounded-sm border-2 border-amber-50 shadow-2xl">
                 <Image

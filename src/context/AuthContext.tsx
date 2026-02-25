@@ -19,6 +19,11 @@ type User = {
   isAdmin?: boolean;
   iat?: number;
   exp?: number;
+
+  // ✅ NUEVO (no rompe nada)
+  avatarPublicId?: string | null;
+  avatarUrl?: string | null;
+
   [key: string]: unknown;
 };
 
@@ -99,6 +104,9 @@ export const AuthProvider = ({
   // ✅ evita borrar localStorage en el primer render antes de hidratar
   const didHydrateRef = useRef(false);
 
+  // ✅ NUEVO: evita fetch duplicado de /users/profile en dev/strict mode
+  const didSyncProfileRef = useRef(false);
+
   const persistSession = (session: UserSession | null) => {
     try {
       if (typeof window === "undefined") return;
@@ -133,10 +141,7 @@ export const AuthProvider = ({
       }
 
       // Forma esperada: { user, token, email }
-      if (
-        isRecord(parsed) &&
-        typeof parsed.token === "string"
-      ) {
+      if (isRecord(parsed) && typeof parsed.token === "string") {
         if (isTokenExpired(parsed.token)) {
           localStorage.removeItem(AUTH_KEY);
           setDataUser(null);
@@ -195,6 +200,66 @@ export const AuthProvider = ({
     }
   }, []);
 
+  // ✅ NUEVO: sincroniza perfil real desde backend (incluye avatar)
+  useEffect(() => {
+    if (!didHydrateRef.current || isLoadingUser) return;
+    if (!dataUser?.token) return;
+    if (didSyncProfileRef.current) return;
+
+    didSyncProfileRef.current = true;
+
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+    if (!API_BASE_URL) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/users/profile`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${dataUser.token}`,
+          },
+          cache: "no-store",
+        });
+
+        const text = await res.text();
+        const isJson = res.headers
+          .get("content-type")
+          ?.includes("application/json");
+
+        let profile: any = text;
+        try {
+          profile = isJson && text ? JSON.parse(text) : text;
+        } catch {
+          profile = text;
+        }
+
+        if (!res.ok || !profile || typeof profile !== "object") return;
+
+        // ✅ Mezcla perfil en user sin romper shape actual
+        setDataUser((prev) => {
+          if (!prev) return prev;
+
+          const mergedUser: User = {
+            ...(prev.user ?? {}),
+            ...(profile as Record<string, unknown>),
+          };
+
+          return {
+            ...prev,
+            user: mergedUser,
+            email:
+              prev.email ||
+              (typeof mergedUser.email === "string" ? mergedUser.email : ""),
+          };
+        });
+      } catch (e) {
+        // No rompemos sesión si falla profile
+        console.error("No se pudo sincronizar /users/profile:", e);
+      }
+    })();
+  }, [dataUser?.token, isLoadingUser]);
+
   // ✅ Persistir sesión SOLO después de hidratar
   useEffect(() => {
     if (!didHydrateRef.current || isLoadingUser) return;
@@ -209,11 +274,15 @@ export const AuthProvider = ({
       email: payload?.email ?? payload?.user?.email ?? "",
     };
 
+    // ✅ permite re-sync profile en nuevo login
+    didSyncProfileRef.current = false;
+
     persistSession(normalized); // guardado inmediato (evita carrera con router.push)
     setDataUser(normalized);
   };
 
   const logout = () => {
+    didSyncProfileRef.current = false; // ✅ reset
     setDataUser(null);
     persistSession(null);
     router.push("/login");

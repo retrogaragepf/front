@@ -144,6 +144,8 @@ const Navbar = (): ReactElement => {
   const socketRef = useRef<SocketLike | null>(null);
   const isChatOpenRef = useRef(isChatOpen);
   const activeConversationIdRef = useRef(activeConversation?.id);
+  // Dedup: evita mostrar 2 toasts si socket y custom event disparan casi juntos.
+  const lastNotifyTimestampRef = useRef(0);
 
   const safeName =
     getStringField(userRecord, "name") ||
@@ -207,6 +209,9 @@ const Navbar = (): ReactElement => {
     return unreadConversations[0]?.id ?? null;
   }, [conversations]);
 
+  // Ref to detect increases in contextual unread count (socket-independent path for users).
+  const previousUserUnreadCountRef = useRef(-1);
+
   const adminRealtimePendingCount = adminRealtimePendingIdsRef.current.size;
   const navbarUnreadChats = isAdminUser
     ? Math.max(adminUnreadConversations, adminRealtimePendingCount)
@@ -214,6 +219,13 @@ const Navbar = (): ReactElement => {
   const hasNavbarUnread = navbarUnreadChats > 0;
 
   const notifyNewMessage = () => {
+    const now = Date.now();
+    // Dedup: si ya se mostró un toast en los últimos 800ms, no mostrar otro.
+    if (now - lastNotifyTimestampRef.current < 800) {
+      logChatAlert("notifyNewMessage:dedup:skipped");
+      return;
+    }
+    lastNotifyTimestampRef.current = now;
     logChatAlert("notifyNewMessage:toast");
     showToast.info("Mensaje nuevo recibido", {
       duration: 2200,
@@ -417,13 +429,29 @@ const Navbar = (): ReactElement => {
           }
 
           if (!isAdminUser) {
+            // No contar mensajes de conversaciones que el usuario borró/ocultó.
+            try {
+              const rawHidden = window.localStorage.getItem("chat_hidden_conversations");
+              if (rawHidden) {
+                const hidden: unknown = JSON.parse(rawHidden);
+                if (Array.isArray(hidden) && hidden.some((id) => String(id) === conversationId)) {
+                  logChatAlert("socket:newMessage:ignoredHidden", { conversationId });
+                  return;
+                }
+              }
+            } catch { /* ignorar */ }
+
             userRealtimePendingIdsRef.current.add(conversationId);
             setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
             logChatAlert("socket:newMessage:userPendingUpdated", {
               conversationId,
               pendingCount: userRealtimePendingIdsRef.current.size,
             });
-            notifyNewMessage();
+
+            // No mostrar toast si el usuario tiene esa conversación abierta.
+            const isOpenConversation =
+              isChatOpenRef.current && activeConversationIdRef.current === conversationId;
+            if (!isOpenConversation) notifyNewMessage();
             return;
           }
 
@@ -476,8 +504,9 @@ const Navbar = (): ReactElement => {
     });
   }, [activeConversation?.id, isAdminUser, isChatOpen]);
 
-  // Fallback: custom event despachado por ChatContext.useChatSocket.
-  // Solo actualiza el badge; el toast lo maneja el socket del Navbar directamente.
+  // Custom event de ChatContext.useChatSocket — garantiza badge + toast aunque
+  // el socket del Navbar no esté conectado. El dedup en notifyNewMessage evita
+  // toasts dobles si ambas rutas disparan al mismo tiempo.
   useEffect(() => {
     if (isAdminUser || !isLogged) return;
 
@@ -490,9 +519,23 @@ const Navbar = (): ReactElement => {
       const senderId = customEvent.detail?.senderId ?? "";
       if (senderId && senderId === currentUserId) return;
 
+      // Ignorar conversaciones ocultas.
+      try {
+        const rawHidden = window.localStorage.getItem("chat_hidden_conversations");
+        if (rawHidden) {
+          const hidden: unknown = JSON.parse(rawHidden);
+          if (Array.isArray(hidden) && hidden.some((id) => String(id) === conversationId)) return;
+        }
+      } catch { /* ignorar */ }
+
       logChatAlert("user:customEvent:newMessage", { conversationId, senderId });
       userRealtimePendingIdsRef.current.add(conversationId);
       setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+
+      // No mostrar toast si el usuario tiene esa conversación abierta.
+      const isOpenConversation =
+        isChatOpenRef.current && activeConversationIdRef.current === conversationId;
+      if (!isOpenConversation) notifyNewMessage();
     };
 
     window.addEventListener("retrogarage:chat-new-message", handleChatNewMessage);
@@ -500,6 +543,28 @@ const Navbar = (): ReactElement => {
       window.removeEventListener("retrogarage:chat-new-message", handleChatNewMessage);
     };
   }, [isAdminUser, isLogged]);
+
+  // Camino seguro de notificación para usuarios: detecta incremento de no-leídos
+  // via el estado del contexto (funciona aunque el socket falle).
+  useEffect(() => {
+    if (isAdminUser || !isLogged) {
+      previousUserUnreadCountRef.current = -1;
+      return;
+    }
+    if (previousUserUnreadCountRef.current === -1) {
+      // Primera inicialización: marcar baseline sin tostar.
+      previousUserUnreadCountRef.current = unreadConversationsUserFromContext;
+      return;
+    }
+    if (unreadConversationsUserFromContext > previousUserUnreadCountRef.current) {
+      logChatAlert("user:unreadContext:increased", {
+        prev: previousUserUnreadCountRef.current,
+        next: unreadConversationsUserFromContext,
+      });
+      notifyNewMessage();
+    }
+    previousUserUnreadCountRef.current = unreadConversationsUserFromContext;
+  }, [isAdminUser, isLogged, unreadConversationsUserFromContext]);
 
   useEffect(() => {
     logChatAlert("navbarUnread:state", {

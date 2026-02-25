@@ -165,10 +165,18 @@ const ProductDetailPage = () => {
 
                 <button
                   type="button"
+                  disabled={isOwnProduct}
                   onClick={() => {
+                    if (isOwnProduct) {
+                      showToast.info(
+                        "No puedes chatear sobre tu propia publicación",
+                      );
+                      return;
+                    }
+
                     if (!isAuth) {
                       showToast.warning(
-                        "Debes iniciar sesión para chatear con el vendedor"
+                        "Debes iniciar sesión para chatear con el vendedor",
                       );
                       return;
                     }
@@ -182,9 +190,15 @@ const ProductDetailPage = () => {
                       customerId: customerId ? String(customerId) : undefined,
                     });
                   }}
-                  className="w-full sm:w-auto text-center font-handwritten px-4 py-3 rounded-xl border-2 border-amber-900 bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]"
+                  className={`w-full sm:w-auto text-center font-handwritten px-4 py-3 rounded-xl border-2 font-extrabold tracking-wide text-sm ${
+                    isOwnProduct
+                      ? "border-zinc-400 bg-zinc-200 text-zinc-600 cursor-not-allowed opacity-90 shadow-none"
+                      : "border-amber-900 bg-amber-50 text-amber-900 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]"
+                  }`}
                 >
-                  Chatea con el vendedor
+                  {isOwnProduct
+                    ? "Chat no disponible"
+                    : "Chatea con el vendedor"}
                 </button>
               </div>
             </div>

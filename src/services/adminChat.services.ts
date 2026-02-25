@@ -467,8 +467,8 @@ async function tryMany(paths: string[], init?: RequestInit): Promise<unknown> {
       return await request(path, init);
     } catch (error) {
       if (error instanceof HttpError) {
-        if (error.status === 401 || error.status === 403) throw error;
-        if (error.status === 404 || error.status === 405) {
+        if (error.status === 401) throw error; // Sin token: ningún endpoint funcionará.
+        if (error.status === 403 || error.status === 404 || error.status === 405) {
           lastError = error;
           continue;
         }

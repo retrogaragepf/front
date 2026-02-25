@@ -209,6 +209,9 @@ const Navbar = (): ReactElement => {
     return unreadConversations[0]?.id ?? null;
   }, [conversations]);
 
+  // Ref to detect increases in contextual unread count (socket-independent path for users).
+  const previousUserUnreadCountRef = useRef(-1);
+
   const adminRealtimePendingCount = adminRealtimePendingIdsRef.current.size;
   const navbarUnreadChats = isAdminUser
     ? Math.max(adminUnreadConversations, adminRealtimePendingCount)
@@ -540,6 +543,28 @@ const Navbar = (): ReactElement => {
       window.removeEventListener("retrogarage:chat-new-message", handleChatNewMessage);
     };
   }, [isAdminUser, isLogged]);
+
+  // Camino seguro de notificación para usuarios: detecta incremento de no-leídos
+  // via el estado del contexto (funciona aunque el socket falle).
+  useEffect(() => {
+    if (isAdminUser || !isLogged) {
+      previousUserUnreadCountRef.current = -1;
+      return;
+    }
+    if (previousUserUnreadCountRef.current === -1) {
+      // Primera inicialización: marcar baseline sin tostar.
+      previousUserUnreadCountRef.current = unreadConversationsUserFromContext;
+      return;
+    }
+    if (unreadConversationsUserFromContext > previousUserUnreadCountRef.current) {
+      logChatAlert("user:unreadContext:increased", {
+        prev: previousUserUnreadCountRef.current,
+        next: unreadConversationsUserFromContext,
+      });
+      notifyNewMessage();
+    }
+    previousUserUnreadCountRef.current = unreadConversationsUserFromContext;
+  }, [isAdminUser, isLogged, unreadConversationsUserFromContext]);
 
   useEffect(() => {
     logChatAlert("navbarUnread:state", {

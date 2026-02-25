@@ -96,15 +96,27 @@ function getString(value: unknown, fallback = ""): string {
 }
 
 function getParticipantId(record: ApiRecord): string {
-  return String(record.id ?? record.userId ?? record._id ?? "");
+  // Prefer userId over id: the backend may return participant entities where
+  // `id` is the participant UUID and `userId` is the actual user UUID.
+  return String(record.userId ?? record.id ?? record._id ?? "");
 }
 
 function getParticipantName(record: ApiRecord): string {
-  return (
+  const direct =
     getString(record.name) ||
     getString(record.fullName) ||
     getString(record.username) ||
-    getString(record.email)
+    getString(record.email);
+  if (direct) return direct;
+
+  // Participant entities may nest the actual user data under a `user` field.
+  const nested = isRecord(record.user) ? record.user : null;
+  if (!nested) return "";
+  return (
+    getString(nested.name) ||
+    getString(nested.fullName) ||
+    getString(nested.username) ||
+    getString(nested.email)
   );
 }
 
@@ -179,8 +191,23 @@ function normalizeConversation(raw: ApiRecord): ChatConversation {
       ? "Administrador"
       : otherName || "Usuario";
 
+  // The backend's /chat/my-conversations returns participant entities where the
+  // top-level `id` is the participant UUID.  The actual conversation UUID lives
+  // in `raw.conversationId` or `raw.conversation.id`.  We must prefer those.
+  const conversationId = String(
+    raw.conversationId ??
+      raw.chatId ??
+      row.id ??
+      row.chatId ??
+      rowRecord.id ??
+      rowRecord.chatId ??
+      rowRecord._id ??
+      raw.id ??
+      "",
+  );
+
   return {
-    id: String(rowRecord.id ?? rowRecord._id ?? ""),
+    id: conversationId,
     sellerName: String(resolvedOtherName),
     sellerId: otherParticipant ? getParticipantId(otherParticipant) || undefined : undefined,
     seller: { name: String(resolvedOtherName) },
@@ -196,7 +223,9 @@ function normalizeConversation(raw: ApiRecord): ChatConversation {
         "",
     ),
     timestamp: String(
-      (isRecord(rowRecord.lastMessage) ? rowRecord.lastMessage.createdAt : null) ??
+      rowRecord.timestamp ??
+        raw.timestamp ??
+        (isRecord(rowRecord.lastMessage) ? rowRecord.lastMessage.createdAt : null) ??
         rowRecord.updatedAt ??
         rowRecord.createdAt ??
         "",
@@ -248,7 +277,9 @@ async function requestGet(path: string) {
   const data = await parseJsonSafe(response);
   if (!response.ok) {
     const message = getErrorMessage(data, "Error consultando chat.");
-    throw new Error(message);
+    const error = new Error(message) as HttpError;
+    error.status = response.status;
+    throw error;
   }
   return data;
 }
@@ -267,7 +298,9 @@ async function requestPost(path: string, body: Record<string, unknown>) {
   const data = await parseJsonSafe(response);
   if (!response.ok) {
     const message = getErrorMessage(data, "Error enviando datos de chat.");
-    throw new Error(message);
+    const error = new Error(message) as HttpError;
+    error.status = response.status;
+    throw error;
   }
   return data;
 }
@@ -367,7 +400,27 @@ export const chatService = {
 
   async getMessages(conversationId: string): Promise<ChatMessage[]> {
     const encodedId = encodeURIComponent(conversationId);
-    const data = await requestGet(`/chat/conversation/${encodedId}/messages`);
+    const paths = [
+      `/chat/conversation/${encodedId}/messages`,
+      `/chat/conversations/${encodedId}/messages`,
+    ];
+    let data: unknown = null;
+    let lastError: unknown = null;
+    for (const path of paths) {
+      try {
+        data = await requestGet(path);
+        break;
+      } catch (error) {
+        const status = (error as HttpError).status;
+        if (status === 401) throw error;
+        lastError = error;
+        if (status !== 404 && status !== 405) break;
+      }
+    }
+    if (data == null) {
+      if (lastError instanceof Error) throw lastError;
+      throw new Error("No se pudieron obtener los mensajes.");
+    }
     const currentUserId = getCurrentUserIdFromToken();
     const list = getDataArray(data);
 
@@ -380,7 +433,24 @@ export const chatService = {
     type: "PRIVATE";
     participantIds: string[];
   }): Promise<ChatConversation> {
-    const created = await requestPost("/chat/conversation", payload);
+    const paths = ["/chat/conversation", "/chat/conversations"];
+    let created: unknown = null;
+    let lastError: unknown = null;
+    for (const path of paths) {
+      try {
+        created = await requestPost(path, payload);
+        break;
+      } catch (error) {
+        const status = (error as HttpError).status;
+        if (status === 401) throw error;
+        lastError = error;
+        if (status !== 404 && status !== 405) break;
+      }
+    }
+    if (created == null) {
+      if (lastError instanceof Error) throw lastError;
+      throw new Error("No se pudo crear la conversación.");
+    }
     return normalizeConversation(created as ApiRecord);
   },
 
@@ -417,7 +487,24 @@ export const chatService = {
     conversationId: string;
     content: string;
   }): Promise<ChatMessage> {
-    const created = await requestPost("/chat/message", payload);
+    const paths = ["/chat/message", "/chat/messages"];
+    let created: unknown = null;
+    let lastError: unknown = null;
+    for (const path of paths) {
+      try {
+        created = await requestPost(path, payload);
+        break;
+      } catch (error) {
+        const status = (error as HttpError).status;
+        if (status === 401) throw error;
+        lastError = error;
+        if (status !== 404 && status !== 405) break;
+      }
+    }
+    if (created == null) {
+      if (lastError instanceof Error) throw lastError;
+      throw new Error("No se pudo enviar el mensaje.");
+    }
     return normalizeMessage(
       created as ApiRecord,
       payload.conversationId,

@@ -80,6 +80,11 @@ export const ChatProvider = ({
 }): ReactElement => {
   const { isAuth, isLoadingUser } = useAuth();
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const isChatOpenRef = useRef(false);
+
+  useEffect(() => {
+    isChatOpenRef.current = isChatOpen;
+  }, [isChatOpen]);
   const [isAdminDirectChat, setIsAdminDirectChat] = useState(false);
   const [adminChatWithName, setAdminChatWithName] = useState("");
   const [currentParticipant, setCurrentParticipant] =
@@ -123,7 +128,7 @@ export const ChatProvider = ({
 
   useChatSocket({
     canUseChat,
-    isChatOpen,
+    isChatOpenRef,
     socketRef,
     activeConversationRef,
     conversationsRef,
@@ -135,7 +140,6 @@ export const ChatProvider = ({
     useChatActions({
       canUseChat,
       isAuthLoading: isLoadingUser,
-      messagesByConversation,
       conversationsRef,
       activeConversationRef,
       setIsChatOpen,
@@ -148,6 +152,7 @@ export const ChatProvider = ({
       clearUnreadLocal,
       joinConversationRoom,
       activeConversationId,
+      socketRef,
     });
 
   const activeConversation = useMemo(
@@ -173,12 +178,10 @@ export const ChatProvider = ({
   );
 
   const unreadSignal = useMemo(() => {
+    // "Mensaje nuevo recibido" toast on every polling cycle.
     return conversations
       .filter((conversation) => conversation.unreadCount > 0)
-      .map((conversation) => {
-        const normalizedMessage = (conversation.lastMessage || "").trim();
-        return `${conversation.id}|${conversation.unreadCount}|${conversation.timestamp}|${normalizedMessage}`;
-      })
+      .map((conversation) => `${conversation.id}|${conversation.unreadCount}`)
       .sort()
       .join("::");
   }, [conversations]);

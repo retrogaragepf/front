@@ -12,14 +12,15 @@ import {
   appendMessageSafe,
   dedupeConversations,
   formatTime,
+  isObjectRecord,
   mergeConversationData,
   replaceOptimisticMessage,
 } from "@/src/context/chat/chatStateUtils";
+import { SocketLike } from "@/src/context/chat/useChatSocket";
 
 type Params = {
   canUseChat: boolean;
   isAuthLoading: boolean;
-  messagesByConversation: ChatMessageMap;
   conversationsRef: MutableRefObject<ChatConversation[]>;
   activeConversationRef: MutableRefObject<string>;
   setIsChatOpen: Dispatch<SetStateAction<boolean>>;
@@ -32,6 +33,7 @@ type Params = {
   clearUnreadLocal: (conversationId: string) => void;
   joinConversationRoom: (conversationId: string) => void;
   activeConversationId: string;
+  socketRef: MutableRefObject<SocketLike | null>;
 };
 
 type UseChatActionsResult = {
@@ -90,6 +92,15 @@ function removeHiddenConversationId(id: string) {
   logChatActions("hiddenConversation:removed", { id });
 }
 
+function addHiddenConversationId(id: string) {
+  if (!id) return;
+  const hiddenConversationIds = readHiddenConversationIds();
+  if (hiddenConversationIds.has(id)) return;
+  hiddenConversationIds.add(id);
+  writeHiddenConversationIds(hiddenConversationIds);
+  logChatActions("hiddenConversation:added", { id });
+}
+
 function isSupportConversation(conversation: ChatConversation): boolean {
   const sellerName = (conversation.sellerName || "").toLowerCase();
   const sellerNested = (conversation.seller?.name || "").toLowerCase();
@@ -105,7 +116,6 @@ function isSupportConversation(conversation: ChatConversation): boolean {
 export function useChatActions({
   canUseChat,
   isAuthLoading,
-  messagesByConversation,
   conversationsRef,
   activeConversationRef,
   setIsChatOpen,
@@ -118,6 +128,7 @@ export function useChatActions({
   clearUnreadLocal,
   joinConversationRoom,
   activeConversationId,
+  socketRef,
 }: Params): UseChatActionsResult {
   const ensureConversation = useCallback(
     async (
@@ -205,12 +216,34 @@ export function useChatActions({
         participantIds: [customerId, sellerId],
       });
 
+      // The POST endpoint may return a participant entity (id = participant UUID)
+      // instead of a conversation entity (id = conversation UUID). Sync the list
+      // from the server to get the correct conversation UUID before using it.
+      let verifiedConversation = createdConversation;
+      try {
+        const freshConversations = await chatService.getConversations();
+        const matched = freshConversations.find((c) => {
+          if (c.sellerId && c.sellerId === sellerId) return true;
+          const ids = c.participantIds ?? [];
+          return (
+            ids.length > 0 &&
+            ids.includes(sellerId) &&
+            ids.includes(customerId)
+          );
+        });
+        if (matched?.id) {
+          verifiedConversation = { ...createdConversation, ...matched };
+        }
+      } catch {
+        // Sync failed; continue with the create response as-is
+      }
+
       const hydratedConversation: ChatConversation = {
-        ...createdConversation,
-        sellerName: payload.sellerName || createdConversation.sellerName,
-        seller: { name: payload.sellerName || createdConversation.seller.name },
-        product: payload.product || createdConversation.product,
-        customer: payload.customerName || createdConversation.customer,
+        ...verifiedConversation,
+        sellerName: payload.sellerName || verifiedConversation.sellerName,
+        seller: { name: payload.sellerName || verifiedConversation.seller.name },
+        product: payload.product || verifiedConversation.product,
+        customer: payload.customerName || verifiedConversation.customer,
         customerId,
         sellerId,
         participantIds: [customerId, sellerId],
@@ -366,25 +399,28 @@ export function useChatActions({
     (conversationId: string) => {
       if (!conversationId) return;
 
-      const previousConversations = conversationsRef.current;
-      const previousMessages = messagesByConversation;
-      const previousActiveId = activeConversationRef.current;
+      const currentConversations = conversationsRef.current;
+      const currentActiveId = activeConversationRef.current;
 
-      const nextConversations = previousConversations.filter(
+      const nextConversations = currentConversations.filter(
         (conversation) => conversation.id !== conversationId,
       );
       const nextActiveId =
-        previousActiveId === conversationId
+        currentActiveId === conversationId
           ? (nextConversations[0]?.id ?? "")
-          : previousActiveId;
-      logChatActions("deleteConversation:localRemove", {
+          : currentActiveId;
+
+      logChatActions("deleteConversation:localHide", {
         conversationId,
-        previousCount: previousConversations.length,
+        previousCount: currentConversations.length,
         nextCount: nextConversations.length,
-        previousActiveId,
+        currentActiveId,
         nextActiveId,
       });
 
+      // Purely local: remove from UI state and persist to hidden list.
+      // No backend DELETE is called — the server keeps the conversation intact.
+      addHiddenConversationId(conversationId);
       setConversations(nextConversations);
       setMessagesByConversation((prev) => {
         const { [conversationId]: _deleted, ...rest } = prev;
@@ -392,57 +428,18 @@ export function useChatActions({
       });
       setActiveConversationId(nextActiveId);
 
-      void (async () => {
-        try {
-          // En backend actual, DELETE de conversación está restringido a admin.
-          // Para usuario normal mantenemos borrado local (no persistente).
-          if (!chatService.isAdminUser()) {
-            showToast.success("Conversación eliminada de tu vista.", {
-              duration: 2200,
-              progress: true,
-              position: "top-center",
-              transition: "popUp",
-              icon: "",
-              sound: true,
-            });
-            return;
-          }
-
-          await chatService.deleteConversation(conversationId);
-        } catch (error) {
-          const status = Number((error as { status?: number })?.status ?? 0);
-          if ([401, 403, 404, 405].includes(status)) {
-            // Si el backend no permite borrar o no encuentra, dejamos oculto local.
-            showToast.info("Conversación ocultada localmente.", {
-              duration: 2200,
-              progress: true,
-              position: "top-center",
-              transition: "popUp",
-              icon: "",
-              sound: true,
-            });
-            return;
-          }
-
-          console.error("No se pudo borrar conversación:", error);
-          setConversations(previousConversations);
-          setMessagesByConversation(previousMessages);
-          setActiveConversationId(previousActiveId);
-          showToast.error("No se pudo borrar la conversación.", {
-            duration: 2200,
-            progress: true,
-            position: "top-center",
-            transition: "popUp",
-            icon: "",
-            sound: true,
-          });
-        }
-      })();
+      showToast.success("Conversación eliminada de tu vista.", {
+        duration: 2200,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
     },
     [
       activeConversationRef,
       conversationsRef,
-      messagesByConversation,
       setActiveConversationId,
       setConversations,
       setMessagesByConversation,
@@ -479,9 +476,10 @@ export function useChatActions({
       }
 
       const currentUserId = chatService.getCurrentUserId();
+      const conversationId = activeConversationId;
       const optimisticMessage: ChatMessage = {
         id: `temp-${Date.now()}`,
-        conversationId: activeConversationId,
+        conversationId,
         senderId: currentUserId ?? undefined,
         from: "customer",
         content: normalizedContent,
@@ -491,15 +489,15 @@ export function useChatActions({
 
       setMessagesByConversation((prev) => ({
         ...prev,
-        [activeConversationId]: appendMessageSafe(
-          prev[activeConversationId] ?? [],
+        [conversationId]: appendMessageSafe(
+          prev[conversationId] ?? [],
           optimisticMessage,
         ),
       }));
 
       setConversations((prev) =>
         prev.map((conversation) =>
-          conversation.id === activeConversationId
+          conversation.id === conversationId
             ? {
                 ...conversation,
                 lastMessage: normalizedContent,
@@ -509,46 +507,100 @@ export function useChatActions({
         ),
       );
 
-      try {
-        const persistedMessage = await chatService.sendMessage({
-          conversationId: activeConversationId,
-          content: normalizedContent,
-        });
+      const socket = socketRef.current;
 
-        setMessagesByConversation((prev) => ({
-          ...prev,
-          [activeConversationId]: replaceOptimisticMessage(
-            prev[activeConversationId] ?? [],
-            optimisticMessage.id,
-            persistedMessage,
-          ),
-        }));
-      } catch (error) {
-        setMessagesByConversation((prev) => ({
-          ...prev,
-          [activeConversationId]: (prev[activeConversationId] ?? []).filter(
-            (message) => message.id !== optimisticMessage.id,
-          ),
-        }));
-        console.error("No se pudo enviar mensaje al backend:", error);
-        const rawMessage = error instanceof Error ? error.message : "";
-        const isBlocked = rawMessage.toLowerCase().includes("bloque");
-        showToast.error(
-          isBlocked
-            ? "No puedes chatear: cuenta bloqueada por reglas de comunicación."
-            : "No se pudo enviar el mensaje.",
-          {
-            duration: 2200,
-            progress: true,
-            position: "top-center",
-            transition: "popUp",
-            icon: "",
-            sound: true,
+      if (socket?.connected) {
+        // Envío por WebSocket: el gateway guarda el mensaje Y emite newMessage al room
+        socket.emit(
+          "sendMessage",
+          { conversationId, content: normalizedContent },
+          (ack: unknown) => {
+            if (!isObjectRecord(ack) || !("id" in ack)) {
+              // El gateway rechazó el mensaje (ej: bloqueado, no participante)
+              setMessagesByConversation((prev) => ({
+                ...prev,
+                [conversationId]: (prev[conversationId] ?? []).filter(
+                  (message) => message.id !== optimisticMessage.id,
+                ),
+              }));
+              const errorMsg =
+                isObjectRecord(ack) && typeof ack.message === "string"
+                  ? ack.message
+                  : "No se pudo enviar el mensaje.";
+              const isBlocked = errorMsg.toLowerCase().includes("bloque");
+              showToast.error(
+                isBlocked
+                  ? "No puedes chatear: cuenta bloqueada por reglas de comunicación."
+                  : errorMsg,
+                {
+                  duration: 2200,
+                  progress: true,
+                  position: "top-center",
+                  transition: "popUp",
+                  icon: "",
+                  sound: true,
+                },
+              );
+              return;
+            }
+            // Reemplazamos el mensaje optimista con el persistido
+            const persistedMessage = chatService.normalizeSocketMessage(
+              ack,
+              conversationId,
+            );
+            if (!persistedMessage) return;
+            setMessagesByConversation((prev) => ({
+              ...prev,
+              [conversationId]: replaceOptimisticMessage(
+                prev[conversationId] ?? [],
+                optimisticMessage.id,
+                persistedMessage,
+              ),
+            }));
           },
         );
+      } else {
+        // Fallback HTTP cuando el socket no está conectado
+        try {
+          const persistedMessage = await chatService.sendMessage({
+            conversationId,
+            content: normalizedContent,
+          });
+          setMessagesByConversation((prev) => ({
+            ...prev,
+            [conversationId]: replaceOptimisticMessage(
+              prev[conversationId] ?? [],
+              optimisticMessage.id,
+              persistedMessage,
+            ),
+          }));
+        } catch (error) {
+          setMessagesByConversation((prev) => ({
+            ...prev,
+            [conversationId]: (prev[conversationId] ?? []).filter(
+              (message) => message.id !== optimisticMessage.id,
+            ),
+          }));
+          console.error("No se pudo enviar mensaje al backend:", error);
+          const rawMessage = error instanceof Error ? error.message : "";
+          const isBlocked = rawMessage.toLowerCase().includes("bloque");
+          showToast.error(
+            isBlocked
+              ? "No puedes chatear: cuenta bloqueada por reglas de comunicación."
+              : "No se pudo enviar el mensaje.",
+            {
+              duration: 2200,
+              progress: true,
+              position: "top-center",
+              transition: "popUp",
+              icon: "",
+              sound: true,
+            },
+          );
+        }
       }
     },
-    [canUseChat, activeConversationId, setConversations, setMessagesByConversation],
+    [canUseChat, activeConversationId, socketRef, setConversations, setMessagesByConversation],
   );
 
   return { openChat, closeChat, selectConversation, deleteConversation, sendMessage };

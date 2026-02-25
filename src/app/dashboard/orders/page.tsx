@@ -104,39 +104,31 @@ export default function OrdersPage() {
   };
 
   const markAsReceived = async (orderId: string) => {
-  try {
-    if (!dataUser?.token) return;
+    try {
+      if (!dataUser?.token) return;
 
-    console.log("TOKEN:", dataUser.token);
-    console.log("ORDER ID:", orderId);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/orders/${orderId}/receive`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${dataUser.token}`,
+          },
+        }
+      );
 
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/orders/${orderId}/receive`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${dataUser.token}`,
-        },
+      if (!res.ok) {
+        showToast.error("Error actualizando estado.");
+        return;
       }
-    );
 
-    const text = await res.text();
-    console.log("STATUS:", res.status);
-    console.log("RESPONSE BODY:", text);
-
-    if (!res.ok) {
+      showToast.success("Orden marcada como recibida.");
+      load({ silent: true });
+    } catch (error) {
+      console.error(error);
       showToast.error("Error actualizando estado.");
-      return;
     }
-
-    showToast.success("Orden marcada como recibida.");
-    load({ silent: true });
-
-  } catch (error) {
-    console.error(error);
-    showToast.error("Error actualizando estado.");
-  }
-};
+  };
 
   useEffect(() => {
     if (isLoadingUser) return;
@@ -166,7 +158,7 @@ export default function OrdersPage() {
 
           <button
             onClick={() => load()}
-            className="shrink-0 px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-[1px] active:translate-y-[1px]"
+            className="shrink-0 px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-px active:translate-y-px"
           >
             Actualizar
           </button>
@@ -183,17 +175,7 @@ export default function OrdersPage() {
         {!loading && !error && sorted.length > 0 && (
           <div className="mt-8 space-y-6">
             {sorted.map((o) => {
-  const displayStatus = getDisplayStatus(o);
-
-  console.log("ORDER STATUS REAL:", o.status);
-  console.log("DISPLAY STATUS:", displayStatus);
-    console.log(
-    "ITEMS:",
-    o.items?.map((it) => ({
-      id: it.id,
-      status: it.status,
-    }))
-  );
+              const displayStatus = getDisplayStatus(o);
 
               return (
                 <div

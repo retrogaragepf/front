@@ -13,7 +13,7 @@ export default function SuccessClient() {
   const ran = useRef(false);
 
   useEffect(() => {
-    if (ran.current) return; // ✅ evita doble ejecución (dev)
+    if (ran.current) return;
     ran.current = true;
 
     const sessionId = params.get("session_id");
@@ -31,8 +31,7 @@ export default function SuccessClient() {
       router.refresh();
     }, 1600);
 
-    // console.log("Stripe session_id:", sessionId);
-    void sessionId; // evita warning si no lo usas
+    void sessionId;
   }, [params, router, clearCart]);
 
   return (

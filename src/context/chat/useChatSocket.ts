@@ -38,7 +38,7 @@ declare global {
 
 type Params = {
   canUseChat: boolean;
-  isChatOpen: boolean;
+  isChatOpenRef: MutableRefObject<boolean>;
   socketRef: MutableRefObject<SocketLike | null>;
   activeConversationRef: MutableRefObject<string>;
   conversationsRef: MutableRefObject<ChatConversation[]>;
@@ -48,7 +48,7 @@ type Params = {
 
 export function useChatSocket({
   canUseChat,
-  isChatOpen,
+  isChatOpenRef,
   socketRef,
   activeConversationRef,
   conversationsRef,
@@ -151,8 +151,26 @@ export function useChatSocket({
             (conversation) => conversation.id === incoming.conversationId,
           );
           if (!exists) {
+            // No restaurar conversaciones que el usuario ocultó manualmente.
+            try {
+              const raw = typeof window !== "undefined"
+                ? window.localStorage.getItem("chat_hidden_conversations")
+                : null;
+              if (raw) {
+                const hidden: unknown = JSON.parse(raw);
+                if (
+                  Array.isArray(hidden) &&
+                  hidden.some((id) => String(id) === incoming.conversationId)
+                ) {
+                  return prev;
+                }
+              }
+            } catch {
+              // Ignorar errores de localStorage.
+            }
+
             const isOpenConversation =
-              isChatOpen && activeConversationRef.current === incoming.conversationId;
+              isChatOpenRef.current && activeConversationRef.current === incoming.conversationId;
             // Si llega mensaje de conversación nueva, la agregamos para no perder unread.
             return [
               {
@@ -173,7 +191,7 @@ export function useChatSocket({
           return prev.map((conversation) => {
             if (conversation.id !== incoming.conversationId) return conversation;
             const isOpenConversation =
-              isChatOpen && activeConversationRef.current === incoming.conversationId;
+              isChatOpenRef.current && activeConversationRef.current === incoming.conversationId;
             return {
               ...conversation,
               lastMessage: incoming.content,
@@ -258,7 +276,7 @@ export function useChatSocket({
     activeConversationRef,
     canUseChat,
     conversationsRef,
-    isChatOpen,
+    isChatOpenRef,
     setConversations,
     setMessagesByConversation,
     socketRef,

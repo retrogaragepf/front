@@ -18,8 +18,6 @@ const ProductDetailPage = () => {
   const { dataUser, isAuth } = useAuth();
   const id = (params as any)?.id as string | undefined;
 
-  console.log("ID:", id);
-
   const [product, setProduct] = useState<IProductWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,10 +59,9 @@ const ProductDetailPage = () => {
     (dataUser as any)?.user?.fullName ??
     (dataUser as any)?.fullName ??
     "Cliente";
+
   const customerId =
-    (dataUser as any)?.user?.id ??
-    (dataUser as any)?.id ??
-    null;
+    (dataUser as any)?.user?.id ?? (dataUser as any)?.id ?? null;
 
   const productRecord = product as unknown as Record<string, unknown>;
   const sellerRecord =
@@ -73,6 +70,7 @@ const ProductDetailPage = () => {
     (productRecord.user as Record<string, unknown> | undefined) ?? undefined;
   const fallbackOwnerRecord =
     (productRecord.owner as Record<string, unknown> | undefined) ?? undefined;
+
   const resolvedSellerId =
     (productUserRecord?.id ? String(productUserRecord.id) : "") ||
     (productUserRecord?.userId ? String(productUserRecord.userId) : "") ||
@@ -86,24 +84,28 @@ const ProductDetailPage = () => {
     (productRecord.ownerId ? String(productRecord.ownerId) : "") ||
     (fallbackOwnerRecord?.id ? String(fallbackOwnerRecord.id) : "") ||
     (fallbackOwnerRecord?.userId ? String(fallbackOwnerRecord.userId) : "");
+
   const resolvedSellerName =
     (productUserRecord?.name ? String(productUserRecord.name) : "") ||
     (productUserRecord?.fullName ? String(productUserRecord.fullName) : "") ||
     (sellerRecord?.fullName ? String(sellerRecord.fullName) : "") ||
     (sellerRecord?.name ? String(sellerRecord.name) : "") ||
-    (fallbackOwnerRecord?.fullName ? String(fallbackOwnerRecord.fullName) : "") ||
+    (fallbackOwnerRecord?.fullName
+      ? String(fallbackOwnerRecord.fullName)
+      : "") ||
     (fallbackOwnerRecord?.name ? String(fallbackOwnerRecord.name) : "") ||
     "Vendedor";
+
+  // ya existía → no se toca
+  const isOwnProduct =
+    !!customerId &&
+    !!resolvedSellerId &&
+    String(customerId).trim() === String(resolvedSellerId).trim();
 
   return (
     <div className="w-full bg-amber-100 text-zinc-900">
       <main className="max-w-7xl mx-auto px-6 py-10">
-        <section
-          className="
-            mt-6 rounded-2xl border-2 border-amber-900 bg-amber-50
-            shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)] overflow-hidden
-          "
-        >
+        <section className="mt-6 rounded-2xl border-2 border-amber-900 bg-amber-50 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)] overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2">
             <div className="p-5 md:p-6 border-b-2 md:border-b-0 md:border-r-2 border-amber-900">
               <div className="relative aspect-square rounded-xl border border-amber-300 bg-amber-100 overflow-hidden">
@@ -121,17 +123,8 @@ const ProductDetailPage = () => {
                   </div>
                 )}
               </div>
-
-              <div className="mt-4 flex items-center gap-2">
-                <span className="inline-flex items-center px-3 py-1 rounded-full border border-amber-300 bg-amber-100 text-amber-900 text-sm font-extrabold tracking-widest uppercase">
-                  Vintage Verified
-                </span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full border border-emerald-900/30 bg-emerald-800 text-amber-50 text- font-extrabold tracking-widest uppercase">
-                  Stock: {(product as any).stock}
-                </span>
-              </div>
             </div>
-                
+
             <div className="p-5 md:p-6">
               <h2 className="text-2xl md:text-3xl font-extrabold tracking-wide text-amber-900">
                 {product.title}
@@ -151,20 +144,21 @@ const ProductDetailPage = () => {
               <div className="my-6 h-0.5 w-full bg-amber-300" />
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <AddToCartButton product={product} />
+                {isOwnProduct ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full sm:w-auto text-center font-handwritten px-4 py-3 rounded-xl border-2 border-zinc-400 bg-zinc-200 text-zinc-600 font-extrabold tracking-wide text-sm cursor-not-allowed opacity-90 shadow-none"
+                  >
+                    Tu publicación
+                  </button>
+                ) : (
+                  <AddToCartButton product={product} />
+                )}
 
                 <Link
                   href="/cart"
-                  className="
-                    w-full sm:w-auto text-center
-                    font-handwritten px-4 py-3 rounded-xl
-                    border-2 border-amber-900
-                    bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm
-                    shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
-                    hover:-translate-y-px hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
-                    active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
-                    transition
-                  "
+                  className="w-full sm:w-auto text-center font-handwritten px-4 py-3 rounded-xl border-2 border-amber-900 bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]"
                 >
                   Ver carrito
                 </Link>
@@ -174,41 +168,8 @@ const ProductDetailPage = () => {
                   onClick={() => {
                     if (!isAuth) {
                       showToast.warning(
-                        "Debes iniciar sesión para chatear con el vendedor",
-                        {
-                          duration: 2500,
-                          progress: true,
-                          position: "top-center",
-                          transition: "popUp",
-                          icon: "",
-                          sound: true,
-                        },
+                        "Debes iniciar sesión para chatear con el vendedor"
                       );
-                      return;
-                    }
-
-                    console.log("[ProductDetailPage] chat seller resolution", {
-                      resolvedSellerId,
-                      userFromObject: productUserRecord,
-                      sellerFromObject: sellerRecord,
-                      ownerFromObject: fallbackOwnerRecord,
-                      productKeys: Object.keys(productRecord),
-                      productId: product.id,
-                    });
-
-                    if (!resolvedSellerId) {
-                      showToast.warning(
-                        "No se encontró el vendedor en este producto. Se abrió tu bandeja de chats.",
-                        {
-                          duration: 2500,
-                          progress: true,
-                          position: "top-center",
-                          transition: "popUp",
-                          icon: "",
-                          sound: true,
-                        },
-                      );
-                      openChat({ asParticipant: "customer" });
                       return;
                     }
 
@@ -221,21 +182,7 @@ const ProductDetailPage = () => {
                       customerId: customerId ? String(customerId) : undefined,
                     });
                   }}
-                  className={`
-                    w-full sm:w-auto text-center
-                    font-handwritten px-4 py-3 rounded-xl
-                    border-2 font-extrabold tracking-wide text-sm
-                    shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]
-                    hover:-translate-y-px hover:shadow-[4px_3px_0px_0px_rgba(0,0,0,0.85)]
-                    active:translate-y-px active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]
-                    transition
-                    ${
-                      !isAuth
-                        ? "cursor-not-allowed border-zinc-400 bg-zinc-200 text-zinc-500 shadow-none hover:translate-y-0 hover:shadow-none active:translate-y-0 active:shadow-none"
-                        : "border-amber-900 bg-amber-50 text-amber-900"
-                    }
-                  `}
-                  aria-disabled={!isAuth}
+                  className="w-full sm:w-auto text-center font-handwritten px-4 py-3 rounded-xl border-2 border-amber-900 bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]"
                 >
                   Chatea con el vendedor
                 </button>
@@ -246,5 +193,6 @@ const ProductDetailPage = () => {
       </main>
     </div>
   );
-}
+};
+
 export default ProductDetailPage;

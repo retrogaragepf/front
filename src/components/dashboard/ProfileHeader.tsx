@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CldImage } from "next-cloudinary";
 import AvatarUploader from "@/src/components/AvatarUploader";
 import { useAuth } from "@/src/context/AuthContext";
+import { updateMyAvatar } from "@/src/services/users.services";
 
 export default function ProfileHeader() {
   const { dataUser, isLoadingUser } = useAuth();
@@ -34,6 +35,28 @@ export default function ProfileHeader() {
 
   // (Opcional) si quieres tener también secure_url por si tu backend lo necesita
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // ✅ Hidrata avatar desde profile/session (sin romper shapes actuales)
+  useEffect(() => {
+    const fromPublicId =
+      (userObj as any)?.avatarPublicId ??
+      (userObj as any)?.avatar?.publicId ??
+      (dataUser as any)?.avatarPublicId ??
+      (dataUser as any)?.avatar?.publicId ??
+      null;
+
+    const fromAvatarUrl =
+      (userObj as any)?.avatarUrl ??
+      (userObj as any)?.avatar?.secureUrl ??
+      (userObj as any)?.avatar?.url ??
+      (dataUser as any)?.avatarUrl ??
+      (dataUser as any)?.avatar?.secureUrl ??
+      (dataUser as any)?.avatar?.url ??
+      null;
+
+    setAvatarPublicId(fromPublicId ? String(fromPublicId) : null);
+    setAvatarUrl(fromAvatarUrl ? String(fromAvatarUrl) : null);
+  }, [userObj, dataUser]);
 
   const initials = useMemo(() => {
     const base = (userName || userEmail || "").trim();
@@ -82,9 +105,29 @@ export default function ProfileHeader() {
             <div className="absolute -bottom-2 -right-2">
               <AvatarUploader
                 userId={userId}
-                onUploaded={({ publicId, secureUrl }) => {
+                onUploaded={async ({ publicId, secureUrl }) => {
+                  // ✅ UI inmediata (mantiene tu lógica)
                   setAvatarPublicId(publicId);
                   setAvatarUrl(secureUrl);
+
+
+                  // ✅ Persistencia en backend (nuevo, aislado)
+                  try {
+                    const saved = await updateMyAvatar({
+                      avatarPublicId: publicId,
+                      avatarUrl: secureUrl,
+                    });
+
+                    // ✅ sincroniza con respuesta del back
+                    setAvatarPublicId(saved?.avatarPublicId ?? publicId);
+                    setAvatarUrl(saved?.avatarUrl ?? secureUrl);
+                  } catch (error) {
+                    console.error(
+                      "No se pudo guardar avatar en backend:",
+                      error,
+                    );
+                    // Si falla el PATCH, al menos queda visible en UI actual
+                  }
 
                 }}
               />
@@ -101,7 +144,7 @@ export default function ProfileHeader() {
               {userName ? userName : "Vendedor & Comprador"}
             </p>
 
-            <div className="mt-4 h-[2px] w-full bg-amber-300" />
+            <div className="mt-4 h-0.5 w-full bg-amber-300" />
 
             <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-300 bg-amber-100 px-3 py-1">
               <span className="text-[10px] font-extrabold tracking-widest uppercase text-amber-900">

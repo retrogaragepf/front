@@ -88,7 +88,7 @@ export default function ProductPage() {
 
             <button
               onClick={load}
-              className="shrink-0 px-4 py-2 rounded-xl border-2 text-amber-50 border-zinc-900 bg-emerald-900 hover:bg-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-[1px] active:translate-y-[1px]"
+              className="shrink-0 px-4 py-2 rounded-xl border-2 text-amber-50 border-zinc-900 bg-emerald-900 hover:bg-amber-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-px active:translate-y-px"
             >
               Actualizar
             </button>

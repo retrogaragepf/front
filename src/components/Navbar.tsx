@@ -142,9 +142,15 @@ const [openNotifications, setOpenNotifications] = useState(false);
   const adminUnreadReadyRef = useRef(false);
   const previousAdminPendingSignatureRef = useRef("");
   const previousAdminPendingCountRef = useRef(0);
+  // Rastrea unreadCount por conversación para evitar auto-alertas del admin.
+  const previousAdminPendingUnreadsRef = useRef<Record<string, number>>({});
   const adminRealtimePendingIdsRef = useRef<Set<string>>(new Set());
   const userRealtimePendingIdsRef = useRef<Set<string>>(new Set());
   const socketRef = useRef<SocketLike | null>(null);
+  const isChatOpenRef = useRef(isChatOpen);
+  const activeConversationIdRef = useRef(activeConversation?.id);
+  // Dedup: evita mostrar 2 toasts si socket y custom event disparan casi juntos.
+  const lastNotifyTimestampRef = useRef(0);
 
   const safeName =
     getStringField(userRecord, "name") ||
@@ -181,6 +187,25 @@ const [openNotifications, setOpenNotifications] = useState(false);
     }
   };
 
+  // Fallback: obtener userId directamente del JWT en localStorage.
+  const getCurrentUserIdFromJwt = (): string => {
+    try {
+      const raw = localStorage.getItem(AUTH_KEY);
+      if (!raw) return "";
+      const parsed = JSON.parse(raw);
+      const token = parsed?.token;
+      if (!token || typeof token !== "string") return "";
+      const parts = token.split(".");
+      if (parts.length !== 3) return "";
+      const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+      const payload = JSON.parse(atob(padded));
+      return String(payload?.id ?? payload?.sub ?? payload?.userId ?? "");
+    } catch {
+      return "";
+    }
+  };
+
   const isAdminUser = useMemo(() => {
     const userFlag =
       getBooleanField(userRecord, "isAdmin") ||
@@ -208,6 +233,9 @@ const [openNotifications, setOpenNotifications] = useState(false);
     return unreadConversations[0]?.id ?? null;
   }, [conversations]);
 
+  // Ref to detect increases in contextual unread count (socket-independent path for users).
+  const previousUserUnreadCountRef = useRef(-1);
+
   const adminRealtimePendingCount = adminRealtimePendingIdsRef.current.size;
   const navbarUnreadChats = isAdminUser
     ? Math.max(adminUnreadConversations, adminRealtimePendingCount)
@@ -215,6 +243,13 @@ const [openNotifications, setOpenNotifications] = useState(false);
   const hasNavbarUnread = navbarUnreadChats > 0;
 
   const notifyNewMessage = () => {
+    const now = Date.now();
+    // Dedup: si ya se mostró un toast en los últimos 800ms, no mostrar otro.
+    if (now - lastNotifyTimestampRef.current < 800) {
+      logChatAlert("notifyNewMessage:dedup:skipped");
+      return;
+    }
+    lastNotifyTimestampRef.current = now;
     logChatAlert("notifyNewMessage:toast");
     showToast.info("Mensaje nuevo recibido", {
       duration: 2200,
@@ -225,6 +260,9 @@ const [openNotifications, setOpenNotifications] = useState(false);
       sound: true,
     });
   };
+
+  useEffect(() => { isChatOpenRef.current = isChatOpen; }, [isChatOpen]);
+  useEffect(() => { activeConversationIdRef.current = activeConversation?.id; }, [activeConversation?.id]);
 
   useEffect(() => {
     let canceled = false;
@@ -260,19 +298,29 @@ const [openNotifications, setOpenNotifications] = useState(false);
         }
 
         const currentSignature = buildPendingSignature(pendingChats);
+        const currentUnreads: Record<string, number> = {};
+        pendingChats.forEach((chat) => { currentUnreads[chat.id] = chat.unreadCount; });
 
         if (!adminUnreadReadyRef.current) {
           adminUnreadReadyRef.current = true;
           previousAdminPendingSignatureRef.current = currentSignature;
           previousAdminPendingCountRef.current = pending;
+          previousAdminPendingUnreadsRef.current = currentUnreads;
         } else {
-          const hasNewOrChangedPending =
-            pending > 0 &&
-            (currentSignature !== previousAdminPendingSignatureRef.current ||
-              pending > previousAdminPendingCountRef.current);
+          const prevUnreads = previousAdminPendingUnreadsRef.current;
+          // Solo alertar si apareció conversación nueva en pending O si unreadCount subió.
+          // Evita auto-alertas cuando el admin envía su propio mensaje
+          // (cambia lastMessage/timestamp pero unreadCount no sube).
+          const hasNewConversation = pendingChats.some((chat) => !(chat.id in prevUnreads));
+          const hasIncreasedUnread = pendingChats.some(
+            (chat) => chat.id in prevUnreads && chat.unreadCount > (prevUnreads[chat.id] ?? 0),
+          );
+          const shouldAlert = pending > 0 && (hasNewConversation || hasIncreasedUnread);
           previousAdminPendingSignatureRef.current = currentSignature;
           previousAdminPendingCountRef.current = pending;
-          if (!hasNewOrChangedPending) return;
+          previousAdminPendingUnreadsRef.current = currentUnreads;
+          if (!shouldAlert) return;
+          notifyNewMessage();
         }
       } catch (error) {
         logChatAlert("adminPoll:error", error);
@@ -283,6 +331,60 @@ const [openNotifications, setOpenNotifications] = useState(false);
     const intervalId = window.setInterval(() => {
       void loadAdminUnread();
     }, 2_000);
+
+    return () => {
+      canceled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [isAdminUser, isLogged]);
+
+  // Poll directo para usuarios: espejo del admin poll.
+  // Funciona sin socket y sin ChatContext, solo HTTP.
+  useEffect(() => {
+    if (isAdminUser || !isLogged) return;
+
+    let canceled = false;
+    let initialized = false;
+    const prevUnreads: Record<string, number> = {};
+
+    const pollUserChats = async () => {
+      try {
+        const chats = await chatService.getConversations();
+        if (canceled) return;
+
+        const unreadChats = chats.filter((c) => c.unreadCount > 0);
+
+        if (!initialized) {
+          initialized = true;
+          unreadChats.forEach((c) => { prevUnreads[c.id] = c.unreadCount; });
+          logChatAlert("userPoll:init", { unreadCount: unreadChats.length });
+          return;
+        }
+
+        const hasNewConversation = unreadChats.some((c) => !(c.id in prevUnreads));
+        const hasIncreasedUnread = unreadChats.some(
+          (c) => c.id in prevUnreads && c.unreadCount > (prevUnreads[c.id] ?? 0),
+        );
+
+        if (hasNewConversation || hasIncreasedUnread) {
+          logChatAlert("userPoll:newMessage", { hasNewConversation, hasIncreasedUnread });
+          notifyNewMessage();
+        }
+
+        // Actualizar baseline: solo conversaciones con unread activo.
+        Object.keys(prevUnreads).forEach((id) => {
+          if (!unreadChats.some((c) => c.id === id)) delete prevUnreads[id];
+        });
+        unreadChats.forEach((c) => { prevUnreads[c.id] = c.unreadCount; });
+      } catch (error) {
+        logChatAlert("userPoll:error", error);
+      }
+    };
+
+    void pollUserChats();
+    const intervalId = window.setInterval(() => {
+      if (!canceled) void pollUserChats();
+    }, 3_000);
 
     return () => {
       canceled = true;
@@ -395,14 +497,14 @@ const [openNotifications, setOpenNotifications] = useState(false);
           const senderId = String(
             sender?.id ?? payload.senderId ?? payload.userId ?? "",
           );
-          const currentUserId = chatService.getCurrentUserId();
+          const currentUserId = chatService.getCurrentUserId() || getCurrentUserIdFromJwt();
           logChatAlert("socket:newMessage:raw", {
             isAdminUser,
             conversationId,
             senderId,
             currentUserId,
-            activeConversationId: activeConversation?.id ?? null,
-            isChatOpen,
+            activeConversationId: activeConversationIdRef.current ?? null,
+            isChatOpen: isChatOpenRef.current,
             payload,
           });
           if (senderId && senderId === currentUserId) {
@@ -413,26 +515,45 @@ const [openNotifications, setOpenNotifications] = useState(false);
             return;
           }
 
-          if (isAdminUser) {
-            adminRealtimePendingIdsRef.current.add(conversationId);
-            setAdminUnreadConversations((prev) =>
-              Math.max(prev, adminRealtimePendingIdsRef.current.size),
-            );
-            logChatAlert("socket:newMessage:adminPendingUpdated", {
-              conversationId,
-              pendingCount: adminRealtimePendingIdsRef.current.size,
-            });
-          } else {
-            userRealtimePendingIdsRef.current.add(conversationId);
-            setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
-            logChatAlert("socket:newMessage:userPendingUpdated", {
-              conversationId,
-              pendingCount: userRealtimePendingIdsRef.current.size,
-            });
+          if (!isAdminUser) {
+            // No contar mensajes de conversaciones que el usuario borró/ocultó.
+            try {
+              const rawHidden = window.localStorage.getItem("chat_hidden_conversations");
+              if (rawHidden) {
+                const hidden: unknown = JSON.parse(rawHidden);
+                if (Array.isArray(hidden) && hidden.some((id) => String(id) === conversationId)) {
+                  logChatAlert("socket:newMessage:ignoredHidden", { conversationId });
+                  return;
+                }
+              }
+            } catch { /* ignorar */ }
+
+            // No sumar al badge ni tostar si el usuario ya tiene esa conversación abierta.
+            const isOpenConversation =
+              isChatOpenRef.current && activeConversationIdRef.current === conversationId;
+            if (!isOpenConversation) {
+              userRealtimePendingIdsRef.current.add(conversationId);
+              setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+              logChatAlert("socket:newMessage:userPendingUpdated", {
+                conversationId,
+                pendingCount: userRealtimePendingIdsRef.current.size,
+              });
+              notifyNewMessage();
+            }
+            return;
           }
 
-          // Requisito: alertar en cada mensaje nuevo recibido.
-          notifyNewMessage();
+          adminRealtimePendingIdsRef.current.add(conversationId);
+          setAdminUnreadConversations((prev) =>
+            Math.max(prev, adminRealtimePendingIdsRef.current.size),
+          );
+          logChatAlert("socket:newMessage:adminPendingUpdated", {
+            conversationId,
+            pendingCount: adminRealtimePendingIdsRef.current.size,
+          });
+          // Toast lo maneja exclusivamente el admin poll (cada 2s) con detección
+          // de unreadCount. Evita auto-alertas ya que el senderId check del socket
+          // puede fallar si el backend no incluye sender info correctamente.
         });
 
         socketRef.current = socket;
@@ -457,19 +578,86 @@ const [openNotifications, setOpenNotifications] = useState(false);
       socketRef.current = null;
       logChatAlert("socket:cleanup");
     };
-  }, [activeConversation?.id, isAdminUser, isChatOpen, isLogged]);
+  }, [isAdminUser, isLogged]);
 
   useEffect(() => {
     if (isAdminUser) return;
-    if (!isChatOpen || !activeConversation?.id) return;
-    if (!userRealtimePendingIdsRef.current.has(activeConversation.id)) return;
-    userRealtimePendingIdsRef.current.delete(activeConversation.id);
+    const activeId = activeConversation?.id;
+    if (!activeId) return;
+    // Clear pending when the conversation is open OR when the modal is closed
+    // (user was reading it and then dismissed the modal).
+    if (!userRealtimePendingIdsRef.current.has(activeId)) return;
+    userRealtimePendingIdsRef.current.delete(activeId);
     setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
-    logChatAlert("userPending:clearedByOpenConversation", {
-      conversationId: activeConversation.id,
+    logChatAlert("userPending:cleared", {
+      conversationId: activeId,
+      isChatOpen,
       pendingCount: userRealtimePendingIdsRef.current.size,
     });
   }, [activeConversation?.id, isAdminUser, isChatOpen]);
+
+  // Custom event de ChatContext.useChatSocket — garantiza badge + toast aunque
+  // el socket del Navbar no esté conectado. El dedup en notifyNewMessage evita
+  // toasts dobles si ambas rutas disparan al mismo tiempo.
+  useEffect(() => {
+    if (isAdminUser || !isLogged) return;
+
+    const handleChatNewMessage = (event: Event) => {
+      const customEvent = event as CustomEvent<{ conversationId?: string; senderId?: string }>;
+      const conversationId = customEvent.detail?.conversationId ?? "";
+      if (!conversationId) return;
+
+      const currentUserId = chatService.getCurrentUserId() || getCurrentUserIdFromJwt();
+      const senderId = customEvent.detail?.senderId ?? "";
+      if (senderId && senderId === currentUserId) return;
+
+      // Ignorar conversaciones ocultas.
+      try {
+        const rawHidden = window.localStorage.getItem("chat_hidden_conversations");
+        if (rawHidden) {
+          const hidden: unknown = JSON.parse(rawHidden);
+          if (Array.isArray(hidden) && hidden.some((id) => String(id) === conversationId)) return;
+        }
+      } catch { /* ignorar */ }
+
+      logChatAlert("user:customEvent:newMessage", { conversationId, senderId });
+      // No sumar al badge ni tostar si el usuario ya tiene esa conversación abierta.
+      const isOpenConversation =
+        isChatOpenRef.current && activeConversationIdRef.current === conversationId;
+      if (!isOpenConversation) {
+        userRealtimePendingIdsRef.current.add(conversationId);
+        setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+        notifyNewMessage();
+      }
+    };
+
+    window.addEventListener("retrogarage:chat-new-message", handleChatNewMessage);
+    return () => {
+      window.removeEventListener("retrogarage:chat-new-message", handleChatNewMessage);
+    };
+  }, [isAdminUser, isLogged]);
+
+  // Camino seguro de notificación para usuarios: detecta incremento de no-leídos
+  // via el estado del contexto (funciona aunque el socket falle).
+  useEffect(() => {
+    if (isAdminUser || !isLogged) {
+      previousUserUnreadCountRef.current = -1;
+      return;
+    }
+    if (previousUserUnreadCountRef.current === -1) {
+      // Primera inicialización: marcar baseline sin tostar.
+      previousUserUnreadCountRef.current = unreadConversationsUserFromContext;
+      return;
+    }
+    if (unreadConversationsUserFromContext > previousUserUnreadCountRef.current) {
+      logChatAlert("user:unreadContext:increased", {
+        prev: previousUserUnreadCountRef.current,
+        next: unreadConversationsUserFromContext,
+      });
+      notifyNewMessage();
+    }
+    previousUserUnreadCountRef.current = unreadConversationsUserFromContext;
+  }, [isAdminUser, isLogged, unreadConversationsUserFromContext]);
 
   useEffect(() => {
     logChatAlert("navbarUnread:state", {
@@ -626,14 +814,7 @@ const [openNotifications, setOpenNotifications] = useState(false);
       openChat({ conversationId: firstUnreadConversation.id });
       return;
     }
-    showToast.info("No hay chats nuevos.", {
-      duration: 1800,
-      progress: true,
-      position: "top-center",
-      transition: "popUp",
-      icon: "",
-      sound: true,
-    });
+    openChat();
   };
 
   return (

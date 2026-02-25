@@ -23,11 +23,12 @@ type NotificationContextType = {
   loading: boolean;
   refreshNotifications: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>; // ✅ agregado
 };
 
-const NotificationContext = createContext<
-  NotificationContextType | undefined
->(undefined);
+const NotificationContext = createContext<NotificationContextType | undefined>(
+  undefined,
+);
 
 export function NotificationProvider({
   children,
@@ -53,7 +54,7 @@ export function NotificationProvider({
           headers: {
             Authorization: `Bearer ${dataUser.token}`,
           },
-        }
+        },
       );
 
       if (!res.ok) throw new Error("Error cargando notificaciones");
@@ -68,7 +69,7 @@ export function NotificationProvider({
     }
   }, [isAuth, dataUser?.token]);
 
-  // 🔔 Marcar como leída
+  // 🔔 Marcar una como leída
   const markAsRead = async (id: string) => {
     if (!dataUser?.token) return;
 
@@ -80,16 +81,50 @@ export function NotificationProvider({
           headers: {
             Authorization: `Bearer ${dataUser.token}`,
           },
-        }
+        },
       );
 
       setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === id ? { ...n, read: true } : n
-        )
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
       );
     } catch (err) {
       console.error("❌ Error markAsRead:", err);
+    }
+  };
+
+  // 🔔 Marcar todas como leídas
+  const markAllAsRead = async () => {
+    if (!dataUser?.token) return;
+
+    try {
+      // ✅ Si tu back tiene endpoint para "mark all", úsalo aquí.
+      // Ejemplo posible (ajusta si existe otro):
+      // await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/notifications/read-all`, {
+      //   method: "PATCH",
+      //   headers: { Authorization: `Bearer ${dataUser.token}` },
+      // });
+
+      // ✅ Fallback seguro: marcar una por una (no rompe si no existe endpoint global)
+      const unread = notifications.filter((n) => !n.read);
+
+      await Promise.all(
+        unread.map((n) =>
+          fetch(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/notifications/${n.id}/read`,
+            {
+              method: "PATCH",
+              headers: {
+                Authorization: `Bearer ${dataUser.token}`,
+              },
+            },
+          ).catch(() => null),
+        ),
+      );
+
+      // ✅ Actualiza UI local aunque alguna request falle
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch (err) {
+      console.error("❌ Error markAllAsRead:", err);
     }
   };
 
@@ -110,6 +145,7 @@ export function NotificationProvider({
         loading,
         refreshNotifications,
         markAsRead,
+        markAllAsRead, // ✅ agregado al provider
       }}
     >
       {children}
@@ -121,7 +157,7 @@ export function useNotifications() {
   const ctx = useContext(NotificationContext);
   if (!ctx) {
     throw new Error(
-      "useNotifications debe usarse dentro de NotificationProvider"
+      "useNotifications debe usarse dentro de NotificationProvider",
     );
   }
   return ctx;

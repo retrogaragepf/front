@@ -284,7 +284,7 @@ export default function OrderDetailPage() {
                     >
                       <div className="min-w-0">
                         <p className="font-semibold text-zinc-900 truncate">
-                          {it.title || it.product?.title || "Producto"}
+                          {it.title || "Producto"}
                         </p>
                         <p className="text-sm text-zinc-600">
                           {it.quantity} × ${formatCOP(it.unitPrice)}

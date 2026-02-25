@@ -525,17 +525,18 @@ const Navbar = (): ReactElement => {
               }
             } catch { /* ignorar */ }
 
-            userRealtimePendingIdsRef.current.add(conversationId);
-            setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
-            logChatAlert("socket:newMessage:userPendingUpdated", {
-              conversationId,
-              pendingCount: userRealtimePendingIdsRef.current.size,
-            });
-
-            // No mostrar toast si el usuario tiene esa conversación abierta.
+            // No sumar al badge ni tostar si el usuario ya tiene esa conversación abierta.
             const isOpenConversation =
               isChatOpenRef.current && activeConversationIdRef.current === conversationId;
-            if (!isOpenConversation) notifyNewMessage();
+            if (!isOpenConversation) {
+              userRealtimePendingIdsRef.current.add(conversationId);
+              setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+              logChatAlert("socket:newMessage:userPendingUpdated", {
+                conversationId,
+                pendingCount: userRealtimePendingIdsRef.current.size,
+              });
+              notifyNewMessage();
+            }
             return;
           }
 
@@ -578,12 +579,16 @@ const Navbar = (): ReactElement => {
 
   useEffect(() => {
     if (isAdminUser) return;
-    if (!isChatOpen || !activeConversation?.id) return;
-    if (!userRealtimePendingIdsRef.current.has(activeConversation.id)) return;
-    userRealtimePendingIdsRef.current.delete(activeConversation.id);
+    const activeId = activeConversation?.id;
+    if (!activeId) return;
+    // Clear pending when the conversation is open OR when the modal is closed
+    // (user was reading it and then dismissed the modal).
+    if (!userRealtimePendingIdsRef.current.has(activeId)) return;
+    userRealtimePendingIdsRef.current.delete(activeId);
     setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
-    logChatAlert("userPending:clearedByOpenConversation", {
-      conversationId: activeConversation.id,
+    logChatAlert("userPending:cleared", {
+      conversationId: activeId,
+      isChatOpen,
       pendingCount: userRealtimePendingIdsRef.current.size,
     });
   }, [activeConversation?.id, isAdminUser, isChatOpen]);
@@ -613,13 +618,14 @@ const Navbar = (): ReactElement => {
       } catch { /* ignorar */ }
 
       logChatAlert("user:customEvent:newMessage", { conversationId, senderId });
-      userRealtimePendingIdsRef.current.add(conversationId);
-      setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
-
-      // No mostrar toast si el usuario tiene esa conversación abierta.
+      // No sumar al badge ni tostar si el usuario ya tiene esa conversación abierta.
       const isOpenConversation =
         isChatOpenRef.current && activeConversationIdRef.current === conversationId;
-      if (!isOpenConversation) notifyNewMessage();
+      if (!isOpenConversation) {
+        userRealtimePendingIdsRef.current.add(conversationId);
+        setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+        notifyNewMessage();
+      }
     };
 
     window.addEventListener("retrogarage:chat-new-message", handleChatNewMessage);
@@ -805,14 +811,7 @@ const Navbar = (): ReactElement => {
       openChat({ conversationId: firstUnreadConversation.id });
       return;
     }
-    showToast.info("No hay chats nuevos.", {
-      duration: 1800,
-      progress: true,
-      position: "top-center",
-      transition: "popUp",
-      icon: "",
-      sound: true,
-    });
+    openChat();
   };
 
   return (

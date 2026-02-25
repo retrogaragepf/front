@@ -124,6 +124,18 @@ function loadHiddenConversationIds(): Set<string> {
   }
 }
 
+function saveHiddenConversationIds(ids: Set<string>) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      CHAT_HIDDEN_CONVERSATIONS_KEY,
+      JSON.stringify(Array.from(ids)),
+    );
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function useChatSync({
   canUseChat,
   isChatOpen,
@@ -154,16 +166,15 @@ export function useChatSync({
     }
 
     const remoteTimestamp = toTimestamp(conversation.timestamp);
-    if (remoteTimestamp <= 0) {
-      // Si backend no manda timestamp válido, no forzamos lectura local.
-      return conversation;
-    }
     if (remoteTimestamp > readAt) {
+      // New message arrived after the user read: clear marker and show unread.
       delete localReadMarkersRef.current[conversation.id];
       persistReadMarkers(localReadMarkersRef.current);
       return conversation;
     }
 
+    // remoteTimestamp <= readAt (or timestamp missing): the user already read
+    // this conversation — force unreadCount to 0.
     return { ...conversation, unreadCount: 0 };
   }, []);
 
@@ -176,6 +187,18 @@ export function useChatSync({
       });
       const remoteConversations = await chatService.getConversations();
       const hiddenConversationIds = loadHiddenConversationIds();
+
+      // Auto-unhide any conversation that has new incoming messages so the
+      // user sees the chat even if they previously dismissed it with X.
+      let hiddenChanged = false;
+      remoteConversations.forEach((conversation) => {
+        if (hiddenConversationIds.has(conversation.id) && conversation.unreadCount > 0) {
+          hiddenConversationIds.delete(conversation.id);
+          hiddenChanged = true;
+        }
+      });
+      if (hiddenChanged) saveHiddenConversationIds(hiddenConversationIds);
+
       const baseConversations = dedupeConversations(remoteConversations)
         .filter((conversation) => !hiddenConversationIds.has(conversation.id))
         .map(applyLocalReadState)

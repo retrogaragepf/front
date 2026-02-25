@@ -372,6 +372,19 @@ export function useChatSync({
         }
       } catch (error) {
         if ((error as Error).message === "NO_AUTH") return;
+        const status = (error as Error & { status?: number }).status;
+        if (status === 404) {
+          // Conversación no existe en el backend: limpiar del estado local.
+          console.warn("[useChatSync] syncMessages:404:removing", { conversationId });
+          setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+          setMessagesByConversation((prev) => {
+            if (!(conversationId in prev)) return prev;
+            const next = { ...prev };
+            delete next[conversationId];
+            return next;
+          });
+          return;
+        }
         console.error("[useChatSync] syncMessages:error", { conversationId, error });
       }
     },

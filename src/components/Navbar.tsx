@@ -275,6 +275,7 @@ const Navbar = (): ReactElement => {
           previousAdminPendingSignatureRef.current = currentSignature;
           previousAdminPendingCountRef.current = pending;
           if (!hasNewOrChangedPending) return;
+          notifyNewMessage();
         }
       } catch (error) {
         logChatAlert("adminPoll:error", error);
@@ -415,10 +416,16 @@ const Navbar = (): ReactElement => {
             return;
           }
 
-          // Usuarios: notificados vía custom event (retrogarage:chat-new-message)
-          // que despacha useChatSocket del ChatContext. El socket del Navbar
-          // solo procesa la lógica de admin aquí.
-          if (!isAdminUser) return;
+          if (!isAdminUser) {
+            userRealtimePendingIdsRef.current.add(conversationId);
+            setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
+            logChatAlert("socket:newMessage:userPendingUpdated", {
+              conversationId,
+              pendingCount: userRealtimePendingIdsRef.current.size,
+            });
+            notifyNewMessage();
+            return;
+          }
 
           adminRealtimePendingIdsRef.current.add(conversationId);
           setAdminUnreadConversations((prev) =>
@@ -469,9 +476,8 @@ const Navbar = (): ReactElement => {
     });
   }, [activeConversation?.id, isAdminUser, isChatOpen]);
 
-  // Notificaciones para usuarios vía custom event despachado por ChatContext.useChatSocket.
-  // Este path es más confiable que el socket propio del Navbar para usuarios,
-  // porque ChatContext siempre está conectado y en las salas correctas.
+  // Fallback: custom event despachado por ChatContext.useChatSocket.
+  // Solo actualiza el badge; el toast lo maneja el socket del Navbar directamente.
   useEffect(() => {
     if (isAdminUser || !isLogged) return;
 
@@ -487,8 +493,6 @@ const Navbar = (): ReactElement => {
       logChatAlert("user:customEvent:newMessage", { conversationId, senderId });
       userRealtimePendingIdsRef.current.add(conversationId);
       setUserRealtimePendingCount(userRealtimePendingIdsRef.current.size);
-      // El toast lo dispara useChatUnreadNotifications en ChatContext
-      // para evitar toasts duplicados.
     };
 
     window.addEventListener("retrogarage:chat-new-message", handleChatNewMessage);

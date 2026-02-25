@@ -146,6 +146,8 @@ const Navbar = (): ReactElement => {
   const previousAdminPendingUnreadsRef = useRef<Record<string, number>>({});
   const adminRealtimePendingIdsRef = useRef<Set<string>>(new Set());
   const userRealtimePendingIdsRef = useRef<Set<string>>(new Set());
+  // IDs of user-to-user conversations — admin doesn't get notified for these.
+  const userChatIdsRef = useRef<Set<string>>(new Set());
   const socketRef = useRef<SocketLike | null>(null);
   const isChatOpenRef = useRef(isChatOpen);
   const activeConversationIdRef = useRef(activeConversation?.id);
@@ -284,9 +286,15 @@ const Navbar = (): ReactElement => {
         const chats = await adminChatService.getConversations();
         if (canceled) return;
         const readMarkers = loadAdminReadMarkers();
-        const pendingChats = chats.filter((chat) =>
-          hasPendingAdminChat(chat, readMarkers),
+        // Keep an up-to-date set of user-to-user chat IDs so the socket handler
+        // can skip notifications for those conversations.
+        userChatIdsRef.current = new Set(
+          chats.filter((c) => c.isUserChat).map((c) => c.id),
         );
+        // Only count/notify for admin-support chats, not user-to-user chats.
+        const pendingChats = chats
+          .filter((chat) => !chat.isUserChat)
+          .filter((chat) => hasPendingAdminChat(chat, readMarkers));
         const pending = pendingChats.length;
         setAdminUnreadConversations(pending);
         logChatAlert("adminPoll:data", {
@@ -580,6 +588,11 @@ const Navbar = (): ReactElement => {
             return;
           }
 
+          // Skip user-to-user chats — admin only gets notified for support chats.
+          if (userChatIdsRef.current.has(conversationId)) {
+            logChatAlert("socket:newMessage:ignoredUserChat", { conversationId });
+            return;
+          }
           adminRealtimePendingIdsRef.current.add(conversationId);
           setAdminUnreadConversations((prev) =>
             Math.max(prev, adminRealtimePendingIdsRef.current.size),

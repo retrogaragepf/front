@@ -157,6 +157,8 @@ function areChatRowsEqual(prev: ChatRow[], next: ChatRow[]): boolean {
     if (a.isBanned !== b.isBanned) return false;
     if (a.userName !== b.userName) return false;
     if (a.userEmail !== b.userEmail) return false;
+    if (a.receiverName !== b.receiverName) return false;
+    if (a.receiverEmail !== b.receiverEmail) return false;
   }
 
   return true;
@@ -500,6 +502,7 @@ export default function AdminChatsSection({
             <tr>
               <th className="p-4 text-left font-extrabold text-amber-900">Nombre</th>
               <th className="text-left font-extrabold text-amber-900">Correo</th>
+              <th className="text-left font-extrabold text-amber-900">Destinatario</th>
               <th className="text-left font-extrabold text-amber-900">Asunto</th>
               <th className="text-left font-extrabold text-amber-900">Estado</th>
               <th className="text-left font-extrabold text-amber-900">Chat</th>
@@ -531,6 +534,19 @@ export default function AdminChatsSection({
                   </td>
 
                   <td className="text-zinc-700 pt-4">{chat.userEmail || "-"}</td>
+
+                  <td className="pt-4">
+                    {chat.isUserChat ? (
+                      <div>
+                        {chat.receiverName && (
+                          <div className="font-bold text-zinc-800">{chat.receiverName}</div>
+                        )}
+                        <div className="text-zinc-600 text-sm">{chat.receiverEmail || "-"}</div>
+                      </div>
+                    ) : (
+                      <span className="text-zinc-400 text-sm">Administrador</span>
+                    )}
+                  </td>
 
                   <td className="text-zinc-700 pt-4">{chat.subject || "Sin asunto"}</td>
 
@@ -607,7 +623,7 @@ export default function AdminChatsSection({
 
             {!loadingList && filteredChats.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center p-6 text-zinc-500">
+                <td colSpan={7} className="text-center p-6 text-zinc-500">
                   No hay conversaciones en esta categoría.
                 </td>
               </tr>

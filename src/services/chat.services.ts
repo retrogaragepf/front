@@ -195,7 +195,15 @@ function normalizeConversation(raw: ApiRecord): ChatConversation {
   // top-level `id` is the participant UUID.  The actual conversation UUID lives
   // in `raw.conversationId` or `raw.conversation.id`.  We must prefer those.
   const conversationId = String(
-    raw.conversationId ?? row.id ?? rowRecord.id ?? rowRecord._id ?? raw.id ?? "",
+    raw.conversationId ??
+      raw.chatId ??
+      row.id ??
+      row.chatId ??
+      rowRecord.id ??
+      rowRecord.chatId ??
+      rowRecord._id ??
+      raw.id ??
+      "",
   );
 
   return {

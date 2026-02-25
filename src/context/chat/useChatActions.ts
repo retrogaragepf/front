@@ -218,12 +218,34 @@ export function useChatActions({
         participantIds: [customerId, sellerId],
       });
 
+      // The POST endpoint may return a participant entity (id = participant UUID)
+      // instead of a conversation entity (id = conversation UUID). Sync the list
+      // from the server to get the correct conversation UUID before using it.
+      let verifiedConversation = createdConversation;
+      try {
+        const freshConversations = await chatService.getConversations();
+        const matched = freshConversations.find((c) => {
+          if (c.sellerId && c.sellerId === sellerId) return true;
+          const ids = c.participantIds ?? [];
+          return (
+            ids.length > 0 &&
+            ids.includes(sellerId) &&
+            ids.includes(customerId)
+          );
+        });
+        if (matched?.id) {
+          verifiedConversation = { ...createdConversation, ...matched };
+        }
+      } catch {
+        // Sync failed; continue with the create response as-is
+      }
+
       const hydratedConversation: ChatConversation = {
-        ...createdConversation,
-        sellerName: payload.sellerName || createdConversation.sellerName,
-        seller: { name: payload.sellerName || createdConversation.seller.name },
-        product: payload.product || createdConversation.product,
-        customer: payload.customerName || createdConversation.customer,
+        ...verifiedConversation,
+        sellerName: payload.sellerName || verifiedConversation.sellerName,
+        seller: { name: payload.sellerName || verifiedConversation.seller.name },
+        product: payload.product || verifiedConversation.product,
+        customer: payload.customerName || verifiedConversation.customer,
         customerId,
         sellerId,
         participantIds: [customerId, sellerId],

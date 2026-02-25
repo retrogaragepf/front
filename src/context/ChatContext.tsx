@@ -153,6 +153,7 @@ export const ChatProvider = ({
       clearUnreadLocal,
       joinConversationRoom,
       activeConversationId,
+      socketRef,
     });
 
   const activeConversation = useMemo(

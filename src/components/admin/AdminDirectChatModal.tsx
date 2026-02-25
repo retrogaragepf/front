@@ -173,7 +173,7 @@ export default function AdminDirectChatModal({
 
   return (
     <div
-      className="fixed inset-0 z-[96] flex items-end justify-center bg-zinc-900/60 p-2 sm:items-center sm:p-4"
+      className="fixed inset-0 z-96 flex items-end justify-center bg-zinc-900/60 p-2 sm:items-center sm:p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

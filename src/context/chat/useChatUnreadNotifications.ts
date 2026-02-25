@@ -1,5 +1,6 @@
 import { MutableRefObject, useEffect } from "react";
 import { showToast } from "nextjs-toast-notify";
+import { tryChatToast } from "@/src/context/chat/chatToastDedup";
 
 const CHAT_ALERT_DEBUG =
   process.env.NODE_ENV !== "production" ||
@@ -54,7 +55,7 @@ export function useChatUnreadNotifications({
     // Only fire when the total unread count actually grew. A signal change
     // without a count increase means the user read a conversation (unreadCount
     // dropped to 0) — that must never trigger the "new message" toast.
-    if (canUseChat && totalIncreased) {
+    if (canUseChat && totalIncreased && tryChatToast()) {
       logUnreadHook("toast:trigger", {
         previousUnread: previousUnreadTotalRef.current,
         unreadTotal,

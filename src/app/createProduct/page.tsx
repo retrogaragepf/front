@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/context/AuthContext";
 import type { IProductCreate } from "@/src/interfaces/product.interface";
@@ -8,20 +8,10 @@ import { showToast } from "nextjs-toast-notify";
 import { CldUploadWidget } from "next-cloudinary";
 import Image from "next/image";
 
-// ✅ Service
 import { createProduct } from "@/src/services/products.services";
 
-// ✅ Constantes (UUID reales)
 import { CATEGORY_OPTIONS } from "@/src/constants/categories";
 import { ERA_OPTIONS } from "@/src/constants/eras";
-
-async function urlToFile(url: string, filename = "product.jpg") {
-  const res = await fetch(url);
-  if (!res.ok)
-    throw new Error("No se pudo descargar la imagen desde Cloudinary");
-  const blob = await res.blob();
-  return new File([blob], filename, { type: blob.type || "image/jpeg" });
-}
 
 export default function CreateProductPage() {
   const router = useRouter();
@@ -39,12 +29,15 @@ export default function CreateProductPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ✅ Evita doble set si Cloudinary dispara success repetido (dev / callbacks)
+  const lastUploadedPublicIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (isLoadingUser) return; // ✅ espera a que cargue la sesión
+    if (isLoadingUser) return;
     if (!isAuth) router.push("/login");
   }, [isLoadingUser, isAuth, router]);
 
-  if (isLoadingUser) return null; // ✅ o un loader
+  if (isLoadingUser) return null;
   if (!isAuth) return null;
 
   const handleChange = (field: keyof IProductCreate, value: any) => {
@@ -53,6 +46,7 @@ export default function CreateProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return; // ✅ blindaje extra anti doble click
 
     if (!form.title || !form.price || !form.categoryId || !form.eraId) {
       showToast.error("Completa todos los campos obligatorios");
@@ -80,24 +74,17 @@ export default function CreateProductPage() {
     setIsSubmitting(true);
 
     try {
-      // ✅ Cloudinary URL (y también lo mandamos como imgUrl TEMPORAL por validación del back)
       const imgUrl = form.images[0];
-      const imageFile = await urlToFile(imgUrl, "product.jpg");
 
-      await createProduct(
-        {
-          title: form.title,
-          description: form.description || "",
-          price: priceNumber,
-          stock: stockNumber,
-          erasId: form.eraId,
-          categoryId: form.categoryId,
-
-          // ✅ TEMPORAL: si tu back aún exige imgUrl por DTO
-          imgUrl,
-        } as any,
-        imageFile,
-      );
+      await createProduct({
+        title: form.title,
+        description: form.description || "",
+        price: priceNumber,
+        stock: stockNumber,
+        erasId: form.eraId,
+        categoryId: form.categoryId,
+        imgUrl,
+      });
 
       showToast.success("Producto enviado para revisión");
       router.push("/dashboard/my-products");
@@ -116,7 +103,6 @@ export default function CreateProductPage() {
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Título */}
           <div>
             <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-2">
               Título *
@@ -137,7 +123,7 @@ export default function CreateProductPage() {
             <textarea
               value={form.description}
               onChange={(e) => handleChange("description", e.target.value)}
-              className="w-full  bg-amber-100 rounded-xl px-4 py-3 h-32 outline-none"
+              className="w-full bg-amber-100 rounded-xl px-4 py-3 h-32 outline-none"
             />
           </div>
 
@@ -150,7 +136,7 @@ export default function CreateProductPage() {
                 type="number"
                 value={form.price}
                 onChange={(e) => handleChange("price", e.target.value)}
-                className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
+                className="w-full bg-amber-100 rounded-xl px-4 py-3 outline-none"
                 min={0}
                 step="0.01"
               />
@@ -164,7 +150,7 @@ export default function CreateProductPage() {
                 type="number"
                 value={form.stock}
                 onChange={(e) => handleChange("stock", Number(e.target.value))}
-                className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
+                className="w-full bg-amber-100 rounded-xl px-4 py-3 outline-none"
                 min={0}
               />
             </div>
@@ -177,7 +163,7 @@ export default function CreateProductPage() {
             <select
               value={form.categoryId}
               onChange={(e) => handleChange("categoryId", e.target.value)}
-              className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
+              className="w-full bg-amber-100 rounded-xl px-4 py-3 outline-none"
             >
               <option value="">Selecciona categoría</option>
               {CATEGORY_OPTIONS.map((c) => (
@@ -195,7 +181,7 @@ export default function CreateProductPage() {
             <select
               value={form.eraId}
               onChange={(e) => handleChange("eraId", e.target.value)}
-              className="w-full  bg-amber-100 rounded-xl px-4 py-3 outline-none"
+              className="w-full bg-amber-100 rounded-xl px-4 py-3 outline-none"
             >
               <option value="">Selecciona era</option>
               {ERA_OPTIONS.map((era) => (
@@ -231,12 +217,21 @@ export default function CreateProductPage() {
               }}
               onSuccess={(result: any) => {
                 const secureUrl = result?.info?.secure_url;
+                const publicId = result?.info?.public_id;
+
                 if (!secureUrl) return;
+
+                // ✅ evita doble callback success con el mismo asset
+                if (publicId && lastUploadedPublicIdRef.current === publicId) {
+                  return;
+                }
+                if (publicId) {
+                  lastUploadedPublicIdRef.current = publicId;
+                }
 
                 setForm((prev) => ({ ...prev, images: [secureUrl] }));
               }}
               onUpload={(result: any) => {
-                // Cloudinary manda eventos distintos; este cubre fallos comunes
                 const evt = result?.event;
                 const info = result?.info;
 
@@ -253,7 +248,8 @@ export default function CreateProductPage() {
                 <button
                   type="button"
                   onClick={() => open()}
-                  className="px-4 py-3 bg-emerald-900 text-white rounded-xl hover:bg-amber-900"
+                  disabled={isSubmitting}
+                  className="px-4 py-3 bg-emerald-900 text-white rounded-xl hover:bg-amber-900 disabled:opacity-60"
                 >
                   Subir imagen
                 </button>
@@ -276,7 +272,7 @@ export default function CreateProductPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-emerald-900 hover:bg-amber-900 text-white font-semibold py-4 rounded-xl transition-all shadow-md"
+            className="w-full bg-emerald-900 hover:bg-amber-900 text-white font-semibold py-4 rounded-xl transition-all shadow-md disabled:opacity-60"
           >
             {isSubmitting ? "Publicando..." : "Publicar producto"}
           </button>

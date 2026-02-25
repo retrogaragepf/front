@@ -1,10 +1,6 @@
 import { IProduct } from "@/src/interfaces/product.interface";
 import { authService } from "@/src/services/auth";
 
-//const API_BASE_URL =
-//process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com";
-
-//FUNCION EN LUGAR DE CCONST PARA QUE SI CAMBAI EN EJECUTCIONTIME NO. DE ERROR
 function getApiBaseUrl(): string {
   return (
     process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
@@ -17,19 +13,9 @@ async function parseJsonSafe(res: Response) {
   const isJson = res.headers.get("content-type")?.includes("application/json");
   return isJson && text ? JSON.parse(text) : text;
 }
-/**
- * 
- *function assertBaseUrl() {
-  if (!API_BASE_URL) {
-    throw new Error("NEXT_PUBLIC_API_BASE_URL no está definido");
-  }
-} 
- */
-/* ============================
-   GET ALL (PUBLIC)
-============================ */
+
 export const getAllProducts = async (): Promise<IProduct[]> => {
-  const API_BASE_URL = getApiBaseUrl(); // SEOBTINENE EN TIMEPO DE EJECCUCION QUE SE NECESITA NO. ANTES. SI SE HACE ANTES Y NO ESTÁ DEFINIDA, DA ERROR INMEDIATO Y NO SE PUEDE USAR EN NINGUNA PARTE DEL FRONT, NI SIQUIERA EN LOGIN O REGISTRO QUE NO LA NECESITAN.
+  const API_BASE_URL = getApiBaseUrl(); // SE OBTIENE EN TIEMPO DE EJECUCIÓN CUANDO SE NECESITA.
   const res = await fetch(`${API_BASE_URL}/products`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
@@ -54,12 +40,12 @@ export const getAllProducts = async (): Promise<IProduct[]> => {
 };
 
 /* ============================
-   GET BY ID (PUBLIC) ✅ NUEVO
+   GET BY ID (PUBLIC)
 ============================ */
 export const getProductById = async (id: string): Promise<IProduct> => {
-  const API_BASE_URL = getApiBaseUrl(); // ✅
-  const token = authService.getToken?.() || null; // ✅ toma el JWT REAL del back si está guardado , SI SE HACE ANTES DE DEFINIR API_BASE_URL, DA ERROR INMEDIATO PORQUE INTENTA LEER EL TOKEN ANTES DE DEFINIR LA FUNCIÓN QUE OBTIENE LA URL Y DA ERROR ANTES DE TIEMPO. SI SE HACE DESPUSE, SE OBTIENE LA URL EN TIEMPO DE EJECUCIÓN Y SI NO ESTADEFINIDA, DA ERROR SOLO CUANDO SE INTENTA USAR ESTA FUNCIÓN, PERO NO ANTES
-  
+  const API_BASE_URL = getApiBaseUrl();
+  const token = authService.getToken?.() || null;
+
   const res = await fetch(`${API_BASE_URL}/products/${id}`, {
     method: "GET",
     headers: {
@@ -87,7 +73,9 @@ export const getProductById = async (id: string): Promise<IProduct> => {
 };
 
 /* ============================
-   CREATE (PROTECTED + multipart)
+   CREATE (PROTECTED + dual mode)
+   - JSON + imgUrl (nuevo recomendado)
+   - multipart + image (compatibilidad)
 ============================ */
 function getTokenOrThrow() {
   const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
@@ -105,36 +93,72 @@ export const createProduct = async (
     stock: number;
     erasId: string;
     categoryId: string;
-
-    // ✅ TEMPORAL: el back lo exige hoy por DTO
-    imgUrl: string;
+    imgUrl: string; // ✅ soportado por back actualizado
   },
-  file: File,
+  file?: File | null,
 ): Promise<IProduct> => {
-  const API_BASE_URL = getApiBaseUrl();// SAME AS OBTENER EN TIEMPO DE EJECUCIÓN PARA QUE SI NO ESTÁ DEFINIDA,
+  const API_BASE_URL = getApiBaseUrl();
   const token = getTokenOrThrow();
 
-  const formData = new FormData();
-  formData.append("title", data.title);
-  formData.append("description", data.description ?? "");
-  formData.append("price", String(data.price));
-  formData.append("stock", String(data.stock));
-  formData.append("erasId", data.erasId);
-  formData.append("categoryId", data.categoryId);
-  
+  // ✅ Compatibilidad dual:
+  // - Si llega file => multipart (flujo viejo)
+  // - Si NO llega file => JSON con imgUrl (flujo recomendado con Cloudinary widget)
+  if (file) {
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description ?? "");
+    formData.append("price", String(data.price));
+    formData.append("stock", String(data.stock));
+    formData.append("erasId", data.erasId);
+    formData.append("categoryId", data.categoryId);
 
-  // ✅ TEMPORAL para pasar validaciones del DTO
-  formData.append("imgUrl", data.imgUrl);
+    // ✅ Si llega imgUrl también, el back prioriza imgUrl (compatibilidad)
+    formData.append("imgUrl", data.imgUrl);
 
-  // ✅ archivo exacto
-  formData.append("image", file);
+    // ✅ archivo exacto que espera Swagger
+    formData.append("image", file);
 
+    const res = await fetch(`${API_BASE_URL}/products`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const created = await parseJsonSafe(res);
+
+    if (!res.ok) {
+      const msg =
+        typeof created === "string"
+          ? created
+          : created?.message
+            ? Array.isArray(created.message)
+              ? created.message.join(", ")
+              : String(created.message)
+            : "Error creando producto";
+      throw new Error(msg);
+    }
+
+    return created as IProduct;
+  }
+
+  // ✅ Flujo nuevo recomendado (sin duplicado en Cloudinary)
   const res = await fetch(`${API_BASE_URL}/products`, {
     method: "POST",
     headers: {
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: formData,
+    body: JSON.stringify({
+      title: data.title,
+      description: data.description ?? "",
+      price: data.price,
+      stock: data.stock,
+      categoryId: data.categoryId,
+      erasId: data.erasId,
+      imgUrl: data.imgUrl,
+    }),
   });
 
   const created = await parseJsonSafe(res);
@@ -161,7 +185,7 @@ export const updateProductStatus = async (
   productId: string,
   status: "approved" | "rejected",
 ): Promise<IProduct> => {
-  const API_BASE_URL = getApiBaseUrl();//assertBaseUrl();
+  const API_BASE_URL = getApiBaseUrl();
   const token = getTokenOrThrow();
 
   const endpoint =

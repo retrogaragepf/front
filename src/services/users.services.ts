@@ -8,9 +8,35 @@ export type AdminUser = {
   role?: string;
   isBanned?: boolean;
   isBlocked?: boolean;
+
+  // ✅ NUEVO (no rompe nada, opcional)
+  avatarPublicId?: string | null;
+  avatarUrl?: string | null;
 };
 
 export type AdminUIUser = AdminUser & { isBanned: boolean };
+
+// ✅ NUEVO (perfil del usuario logueado; flexible para no romper)
+export type UserProfile = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  avatarPublicId?: string | null;
+  avatarUrl?: string | null;
+  [key: string]: any;
+};
+
+// ✅ NUEVO (payload PATCH avatar)
+export type UpdateMyAvatarPayload = {
+  avatarPublicId?: string | null;
+  avatarUrl?: string | null;
+};
+
+// ✅ NUEVO (response PATCH avatar, según back)
+export type UpdateMyAvatarResponse = {
+  avatarPublicId?: string | null;
+  avatarUrl?: string | null;
+};
 
 //const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL; SE MUEVE DENTOR DE. LA. FUNC. REQUEST PAAR EVITAER ERRORES DE IMPORTACION EN EL SERVIDOR
 
@@ -20,6 +46,9 @@ const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 // ✅ La única ruta confirmada que existe es /users (401 cuando no hay token)
 const ENDPOINTS = {
   all: "/users",
+  profile: "/users/profile", // ✅ NUEVO
+  meAvatar: "/users/me/avatar", // ✅ NUEVO
+
   // ⚠️ dejo block/unblock alineados a /users para no volver a /admin (que 404)
   block: (id: string) => `/users/${id}/block`,
   unblock: (id: string) => `/users/${id}/unblock`,
@@ -57,7 +86,12 @@ async function parseJsonSafe(response: Response) {
     .get("content-type")
     ?.includes("application/json");
 
-  const data = isJson && text ? JSON.parse(text) : text;
+  let data: any = text;
+  try {
+    data = isJson && text ? JSON.parse(text) : text;
+  } catch {
+    data = text;
+  }
 
   if (!response.ok) {
     const msg =
@@ -148,4 +182,30 @@ export async function deleteUser(
   token?: string | null,
 ): Promise<void> {
   await request<unknown>(ENDPOINTS.delete(id), { method: "DELETE" }, token);
+}
+
+/* =========================================================
+   ✅ NUEVO: Avatar del usuario autenticado (NO rompe nada)
+   ========================================================= */
+
+/** PATCH /users/me/avatar */
+export async function updateMyAvatar(
+  payload: UpdateMyAvatarPayload,
+  token?: string | null,
+): Promise<UpdateMyAvatarResponse> {
+  return request<UpdateMyAvatarResponse>(
+    ENDPOINTS.meAvatar,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+/** (Opcional pero útil) GET /users/profile para hidratar avatar desde DB */
+export async function getMyProfile(
+  token?: string | null,
+): Promise<UserProfile> {
+  return request<UserProfile>(ENDPOINTS.profile, { method: "GET" }, token);
 }

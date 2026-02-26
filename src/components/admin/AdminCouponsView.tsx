@@ -398,10 +398,10 @@ Gracias por comprar en RetroGarage™ 🛍️`;
                   </th>
                   <th className="px-3 py-2 font-extrabold text-amber-900">-</th>
                   <th className="px-3 py-2 font-extrabold text-amber-900">
-                    Fecha
+                    Utilizado
                   </th>
                   <th className="px-3 py-2 font-extrabold text-amber-900">
-                    Usado por
+                    Usuario
                   </th>
                   <th className="px-3 py-2 font-extrabold text-amber-900">
                     Creado

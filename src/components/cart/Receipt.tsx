@@ -535,7 +535,7 @@ export default function Receipt() {
 
         <Link
           href="/product"
-          className="w-full text-center px-4 py-3 rounded-lg border-2 border-slate-900 font-bold bg-white transition-colors hover:bg-emerald-900"
+          className="w-full text-center px-4 py-3 rounded-lg border-2 border-slate-900  bg-emerald-900 transition-colors hover:bg-amber-900 text-amber-50"
         >
           Seguir comprando
         </Link>

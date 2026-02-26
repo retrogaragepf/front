@@ -206,7 +206,7 @@ export default function ProfileInfo() {
         <button
           type="button"
           onClick={() => setIsEditing((v) => !v)}
-          className="rounded-lg border border-slate-900 bg-white px-3 py-2 text-sm font-bold hover:bg-slate-50 transition disabled:opacity-50"
+          className="rounded-lg border border-slate-900 bg-amber-200 px-3 py-2 text-sm font-bold hover:bg-slate-50 transition disabled:opacity-50"
           disabled={saving}
         >
           {isEditing ? "Cancelar" : "Editar dirección"}
@@ -214,9 +214,9 @@ export default function ProfileInfo() {
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 p-4">
+        <div className="rounded-xl border border-amber-900 p-4 sm:col-span-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Usuario:
+            👤 Usuario:
           </p>
           <p className="mt-1 text-slate-900">
             {first || <span className="text-slate-400">—</span>}
@@ -232,19 +232,19 @@ export default function ProfileInfo() {
           </p>
         </div> */}
 
-        <div className="rounded-xl border border-slate-200 p-4 sm:col-span-2">
+        <div className="rounded-xl border border-amber-900 p-4 sm:col-span-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Email
+            📧 Email
           </p>
           <p className="mt-1 text-slate-900 break-all">
             {email || <span className="text-slate-400">—</span>}
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-200 p-4 sm:col-span-2">
+        <div className="rounded-xl border border-amber-900 p-4 sm:col-span-2">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Dirección
+              🏠 Dirección
             </p>
 
             {!savedAddress ? (

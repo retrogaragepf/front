@@ -48,10 +48,10 @@ function Footer() {
 
         {/* Categorías */}
         <div className="w-full max-w-55 mx-auto md:pl-4 text-center">
-          <h3 className="!text-base font-extrabold tracking-widest uppercase text-amber-900 mb-4">
+          <h3 className="text-base! font-extrabold tracking-widest uppercase text-amber-900 mb-4">
             Categorías
           </h3>
-          <ul className="font-handwritten space-y-2.5 !text-xs text-zinc-700">
+          <ul className="font-handwritten space-y-2.5 text-xs! text-zinc-700">
             <li>
               <Link
                 href="/categories/ropa-accesorios"
@@ -105,11 +105,11 @@ function Footer() {
         </div>
 
         {/* Ayuda */}
-        <div className="w-full max-w-[220px] mx-auto text-center">
-          <h3 className="!text-base font-extrabold tracking-widest uppercase text-amber-900 mb-4">
+        <div className="w-full max-w-55 mx-auto text-center">
+          <h3 className="text-base! font-extrabold tracking-widest uppercase text-amber-900 mb-4">
             Ayuda
           </h3>
-          <ul className="space-y-2.5 !text-xs text-zinc-700">
+          <ul className="space-y-2.5 text-xs! text-zinc-700">
             <li>
               <Link
                 href="/preguntas-frecuentes"
@@ -147,11 +147,11 @@ function Footer() {
         </div>
 
         {/* Registro */}
-        <div className="w-full max-w-[220px] mx-auto text-center">
-          <h3 className="!text-base font-extrabold tracking-widest uppercase text-amber-900 mb-4">
+        <div className="w-full max-w-55 mx-auto text-center">
+          <h3 className="text-base! font-extrabold tracking-widest uppercase text-amber-900 mb-4">
             Acceso de Usuario
           </h3>
-          <ul className="space-y-2.5 !text-xs text-zinc-700">
+          <ul className="space-y-2.5 text-xs! text-zinc-700">
             <li>
               <Link
                 href="/register"
@@ -172,8 +172,8 @@ function Footer() {
         </div>
 
         {/* Visítanos */}
-        <div className="w-full max-w-[220px] mx-auto text-center">
-          <h3 className="!text-base font-extrabold tracking-widest uppercase text-amber-900 mb-4">
+        <div className="w-full max-w-55 mx-auto text-center">
+          <h3 className="text-base! font-extrabold tracking-widest uppercase text-amber-900 mb-4">
             Visítanos
           </h3>
           <p className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4">

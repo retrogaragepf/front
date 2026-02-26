@@ -53,23 +53,17 @@ const Sidebar = (): ReactElement => {
           onClick={() => router.push("/dashboard/sales")}
           className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
         >
-          ¬ Mis Ventas
+          ¬ Mis Ventas 🚛
         </button>
 
         <button
           onClick={() => router.push("/dashboard/orders")}
           className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
         >
-          ¬ Mis Compras
+          ¬ Mis Compras 🛍️
         </button>
 
         {/* ✅ NUEVO LINK: Reseñas */}
-        <button
-          onClick={() => router.push("/dashboard/reviews")}
-          className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
-        >
-          Reseñas como vendedor
-        </button>
 
         <button
           onClick={handleOpenChat}
@@ -80,11 +74,17 @@ const Sidebar = (): ReactElement => {
           }`}
         >
           <span className="inline-flex items-center gap-2">
-            Chat con usuarios
+            ¬ Chat usuarios 💬
             {hasPendingChats && (
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-700" />
             )}
           </span>
+        </button>
+        <button
+          onClick={() => router.push("/dashboard/reviews")}
+          className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
+        >
+          ¬ Reseñas como vendedor
         </button>
       </nav>
 

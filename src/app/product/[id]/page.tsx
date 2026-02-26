@@ -105,7 +105,7 @@ const ProductDetailPage = () => {
   return (
     <div className="w-full bg-amber-100 text-zinc-900">
       <main className="max-w-7xl mx-auto px-6 py-10">
-        <section className="mt-6 rounded-2xl border-2 border-amber-900 bg-amber-50 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)] overflow-hidden">
+        <section className="mt-6 rounded-2xl border-2 border-amber-900 bg-amber-100 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)] overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2">
             <div className="p-5 md:p-6 border-b-2 md:border-b-0 md:border-r-2 border-amber-900">
               <div className="relative aspect-square rounded-xl border border-amber-300 bg-amber-100 overflow-hidden">
@@ -158,7 +158,7 @@ const ProductDetailPage = () => {
 
                 <Link
                   href="/cart"
-                  className="w-full sm:w-auto text-center font-handwritten px-4 py-3 rounded-xl border-2 border-amber-900 bg-amber-50 text-amber-900 font-extrabold tracking-wide text-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]"
+                  className="w-full sm:w-auto text-center font-handwritten px-4 py-3 rounded-xl border-2 border-amber-900 bg-amber-100 text-amber-900 font-extrabold tracking-wide text-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]"
                 >
                   Ver carrito
                 </Link>
@@ -193,12 +193,19 @@ const ProductDetailPage = () => {
                   className={`w-full sm:w-auto text-center font-handwritten px-4 py-3 rounded-xl border-2 font-extrabold tracking-wide text-sm ${
                     isOwnProduct
                       ? "border-zinc-400 bg-zinc-200 text-zinc-600 cursor-not-allowed opacity-90 shadow-none"
-                      : "border-amber-900 bg-amber-50 text-amber-900 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]"
+                      : "border-amber-900 bg-amber-100 text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]"
                   }`}
                 >
                   {isOwnProduct
                     ? "Chat no disponible"
                     : "Chatea con el vendedor"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="shrink-0 px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-px active:translate-y-px"
+                >
+                  Atrás
                 </button>
               </div>
             </div>

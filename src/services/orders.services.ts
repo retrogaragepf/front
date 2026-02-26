@@ -244,3 +244,36 @@ export async function getOrderById(
 
   return normalizeOrder(data);
 }
+
+export async function receiveOrder(
+  id: string,
+  tokenFromCaller?: string,
+): Promise<OrderDTO> {
+  const base = assertApiBaseUrl();
+  const token = tokenFromCaller ?? getAuthToken();
+
+  if (!id) throw new Error("Falta el id de la orden.");
+  if (!token)
+    throw new Error("No hay token. Inicia sesión para confirmar la entrega.");
+
+  const res = await fetch(`${base}/orders/${encodeURIComponent(id)}/receive`, {
+    method: "PATCH",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    const msg =
+      extractErrorMessage(data) ||
+      `No se pudo confirmar la entrega (HTTP ${res.status}).`;
+    throw new Error(msg);
+  }
+
+  // ✅ el back puede devolver la orden actualizada
+  return normalizeOrder(data);
+}

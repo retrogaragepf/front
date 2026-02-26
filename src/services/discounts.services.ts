@@ -36,8 +36,15 @@ export type DiscountDTO = {
   id: string;
   code: string;
   percentage: number;
+
   isActive: boolean;
   isUsed: boolean;
+
+  // ✅ campos que YA devuelve el back en GET /discounts
+  expiresAt?: string | null;
+  usedAt?: string | null;
+  usedByUserId?: string | null;
+  createdAt?: string | null;
 };
 
 export async function createDiscountCode(
@@ -90,4 +97,72 @@ export async function createDiscountCode(
   }
 
   return data as DiscountDTO;
+}
+
+/** ✅ traer listado de cupones generados */
+export async function getDiscountCodes(tokenFromContext?: string | null) {
+  const base = assertApiBaseUrl();
+  const tokenFromStorage = getAuthToken();
+  const token = tokenFromContext ?? tokenFromStorage;
+
+  // ✅ DEBUG temporal
+  console.log("getDiscountCodes DEBUG", {
+    base,
+    tokenFromContext: tokenFromContext
+      ? `${tokenFromContext.slice(0, 12)}...`
+      : null,
+    tokenFromStorage: tokenFromStorage
+      ? `${tokenFromStorage.slice(0, 12)}...`
+      : null,
+    finalToken: token ? `${token.slice(0, 12)}...` : null,
+  });
+
+  if (!token) {
+    throw new Error("Unauthorized: no hay token guardado.");
+  }
+
+  const res = await fetch(`${base}/discounts`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  // ✅ DEBUG temporal
+  console.log("getDiscountCodes RESPONSE", {
+    status: res.status,
+    ok: res.ok,
+    data,
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      data?.message || "No se pudo cargar el listado de cupones.",
+    );
+  }
+
+  // ✅ Normaliza por si el back devuelve {items: []} o {data: []}
+  const list =
+    (Array.isArray(data) ? data : null) ??
+    (Array.isArray((data as any)?.items) ? (data as any).items : null) ??
+    (Array.isArray((data as any)?.data) ? (data as any).data : null) ??
+    [];
+
+  return list as DiscountDTO[];
+}
+
+/** ✅ Helper: estado “humano” (Válido / Usado / Expirado / Inactivo) */
+export function computeDiscountStatus(d: DiscountDTO) {
+  const now = Date.now();
+  const expTs = d.expiresAt ? Date.parse(d.expiresAt) : NaN;
+  const isExpired = Number.isFinite(expTs) ? expTs <= now : false;
+
+  // prioridad: usado > expirado > inactivo > válido
+  if (d.isUsed) return { label: "Usado", tone: "used" as const };
+  if (isExpired) return { label: "Expirado", tone: "expired" as const };
+  if (!d.isActive) return { label: "Inactivo", tone: "inactive" as const };
+  return { label: "Válido", tone: "valid" as const };
 }

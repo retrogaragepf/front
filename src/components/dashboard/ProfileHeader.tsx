@@ -110,7 +110,6 @@ export default function ProfileHeader() {
                   setAvatarPublicId(publicId);
                   setAvatarUrl(secureUrl);
 
-
                   // ✅ Persistencia en backend (nuevo, aislado)
                   try {
                     const saved = await updateMyAvatar({
@@ -128,7 +127,6 @@ export default function ProfileHeader() {
                     );
                     // Si falla el PATCH, al menos queda visible en UI actual
                   }
-
                 }}
               />
             </div>
@@ -158,12 +156,8 @@ export default function ProfileHeader() {
         </div>
 
         <div className="hidden sm:flex flex-col items-end gap-2">
-          <span className="font-handwritten text-lg text-zinc-800">
-            Tu espacio personal
-          </span>
-          <span className="text-[10px] font-extrabold tracking-widest uppercase text-zinc-600">
-            Ajustes · Ventas · Reseñas
-          </span>
+          <span className="font-handwritten text-lg text-zinc-800"></span>
+          <span className="text-[10px] font-extrabold tracking-widest uppercase text-zinc-600"></span>
         </div>
       </div>
 

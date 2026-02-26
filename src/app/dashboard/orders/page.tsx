@@ -5,6 +5,7 @@ import Link from "next/link";
 import { showToast } from "nextjs-toast-notify";
 import { getMyOrders, type OrderDTO } from "@/src/services/orders.services";
 import { useAuth } from "@/src/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 function formatMoney(value: any) {
   return Number(value || 0).toLocaleString("es-AR");
@@ -71,18 +72,50 @@ function getDisplayStatus(o: OrderDTO) {
   return o.status?.toUpperCase() || "";
 }
 
+/** ✅ NUEVO: helpers tolerantes (no rompen nada) */
+function getFirstItem(o: OrderDTO): any | null {
+  const items = (o as any)?.items;
+  return Array.isArray(items) && items.length ? items[0] : null;
+}
+
+function getItemThumb(it: any): string {
+  const url =
+    it?.imgUrl ??
+    it?.imageUrl ??
+    it?.product?.imgUrl ??
+    it?.product?.imageUrl ??
+    it?.product?.image ??
+    "";
+  return typeof url === "string" ? url : "";
+}
+
+function getItemTitle(it: any): string {
+  const t = it?.title ?? it?.product?.title ?? it?.product?.name ?? "";
+  return typeof t === "string" ? t : "";
+}
+
+function getSellerEmail(it: any): string {
+  // si el backend lo manda anidado
+  const e =
+    it?.product?.user?.email ??
+    it?.product?.seller?.email ??
+    it?.seller?.email ??
+    "";
+  return typeof e === "string" ? e : "";
+}
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const { dataUser, isLoadingUser, isAuth } = useAuth();
 
   const sorted = useMemo(() => {
     return [...orders].sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   }, [orders]);
 
@@ -114,7 +147,7 @@ export default function OrdersPage() {
           headers: {
             Authorization: `Bearer ${dataUser.token}`,
           },
-        }
+        },
       );
 
       if (!res.ok) {
@@ -149,7 +182,7 @@ export default function OrdersPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-black text-zinc-900">
-              Mis Órdenes
+              Mis Compras
             </h1>
             <p className="text-zinc-700 mt-2">
               Aquí ves tus compras, estado y detalle de productos.
@@ -162,12 +195,17 @@ export default function OrdersPage() {
           >
             Actualizar
           </button>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="shrink-0 px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-px active:translate-y-px"
+          >
+            Atrás
+          </button>
         </div>
 
         {loading && <p className="mt-6">Cargando órdenes...</p>}
-        {!loading && error && (
-          <p className="mt-6 text-rose-600">{error}</p>
-        )}
+        {!loading && error && <p className="mt-6 text-rose-600">{error}</p>}
         {!loading && !error && sorted.length === 0 && (
           <p className="mt-6">No realizaste compras todavía.</p>
         )}
@@ -177,13 +215,19 @@ export default function OrdersPage() {
             {sorted.map((o) => {
               const displayStatus = getDisplayStatus(o);
 
+              // ✅ NUEVO: preview (1er item)
+              const firstItem = getFirstItem(o);
+              const productTitle = firstItem ? getItemTitle(firstItem) : "";
+              const thumb = firstItem ? getItemThumb(firstItem) : "";
+              const sellerEmail = firstItem ? getSellerEmail(firstItem) : "";
+
               return (
                 <div
                   key={o.id}
                   className="rounded-2xl border-2 border-zinc-900 bg-amber-200 p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]"
                 >
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-3 flex-wrap">
                         <Link
                           href={`/dashboard/orders/${o.id}`}
@@ -197,7 +241,7 @@ export default function OrdersPage() {
 
                         <span
                           className={`px-3 py-1 text-xs font-bold rounded-full border ${statusBadge(
-                            displayStatus
+                            displayStatus,
                           )}`}
                         >
                           {traducirEstado(displayStatus)}
@@ -223,6 +267,47 @@ export default function OrdersPage() {
                           Tracking aún no asignado.
                         </p>
                       )}
+
+                      {/* ✅ NUEVO: Producto + vendedor + miniatura */}
+                      <div className="mt-4 flex items-start gap-3 rounded-xl border border-zinc-900/25 bg-white/60 p-3">
+                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-zinc-900/20 bg-white">
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={thumb}
+                              alt={productTitle || "Producto"}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="h-full w-full grid place-items-center text-[10px] text-zinc-500">
+                              Sin imagen
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-zinc-900 truncate">
+                            {productTitle || "Producto"}
+                          </p>
+
+                          {/* <p className="text-xs text-zinc-700 mt-1">
+                            <span className="font-semibold">Vendedor:</span>{" "}
+                            {sellerEmail ? (
+                              <span className="break-all">{sellerEmail}</span>
+                            ) : (
+                              <span style={{ opacity: 0.7 }}>—</span>
+                            )}
+                          </p> */}
+
+                          {Array.isArray((o as any)?.items) &&
+                          (o as any).items.length > 1 ? (
+                            <p className="text-[11px] text-zinc-600 mt-1">
+                              + {(o as any).items.length - 1} producto(s) más
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="text-left md:text-right">

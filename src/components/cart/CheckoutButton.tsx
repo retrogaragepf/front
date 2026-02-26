@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/src/context/CartContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { createCheckoutSession } from "@/src/services/stripe.services";
 import { showToast } from "nextjs-toast-notify";
 
 export default function CheckoutButton() {
+  const router = useRouter();
   const { cartItems } = useCart();
   const { isAuth } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -16,7 +18,7 @@ export default function CheckoutButton() {
     () =>
       cartItems
         .map((it) => ({
-          productId: String(it.id ?? "").trim(), // tu UI id = productId
+          productId: String(it.id ?? "").trim(),
           quantity: Number(it.quantity ?? 0),
         }))
         .filter((x) => x.productId && x.quantity > 0),
@@ -25,9 +27,14 @@ export default function CheckoutButton() {
 
   const handleCheckout = async () => {
     if (!isAuth) {
-      showToast.error("Debes iniciar sesión para pagar.");
+      showToast.error("Necesitas registrarte primero", {
+        duration: 3000,
+        position: "top-center",
+      });
+      router.push("/register"); // ✅ cambia si tu ruta real es otra
       return;
     }
+
     if (!items.length) {
       showToast.error("Tu carrito está vacío.");
       return;
@@ -40,7 +47,19 @@ export default function CheckoutButton() {
       if (!url) throw new Error("Stripe no devolvió la URL de pago.");
       window.location.href = url;
     } catch (err: any) {
-      showToast.error(err?.message || "Error iniciando el pago.");
+      const msg = String(err?.message || "Error iniciando el pago.");
+
+      // ✅ por si el back responde 401 igual
+      if (msg.toLowerCase().includes("unauthorized")) {
+        showToast.error("Necesitas registrarte primero", {
+          duration: 3000,
+          position: "top-center",
+        });
+        router.push("/register");
+        return;
+      }
+
+      showToast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -60,4 +79,3 @@ export default function CheckoutButton() {
     </button>
   );
 }
-

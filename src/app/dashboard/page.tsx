@@ -11,6 +11,7 @@ import ProfileHeader from "@/src/components/dashboard/ProfileHeader";
 import MyProductsPanel from "@/src/components/dashboard/MyProductsPanel";
 
 import { useAuth } from "@/src/context/AuthContext";
+import ProfileInfo from "@/src/components/dashboard/ProfileInfo";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -24,7 +25,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isLoadingUser && !isLogged) {
-     
       router.replace("/register");
     }
   }, [isLoadingUser, isLogged, router]);
@@ -42,7 +42,7 @@ export default function DashboardPage() {
       <main className="flex-1 p-10 space-y-10">
         <ProfileHeader />
 
-        {!isLoadingUser && email ? (
+        {/* {!isLoadingUser && email ? (
           <section className="bg-amber-100 border-2 border-amber-900 rounded-2xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)]">
             <h3 className="text-zinc-800">
               <span className="font-extrabold tracking-wide text-amber-900">
@@ -56,9 +56,9 @@ export default function DashboardPage() {
             </p>
             <div className="mt-4 h-2 bg-emerald-900 rounded-lg" />
           </section>
-        ) : null}
+        ) : null} */}
 
-        {/* <StatsGrid /> */}
+        <ProfileInfo />
 
         <MyProductsPanel />
       </main>

@@ -7,6 +7,7 @@ import { showToast } from "nextjs-toast-notify";
 import { useAuth } from "@/src/context/AuthContext";
 import {
   getOrderById,
+  receiveOrder,
   type OrderDTO,
   type OrderItemDTO,
 } from "@/src/services/orders.services";
@@ -50,12 +51,14 @@ export default function OrderDetailPage() {
 
   const orderId = params?.id;
 
-  // ✅ AuthContext (token en memoria para evitar race con localStorage)
   const { dataUser, isLoadingUser, isAuth } = useAuth();
 
   const [order, setOrder] = useState<OrderDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ NUEVO: estado para confirmar entrega
+  const [isReceiving, setIsReceiving] = useState(false);
 
   const items = useMemo<OrderItemDTO[]>(
     () => (order?.items?.length ? order.items : []),
@@ -66,7 +69,6 @@ export default function OrderDetailPage() {
     return items.reduce((acc, it) => acc + (Number(it.subtotal) || 0), 0);
   }, [items]);
 
-  // ✅ silent toast para refrescos automáticos
   const load = async (opts?: { silent?: boolean }) => {
     setLoading(true);
     setError(null);
@@ -74,7 +76,6 @@ export default function OrderDetailPage() {
     try {
       if (!orderId) throw new Error("No se encontró el id en la URL.");
 
-      // ✅ pasa token desde contexto
       const data = await getOrderById(
         String(orderId),
         dataUser?.token ?? undefined,
@@ -90,7 +91,42 @@ export default function OrderDetailPage() {
     }
   };
 
-  // ✅ Carga principal SIN doble carga: espera hidratación auth
+  // ✅ NUEVO: confirmar entrega (buyer) => PATCH /orders/:id/receive
+  const handleReceive = async () => {
+    if (!orderId || isReceiving) return;
+
+    // Solo si está SHIPPED
+    if (!order || String(order.status).toUpperCase() !== "SHIPPED") return;
+
+    try {
+      setIsReceiving(true);
+      await receiveOrder(String(orderId), dataUser?.token ?? undefined);
+
+      showToast.success("Entrega confirmada ✅", {
+        duration: 2500,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+
+      // refresca la orden para ver status actualizado
+      await load({ silent: true });
+    } catch (e: any) {
+      showToast.error(e?.message || "No se pudo confirmar la entrega.", {
+        duration: 3500,
+        progress: true,
+        position: "top-center",
+        transition: "popUp",
+        icon: "",
+        sound: true,
+      });
+    } finally {
+      setIsReceiving(false);
+    }
+  };
+
   useEffect(() => {
     if (isLoadingUser) return;
 
@@ -112,7 +148,6 @@ export default function OrderDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId, isLoadingUser, isAuth, dataUser?.token]);
 
-  // ✅ Refrescar al volver con atrás/adelante (bfcache) y al volver a la pestaña
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted && !isLoadingUser && isAuth && orderId) {
@@ -141,6 +176,9 @@ export default function OrderDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId, isLoadingUser, isAuth, dataUser?.token]);
 
+  const canReceive =
+    !!order && String(order.status).toUpperCase() === "SHIPPED";
+
   return (
     <div className="min-h-screen bg-amber-100">
       <div className="max-w-6xl mx-auto p-6 md:p-12">
@@ -155,18 +193,37 @@ export default function OrderDetailPage() {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
             <Link
               href="/dashboard/orders"
               className="px-4 py-2 rounded-xl border-2 border-zinc-900 bg-white hover:bg-zinc-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
             >
               Volver
             </Link>
+
             <button
               onClick={() => load()}
               className="px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-200 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]"
             >
               Refrescar
+            </button>
+
+            {/* ✅ NUEVO: Confirmar entrega (solo buyer, status SHIPPED) */}
+            <button
+              onClick={handleReceive}
+              disabled={!canReceive || isReceiving || loading}
+              className={`px-4 py-2 rounded-xl border-2 border-zinc-900 font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] transition-all ${
+                !canReceive || isReceiving || loading
+                  ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                  : "bg-emerald-700 hover:bg-emerald-800 text-white"
+              }`}
+              title={
+                canReceive
+                  ? "Confirmar que recibiste tu pedido"
+                  : "Disponible cuando el pedido esté en SHIPPED"
+              }
+            >
+              {isReceiving ? "Confirmando..." : "Confirmar entrega"}
             </button>
           </div>
         </div>
@@ -254,6 +311,14 @@ export default function OrderDetailPage() {
                     <p className="text-zinc-500 text-xs mt-2 font-mono">
                       payment_intent: {order.stripePaymentIntentId.slice(0, 18)}
                       …
+                    </p>
+                  ) : null}
+
+                  {/* ✅ NUEVO: guía visual */}
+                  {canReceive ? (
+                    <p className="mt-3 text-sm text-emerald-900 font-semibold">
+                      Tu pedido está en camino. Cuando lo recibas, presiona{" "}
+                      <span className="font-black">“Confirmar entrega”</span>.
                     </p>
                   ) : null}
                 </div>

@@ -8,29 +8,25 @@ import UsersSection from "@/src/components/admin/UsersSection";
 import ProductRequestsSection from "@/src/components/admin/ProductRequestsSection";
 import AdminChatsSection from "@/src/components/admin/AdminChatsSection";
 import AdminSalesSection from "@/src/components/admin/AdminSalesSection";
+import AdminCouponsView from "@/src/components/admin/AdminCouponsView";
+
+type AdminSection = "users" | "products" | "chats" | "sales" | "coupons";
 
 export default function AdminDashboard(): ReactElement {
   const searchParams = useSearchParams();
-  const sectionParam = searchParams.get("section") as
-    | "users"
-    | "products"
-    | "chats"
-    | "sales"
-    | null;
+  const sectionParam = searchParams.get("section") as AdminSection | null;
   const autoOpenPending = searchParams.get("openChat") === "1";
-  const initialSection =
+
+  const initialSection: AdminSection =
     sectionParam === "users" ||
     sectionParam === "products" ||
     sectionParam === "chats" ||
-    sectionParam === "sales"
+    sectionParam === "sales" ||
+    sectionParam === "coupons"
       ? sectionParam
       : "users";
 
-  const [section, setSection] = useState<
-    "users" | "products" | "chats" | "sales"
-  >(
-    initialSection,
-  );
+  const [section, setSection] = useState<AdminSection>(initialSection);
 
   useEffect(() => {
     if (!sectionParam) return;
@@ -40,13 +36,15 @@ export default function AdminDashboard(): ReactElement {
     return () => window.cancelAnimationFrame(rafId);
   }, [sectionParam]);
 
-
   return (
     <AdminLayout section={section} setSection={setSection}>
       {section === "users" && <UsersSection />}
       {section === "products" && <ProductRequestsSection />}
-      {section === "chats" && <AdminChatsSection autoOpenPending={autoOpenPending} />}
+      {section === "chats" && (
+        <AdminChatsSection autoOpenPending={autoOpenPending} />
+      )}
       {section === "sales" && <AdminSalesSection />}
+      {section === "coupons" && <AdminCouponsView />}
     </AdminLayout>
   );
 }

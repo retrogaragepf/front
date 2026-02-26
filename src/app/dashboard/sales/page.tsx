@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Venta = {
   id: string;
@@ -15,6 +16,8 @@ type Venta = {
     user: {
       id: string;
       email: string;
+      name?: string;
+      address?: string;
     };
   };
 };
@@ -22,36 +25,72 @@ type Venta = {
 export default function SalesPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authMissing, setAuthMissing] = useState(false);
+  const router = useRouter();
 
-  const API = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const API =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com";
+
+  const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
   const getToken = () => {
-    const raw = localStorage.getItem("retrogarage_auth");
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw).token;
-    } catch {
-      return null;
+    if (typeof window === "undefined") return null;
+
+    // ✅ probamos la key real del proyecto + fallback
+    const keys = [TOKEN_KEY, "retrogarage_auth"];
+
+    for (const k of keys) {
+      const raw = localStorage.getItem(k);
+      console.log(`[SalesPage] localStorage ${k}:`, raw ? "OK" : "EMPTY");
+      if (!raw) continue;
+
+      // ✅ JWT pelado
+      if (raw.startsWith("eyJ")) return raw;
+
+      // ✅ JSON { token }
+      try {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.token === "string") return parsed.token;
+      } catch {}
     }
+
+    return null;
   };
 
   const fetchVentas = async () => {
+    console.log("[SalesPage] fetchVentas() start. API =", API);
+
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+      console.log("[SalesPage] No token => no se puede pedir ventas.");
+      setAuthMissing(true);
+      setLoading(false);
+      return;
+    }
 
     try {
-      const res = await fetch(`${API}/ventas/mis-ventas`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const url = `${API}/ventas/mis-ventas`;
+      console.log("[SalesPage] GET", url);
+
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      const data = await res.json();
-      console.log("VENTAS ACTUALIZADAS:", data);
+      console.log("[SalesPage] Response status:", res.status);
 
-      setVentas(data);
+      const text = await res.text();
+      console.log("[SalesPage] Raw body:", text);
+
+      let data: any = [];
+      try {
+        data = text ? JSON.parse(text) : [];
+      } catch {
+        data = [];
+      }
+
+      setVentas(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Error cargando ventas:", err);
+      console.error("[SalesPage] Error cargando ventas:", err);
     } finally {
       setLoading(false);
     }
@@ -59,25 +98,26 @@ export default function SalesPage() {
 
   const cambiarEstado = async (
     id: string,
-    status: "SHIPPED" | "DELIVERED" | "CANCELLED"
+    status: "SHIPPED" | "DELIVERED" | "CANCELLED",
   ) => {
     const token = getToken();
     if (!token) return;
 
     try {
-      console.log("CAMBIANDO ESTADO:", id, status);
+      const url = `${API}/ventas/${id}/status`;
+      console.log("[SalesPage] PATCH", url, "=>", status);
 
-      const res = await fetch(`${API}/ventas/${id}/status`, {
+      const res = await fetch(url, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status }), // 🔥 ahora va en MAYÚSCULA
+        body: JSON.stringify({ status }),
       });
 
       const text = await res.text();
-      console.log("RESPUESTA PATCH:", res.status, text);
+      console.log("[SalesPage] PATCH status:", res.status, "body:", text);
 
       if (!res.ok) {
         console.error("Error actualizando estado");
@@ -92,13 +132,35 @@ export default function SalesPage() {
 
   useEffect(() => {
     fetchVentas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) return <p>Cargando ventas...</p>;
 
+  if (authMissing) {
+    return (
+      <section style={{ padding: "2rem" }}>
+        <h1>Mis ventas</h1>
+        <p style={{ opacity: 0.8 }}>
+          No hay sesión activa (token). Inicia sesión para ver tus ventas.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section style={{ padding: "2rem" }}>
-      <h1>Mis ventas</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-black">Mis ventas</h1>
+
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="shrink-0 px-2 py-1 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-px active:translate-y-px"
+        >
+          Atrás
+        </button>
+      </div>
 
       {ventas.length === 0 && <p>No tenés ventas</p>}
 
@@ -115,7 +177,25 @@ export default function SalesPage() {
             <h3>{venta.title}</h3>
 
             <p>
-              <b>Cliente:</b> {venta.order.user.email}
+              <b>Comprador:</b>{" "}
+              {venta.order.user.name ? (
+                venta.order.user.name
+              ) : (
+                <span style={{ opacity: 0.7 }}>—</span>
+              )}
+            </p>
+
+            <p>
+              <b>Email:</b> {venta.order.user.email}
+            </p>
+
+            <p>
+              <b>Dirección de envío:</b>{" "}
+              {venta.order.user.address ? (
+                venta.order.user.address
+              ) : (
+                <span style={{ opacity: 0.7 }}>—</span>
+              )}
             </p>
 
             <p>
@@ -147,8 +227,8 @@ export default function SalesPage() {
                   font-bold
                   shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)]
                   hover:bg-amber-400
-                  active:translate-x-[1px]
-                  active:translate-y-[1px]
+                  active:translate-x-px
+                  active:translate-y-px
                   transition-all
                 "
               >

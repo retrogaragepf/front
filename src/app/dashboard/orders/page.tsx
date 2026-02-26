@@ -319,7 +319,7 @@ export default function OrdersPage() {
                       <div className="mt-3">
                         <Link
                           href={`/dashboard/orders/${o.id}`}
-                          className="inline-block px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-zinc-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-[1px] active:translate-y-[1px]"
+                          className="inline-block px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-zinc-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-px active:translate-y-px"
                         >
                           Ver detalle
                         </Link>
@@ -329,7 +329,7 @@ export default function OrdersPage() {
                         <div className="mt-3">
                           <button
                             onClick={() => markAsReceived(o.id)}
-                            className="inline-block px-4 py-2 rounded-xl border-2 border-zinc-900 bg-emerald-300 hover:bg-emerald-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-[1px] active:translate-y-[1px]"
+                            className="inline-block px-4 py-2 rounded-xl border-2 border-zinc-900 bg-emerald-300 hover:bg-emerald-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-px active:translate-y-px"
                           >
                             Marcar como recibido
                           </button>

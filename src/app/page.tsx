@@ -6,7 +6,6 @@ import Card from "../components/Card";
 import type { IProduct } from "@/src/interfaces/product.interface";
 import { showToast } from "nextjs-toast-notify";
 
-// SOLO TOKEN. KEY ARRIBA, API_BASE_URL DENTRO
 const TOKEN_KEY = process.env.NEXT_PUBLIC_JWT_TOKEN_KEY || "retrogarage_auth";
 
 async function parseJsonSafe(res: Response) {
@@ -22,7 +21,7 @@ export default function Product() {
   useEffect(() => {
     const run = async () => {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL; // SE DEBE LEER DENTRO para evitar errores en build
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
         if (!API_BASE_URL) {
           throw new Error("NEXT_PUBLIC_API_BASE_URL no está definido");
         }

@@ -204,7 +204,7 @@ const LoginForm = () => {
             <div className="relative z-10 ">
               <div className="text-center space-y-2">
                 <h2 className="font-display text-3xl text-amber-900 font-bold">
-                  Login
+                  Acceso
                 </h2>
                 <p className="text-lg text-zinc-700 font-handwritten pb-2">
                   Inicia sesión para volver a RetroGarage
@@ -219,7 +219,7 @@ const LoginForm = () => {
                     sessionStorage.setItem("google-login", "true");
                     signIn("google", { callbackUrl: "/login" });
                   }}
-                  className="w-full rounded-xl bg-amber-100 border border-gray-300 hover:bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 pt-3"
+                  className=" text-gray-700 w-full rounded-xl bg-amber-100 border border-gray-700 hover:bg-gray-100 px-4 py-3 font-medium transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 pt-3"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
@@ -358,13 +358,13 @@ const LoginForm = () => {
                 </button>
               </form>
 
-              <p className="text-center text-sm text-emerald-800 pt-4 ">
+              <p className="text-center text-sm text-black ">
                 ¿No tienes cuenta?{" "}
                 <Link
                   href="/register"
-                  className="font-bold text-amber-900 hover:text-amber-800 transition-colors"
+                  className=" text-black hover:text-amber-900 transition-colors"
                 >
-                  Regístrate
+                    Regístrate
                 </Link>
               </p>
             </div>

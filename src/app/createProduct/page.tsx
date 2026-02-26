@@ -276,6 +276,13 @@ export default function CreateProductPage() {
           >
             {isSubmitting ? "Publicando..." : "Publicar producto"}
           </button>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="shrink-0 px-4 py-2 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-px active:translate-y-px"
+          >
+            Atrás
+          </button>
         </form>
       </div>
     </main>

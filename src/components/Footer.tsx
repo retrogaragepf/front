@@ -112,6 +112,15 @@ function Footer() {
           <ul className="space-y-2.5 !text-xs text-zinc-700">
             <li>
               <Link
+                href="/preguntas-frecuentes"
+                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
+              >
+                Preguntas Frecuentes
+              </Link>
+            </li>
+
+            <li>
+              <Link
                 href="/envios"
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
@@ -132,14 +141,6 @@ function Footer() {
                 className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
               >
                 Guía de Estado
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/preguntas-frecuentes"
-                className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4"
-              >
-                Preguntas Frecuentes
               </Link>
             </li>
           </ul>
@@ -175,10 +176,10 @@ function Footer() {
           <h3 className="!text-base font-extrabold tracking-widest uppercase text-amber-900 mb-4">
             Visítanos
           </h3>
-          <p className="font-handwritten !text-xs text-zinc-700 leading-relaxed mb-3">
+          <p className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4">
             www.retrogaragepf.com
           </p>
-          <p className="font-handwritten !text-xs text-zinc-700 leading-relaxed">
+          <p className="font-handwritten hover:text-emerald-900 hover:underline underline-offset-4">
             Calle de los Anticuarios 42 <br />
             Barrio Viejo, CP 28001
           </p>

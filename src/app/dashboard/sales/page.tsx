@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Venta = {
   id: string;
@@ -25,6 +26,7 @@ export default function SalesPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
   const [authMissing, setAuthMissing] = useState(false);
+  const router = useRouter();
 
   const API =
     process.env.NEXT_PUBLIC_API_BASE_URL || "https://back-0o27.onrender.com";
@@ -148,7 +150,17 @@ export default function SalesPage() {
 
   return (
     <section style={{ padding: "2rem" }}>
-      <h1>Mis ventas</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-black">Mis ventas</h1>
+
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="shrink-0 px-2 py-1 rounded-xl border-2 border-zinc-900 bg-amber-100 hover:bg-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-px active:translate-y-px"
+        >
+          Atrás
+        </button>
+      </div>
 
       {ventas.length === 0 && <p>No tenés ventas</p>}
 

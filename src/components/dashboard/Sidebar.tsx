@@ -8,7 +8,9 @@ import { showToast } from "nextjs-toast-notify";
 const Sidebar = (): ReactElement => {
   const router = useRouter();
   const { openChat, conversations } = useChat();
-  const pendingChats = conversations.filter((conversation) => conversation.unreadCount > 0).length;
+  const pendingChats = conversations.filter(
+    (conversation) => conversation.unreadCount > 0,
+  ).length;
   const hasPendingChats = pendingChats > 0;
 
   const handleOpenChat = () => {
@@ -35,7 +37,7 @@ const Sidebar = (): ReactElement => {
       <nav className="flex-1 p-4 space-y-2 font-sans">
         <button
           onClick={() => router.push("/dashboard")}
-          className="w-full px-4 py-3 rounded-lg border-2 bg-amber-100 border-amber-900 font-bold text-left text-amber-900"
+          className="w-full px-4 py-3  bg-amber-100 border-amber-900 font-bold text-left text-amber-900"
         >
           Panel Principal
         </button>
@@ -58,10 +60,8 @@ const Sidebar = (): ReactElement => {
           onClick={() => router.push("/dashboard/orders")}
           className="w-full px-4 py-3 rounded-lg border-2 border-transparent hover:border-slate-900 hover:bg-amber-100 transition text-left"
         >
-          ¬ Mis Ordenes
+          ¬ Mis Compras
         </button>
-
-     
 
         {/* ✅ NUEVO LINK: Reseñas */}
         <button
@@ -88,9 +88,7 @@ const Sidebar = (): ReactElement => {
         </button>
       </nav>
 
-      <div className="p-4 border-t-2 border-dashed space-y-3">
-      
-      </div>
+      <div className="p-4 border-t-2 border-dashed space-y-3"></div>
     </aside>
   );
 };

@@ -3,14 +3,19 @@
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { showToast } from "nextjs-toast-notify";
-import { createDiscountCode } from "@/src/services/discounts.services";
+import {
+  createDiscountCode,
+  getDiscountCodes,
+  computeDiscountStatus,
+  type DiscountDTO,
+} from "@/src/services/discounts.services";
 import { useAuth } from "@/src/context/AuthContext";
 import { adminChatService } from "@/src/services/adminChat.services";
 
 type Props = {
   children: ReactNode;
-  section: "users" | "products" | "chats" | "sales";
-  setSection: (s: "users" | "products" | "chats" | "sales") => void;
+  section: "users" | "products" | "chats" | "sales" | "coupons";
+  setSection: (s: "users" | "products" | "chats" | "sales" | "coupons") => void;
 };
 
 const ADMIN_READ_CHATS_STORAGE_KEY = "admin_read_chats";
@@ -36,10 +41,17 @@ function loadAdminReadMarkers(): Record<string, number> {
 }
 
 function hasPendingAdminChat(
-  chat: { id: string; unreadCount: number; timestamp: string; lastMessage: string },
+  chat: {
+    id: string;
+    unreadCount: number;
+    timestamp: string;
+    lastMessage: string;
+  },
   readMarkers: Record<string, number>,
 ): boolean {
-  const hasActivity = Boolean((chat.lastMessage || "").trim() || (chat.timestamp || "").trim());
+  const hasActivity = Boolean(
+    (chat.lastMessage || "").trim() || (chat.timestamp || "").trim(),
+  );
   if (!hasActivity) return false;
 
   const readAt = readMarkers[chat.id] ?? 0;
@@ -53,6 +65,19 @@ function hasPendingAdminChat(
   }
   if (!hasValidTs) return false;
   return chatTs > readAt;
+}
+
+function toDateLabel(iso?: string | null) {
+  if (!iso) return "-";
+  const t = Date.parse(String(iso));
+  if (!Number.isFinite(t)) return "-";
+  return new Date(t).toLocaleString("es-CO", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function AdminLayout({
@@ -74,6 +99,15 @@ export default function AdminLayout({
   const [isCouponPanelOpen, setIsCouponPanelOpen] = useState(false);
   const [hasPendingChats, setHasPendingChats] = useState(false);
 
+  // ✅ NUEVO: listado cupones
+  const [couponList, setCouponList] = useState<DiscountDTO[]>([]);
+  const [isLoadingCoupons, setIsLoadingCoupons] = useState(false);
+  const [couponListError, setCouponListError] = useState<string | null>(null);
+
+  // ✅ NUEVO: buscador + filtro
+  const [couponQuery, setCouponQuery] = useState("");
+  const [onlyValidCoupons, setOnlyValidCoupons] = useState(false);
+
   useEffect(() => {
     let canceled = false;
 
@@ -87,7 +121,9 @@ export default function AdminLayout({
         const chats = await adminChatService.getConversations();
         if (canceled) return;
         const readMarkers = loadAdminReadMarkers();
-        const pending = chats.some((chat) => hasPendingAdminChat(chat, readMarkers));
+        const pending = chats.some((chat) =>
+          hasPendingAdminChat(chat, readMarkers),
+        );
         setHasPendingChats(pending);
       } catch {
         if (!canceled) setHasPendingChats(false);
@@ -104,6 +140,44 @@ export default function AdminLayout({
       window.clearInterval(intervalId);
     };
   }, [dataUser?.token, isAuth, isLoadingUser]);
+
+  const loadCoupons = async () => {
+    if (isLoadingCoupons) return;
+
+    if (isLoadingUser) {
+      showToast.info("Cargando sesión... intenta de nuevo en un momento.", {
+        duration: 1800,
+      });
+      return;
+    }
+
+    if (!isAuth || !dataUser?.token) {
+      showToast.error("Debes iniciar sesión como admin.", { duration: 2200 });
+      return;
+    }
+
+    setIsLoadingCoupons(true);
+    setCouponListError(null);
+
+    try {
+      const list = await getDiscountCodes(dataUser.token);
+      setCouponList(Array.isArray(list) ? list : []);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Error cargando cupones";
+      setCouponListError(msg);
+      setCouponList([]);
+    } finally {
+      setIsLoadingCoupons(false);
+    }
+  };
+
+  // ✅ auto-carga cuando abrís el panel (no rompe nada)
+  useEffect(() => {
+    if (!isCouponPanelOpen) return;
+    void loadCoupons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCouponPanelOpen]);
+
   const onCreateDiscount = async () => {
     if (isCreatingDiscount) return;
 
@@ -134,7 +208,6 @@ export default function AdminLayout({
     setIsCreatingDiscount(true);
 
     try {
-      // ✅ pasa token directo (ver cambio en service abajo)
       const res = await createDiscountCode({ percentage: pct }, dataUser.token);
 
       const code = String(res?.code ?? "").trim();
@@ -155,6 +228,9 @@ export default function AdminLayout({
       } catch {
         // ignore
       }
+
+      // ✅ refrescar listado si el panel está abierto
+      if (isCouponPanelOpen) void loadCoupons();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Error generando el cupón";
       showToast.error(msg, {
@@ -192,6 +268,31 @@ Gracias por comprar en RetroGarage™ 🛍️`;
       showToast.error("No se pudo copiar al portapapeles", { duration: 1800 });
     }
   };
+
+  const filteredCoupons = useMemo(() => {
+    const q = couponQuery.trim().toLowerCase();
+
+    return couponList
+      .slice()
+      .sort((a, b) => {
+        const ta = Date.parse(String(a.createdAt ?? ""));
+        const tb = Date.parse(String(b.createdAt ?? ""));
+        if (!Number.isFinite(tb) && !Number.isFinite(ta)) return 0;
+        if (!Number.isFinite(tb)) return -1;
+        if (!Number.isFinite(ta)) return 1;
+        return tb - ta;
+      })
+      .filter((d) => {
+        if (!q) return true;
+        return String(d.code ?? "")
+          .toLowerCase()
+          .includes(q);
+      })
+      .filter((d) => {
+        if (!onlyValidCoupons) return true;
+        return computeDiscountStatus(d).tone === "valid";
+      });
+  }, [couponList, couponQuery, onlyValidCoupons]);
 
   return (
     <div className="min-h-screen flex bg-amber-100 relative">
@@ -231,7 +332,7 @@ Gracias por comprar en RetroGarage™ 🛍️`;
                 ? "bg-amber-200 text-amber-900"
                 : hasPendingChats
                   ? "bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
-                : "bg-white text-amber-900 hover:bg-amber-100"
+                  : "bg-white text-amber-900 hover:bg-amber-100"
             }`}
             title="Abrir gestión de chats"
           >
@@ -253,9 +354,19 @@ Gracias por comprar en RetroGarage™ 🛍️`;
           >
             Compras y Ventas
           </button>
+          <button
+            onClick={() => setSection("coupons")}
+            className={`px-4 py-3 rounded-xl border-2 border-amber-900 font-extrabold text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)] transition ${
+              section === "coupons"
+                ? "bg-amber-200 text-amber-900"
+                : "bg-white text-amber-900 hover:bg-amber-100"
+            }`}
+          >
+            Cupones
+          </button>
 
           {/* ✅ Bloque cupón */}
-          <div className="mt-2 px-4 py-4 rounded-xl border-2 border-amber-900 bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]">
+          {/* <div className="mt-2 px-4 py-4 rounded-xl border-2 border-amber-900 bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,0.85)]">
             <div className="flex items-center justify-between gap-2 mb-2">
               <p className="text-sm font-extrabold text-amber-900">
                 Crear cupón de descuento
@@ -265,7 +376,7 @@ Gracias por comprar en RetroGarage™ 🛍️`;
                 type="button"
                 onClick={() => setIsCouponPanelOpen(true)}
                 className="px-2 py-1 rounded-md border border-amber-900 text-[11px] font-bold text-amber-900 hover:bg-amber-100"
-                title="Abrir plantilla de mensaje"
+                title="Abrir plantilla + listado"
               >
                 Abrir panel
               </button>
@@ -329,7 +440,7 @@ Gracias por comprar en RetroGarage™ 🛍️`;
                 </div>
               </div>
             ) : null}
-          </div>
+          </div> */}
         </nav>
 
         <div className="mt-auto pt-10 text-sm text-zinc-500">
@@ -394,16 +505,14 @@ Gracias por comprar en RetroGarage™ 🛍️`;
       {/* Contenido normal (NO se toca) */}
       <main className="flex-1 p-10 md:p-10 pt-28 md:pt-10">{children}</main>
 
-      {/* ✅ Panel derecho / modal flotante de cupones (no rompe auth) */}
+      {/* ✅ Panel derecho / modal flotante de cupones */}
       {isCouponPanelOpen && (
         <>
-          {/* overlay */}
           <div
             className="fixed inset-0 bg-black/35 z-40"
             onClick={() => setIsCouponPanelOpen(false)}
           />
 
-          {/* panel */}
           <aside className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white border-l-2 border-amber-900 shadow-[-8px_0px_0px_0px_rgba(0,0,0,0.85)] z-50 p-6 overflow-y-auto">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -540,6 +649,172 @@ Gracias por comprar en RetroGarage™ 🛍️`;
               >
                 Cerrar panel
               </button>
+            </div>
+
+            {/* ✅ LISTADO + BUSCADOR + SOLO VÁLIDOS + COPIAR */}
+            <div className="mt-8">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-lg font-extrabold text-amber-900">
+                  Cupones generados
+                </h3>
+
+                <button
+                  type="button"
+                  onClick={loadCoupons}
+                  className={`px-3 py-2 rounded-lg border-2 border-amber-900 font-bold ${
+                    isLoadingCoupons
+                      ? "bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                      : "bg-white text-amber-900 hover:bg-amber-100"
+                  }`}
+                  disabled={isLoadingCoupons}
+                >
+                  {isLoadingCoupons ? "Cargando..." : "Refrescar"}
+                </button>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+                <input
+                  value={couponQuery}
+                  onChange={(e) => setCouponQuery(e.target.value)}
+                  placeholder="Buscar por código…"
+                  className="w-full px-3 py-2 rounded-lg border-2 border-amber-900 bg-white text-amber-900 font-bold outline-none"
+                />
+
+                <label className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-amber-900 bg-amber-50">
+                  <input
+                    type="checkbox"
+                    checked={onlyValidCoupons}
+                    onChange={(e) => setOnlyValidCoupons(e.target.checked)}
+                    className="h-4 w-4 accent-emerald-700"
+                  />
+                  <span className="text-sm font-extrabold text-amber-900">
+                    Solo válidos
+                  </span>
+                </label>
+
+                <div className="flex items-center justify-between px-3 py-2 rounded-lg border-2 border-amber-900 bg-white">
+                  <span className="text-sm font-bold text-zinc-600">
+                    Mostrando
+                  </span>
+                  <span className="text-sm font-extrabold text-amber-900">
+                    {filteredCoupons.length}
+                  </span>
+                </div>
+              </div>
+
+              {couponListError ? (
+                <div className="mt-3 rounded-xl border-2 border-rose-900 bg-rose-50 p-3">
+                  <p className="text-sm font-bold text-rose-900">
+                    {couponListError}
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="mt-4 rounded-xl border-2 border-amber-900 overflow-hidden bg-white">
+                <div className="max-h-96 overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-amber-100 border-b-2 border-amber-900">
+                      <tr className="text-left">
+                        <th className="px-3 py-2 font-extrabold text-amber-900">
+                          Código
+                        </th>
+                        <th className="px-3 py-2 font-extrabold text-amber-900">
+                          %
+                        </th>
+                        <th className="px-3 py-2 font-extrabold text-amber-900">
+                          Estado
+                        </th>
+                        <th className="px-3 py-2 font-extrabold text-amber-900">
+                          Expira
+                        </th>
+                        <th className="px-3 py-2 font-extrabold text-amber-900">
+                          Usado
+                        </th>
+                        <th className="px-3 py-2 font-extrabold text-amber-900">
+                          Usado por
+                        </th>
+                        <th className="px-3 py-2 font-extrabold text-amber-900">
+                          Creado
+                        </th>
+                        <th className="px-3 py-2 font-extrabold text-amber-900">
+                          Acción
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {isLoadingCoupons ? (
+                        <tr>
+                          <td className="px-3 py-3 text-zinc-600" colSpan={8}>
+                            Cargando cupones...
+                          </td>
+                        </tr>
+                      ) : filteredCoupons.length === 0 ? (
+                        <tr>
+                          <td className="px-3 py-3 text-zinc-600" colSpan={8}>
+                            No hay cupones para mostrar.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredCoupons.map((d) => {
+                          const st = computeDiscountStatus(d);
+
+                          const badge =
+                            st.tone === "valid"
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-900"
+                              : st.tone === "used"
+                                ? "bg-amber-100 text-amber-900 border-amber-900"
+                                : st.tone === "expired"
+                                  ? "bg-rose-100 text-rose-900 border-rose-900"
+                                  : "bg-zinc-100 text-zinc-700 border-zinc-700";
+
+                          return (
+                            <tr key={d.id} className="border-b border-zinc-100">
+                              <td className="px-3 py-2 font-extrabold text-amber-900 break-all">
+                                {d.code}
+                              </td>
+                              <td className="px-3 py-2 text-zinc-800 font-bold">
+                                {d.percentage}%
+                              </td>
+                              <td className="px-3 py-2">
+                                <span
+                                  className={`inline-flex items-center px-2 py-1 rounded-full border text-xs font-extrabold ${badge}`}
+                                >
+                                  {st.label}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-zinc-700">
+                                {toDateLabel(d.expiresAt ?? null)}
+                              </td>
+                              <td className="px-3 py-2 text-zinc-700 font-bold">
+                                {d.isUsed ? "Sí" : "No"}
+                                {d.usedAt ? ` (${toDateLabel(d.usedAt)})` : ""}
+                              </td>
+                              <td className="px-3 py-2 text-zinc-700 break-all">
+                                {d.usedByUserId || "-"}
+                              </td>
+                              <td className="px-3 py-2 text-zinc-700">
+                                {toDateLabel(d.createdAt ?? null)}
+                              </td>
+                              <td className="px-3 py-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    copyText(d.code, "Cupón copiado")
+                                  }
+                                  className="px-3 py-2 rounded-lg border-2 border-amber-900 bg-white text-amber-900 text-xs font-bold hover:bg-amber-100"
+                                >
+                                  Copiar
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </aside>
         </>

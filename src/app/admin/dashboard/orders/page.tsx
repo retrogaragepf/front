@@ -6,9 +6,9 @@ import { useState } from "react";
 import { OrderStatus } from "@/src/types/types";
 
 export default function AdminOrdersPage() {
-  const [section, setSection] = useState<
-    "users" | "sales" | "products" | "chats"
-  >("products");
+  type AdminSection = "users" | "sales" | "products" | "chats" | "coupons";
+
+  const [section, setSection] = useState<AdminSection>("products");
 
   const order = {
     id: "12345",
